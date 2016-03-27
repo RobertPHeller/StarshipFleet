@@ -1,1 +1,1 @@
-SUBDIRS = BuildData BuildScripts Docs Scripts
+SUBDIRS = BuildData BuildScripts Docs Scripts UserManual po intl

@@ -1,4 +1,4 @@
-#*****************************************************************************
+##-*- makefile -*-############################################################
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160327.1530>
+#  Created       : Sun Mar 27 15:58:20 2016
+#  Last Modified : <160327.1603>
 #
 #  Description	
 #
@@ -16,7 +16,9 @@
 #
 #  History
 #	
-#*****************************************************************************
+#  $Log$
+#
+##############################################################################
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -38,33 +40,24 @@
 #
 # 
 #
-#*****************************************************************************
+##############################################################################
 
 
-package require snit
+POFILES = $(wildcard *.po)
+EXTRA_DIST = $(POFILES)
 
+en.po:	../../Starships.pot
+	$(MSGEN) --force-po -o en.po ../../Starships.pot
+	
+msgfiles: $(patsubst %.po,%.msg,$(POFILES)) en.msg
 
+%.msg : %.po
+	$(MSGFMT) -l $* --tcl -d . $<
+	
 
+CLEANFILES = en.po *.msg 
 
-namespace eval starships {
-    ##
-    # @brief Starship code, Version 0
-    #
-    # This is an idea that came to me in a dream.  Don't know where it will
-    # lead.
-    #
-    # @author Robert Heller \<heller\@deepsoft.com\>
-    #
-    
-    snit::type Starship {
-        ## @brief Main Starship type.
-        #
-        # Defines a Starship object.
-        #
-        
-        
-    }
+../../Starships.pot: FORCE
+	$(MAKE) -C ../../ Starships.pot
 
-}
-
-
+FORCE:
