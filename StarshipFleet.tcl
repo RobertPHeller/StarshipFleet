@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160327.1530>
+#  Last Modified : <160328.1433>
 #
 #  Description	
 #
@@ -56,13 +56,455 @@ namespace eval starships {
     # @author Robert Heller \<heller\@deepsoft.com\>
     #
     
+    snit::enum StarshipClasses -values {
+        ## @enum StarshipClasses
+        # Starship classes
+        #
+        destroyer
+        ## @brief Destroyer
+        lightcrusier
+        ## @brief Light Ccrusier
+        heavycrusier
+        ## @brief Heavy Crusier
+        battlecrusier
+        ## @brief Battle Crusier
+        dreadnought
+        ## @brief Dreadnought
+        superdreadnought
+        ## @brief Super Dreadnought
+        ammunition
+        ## @brief Ammunition Ship
+        troopcarrier
+        ## @brief Troop Carrier
+        other
+        ## @brief All Others
+    }
+    
+    snit::double StarshipAcceleration  -min 0.0 -max .5
+    ## @typedef double StarshipAcceleration
+    # Starship acceleration type:  A double between 0.0 and .5.
+    
+    snit::type StarshipEngine {
+        ## @brief Starship Engine type.
+        #
+        # Defines a Starship Engine object.  A Starship Engine provides thrust
+        # (acceleration) in the direction of travel.
+        #
+        # Options:
+        # 
+        # @arg -maxdesignaccel This is a floating point number from 0.0 to .5 
+        #                      and is the fraction of the speed of light (\f$c\f$) 
+        #                      of acceleration the engine can develop when it 
+        #                      is working at peak performance level.  This is
+        #                      a readonly option with a default of 0.2.
+        # @arg -maxaccel       This is a floating point number from 0.0 to .5 
+        #                      and is the fraction of the speed of light (\f$c\f$) 
+        #                      of acceleration the engine can develop at its
+        #                      current performance level. The default is the
+        #                      @c -maxdesignaccel setting.
+        # @arg -acceleration   This is a floating point number from 0.0 to .5 
+        #                      and is the fraction of the speed of light (\f$c\f$) 
+        #                      of acceleration the engine is currently 
+        #                      developing.  The default is 0.0 (at rest or 
+        #                      drifting).
+        # @par
+        
+        option -maxdesignaccel -readonly yes -default 0.2 \
+              -type starships::StarshipAcceleration
+        option -maxaccel -type starships::StarshipAcceleration \
+              -configuremethod _checkaccel
+        option -acceleration -type starships::StarshipAcceleration \
+              -configuremethod _checkaccel -default 0.0
+        method _checkaccel {option value} {
+            ## @privatesection Limit acceleration settings to maximum values,
+            # design or current: The @c -maxaccel value must be less than or
+            # equal to the @c -maxdesignaccel value, and the @c -acceleration 
+            # must be less than or equal to the @c -maxaccel value.
+            set accellimit 0.2
+            switch -- $option {
+                -maxaccel {
+                    catch {set options(-maxdesignaccel)} accellimit
+                }
+                -acceleration {
+                    if {[catch {set options(-maxaccel)} accellimit]} {
+                        catch {set options(-maxdesignaccel)} accellimit
+                    }
+                }
+            }
+            if {$value > $accellimit} {
+                set value $accellimit
+            }
+            set options($option) $value
+            if {$option eq {-maxaccel} && $options(-acceleration) > $value} {
+                set options(-acceleration) $value
+            }
+        }
+        constructor {args} {
+            ## @publicsection Construct a Starship engine, which can provide
+            # thrust along the direction of travel.  
+            #
+            # @param name The name of the engine.
+            # @param ... Options:
+            # @arg -maxdesignaccel This is a floating point number from 0.0 to 
+            #                      .5 and is the fraction of the speed of 
+            #                      light (\f$c\f$) of acceleration the engine can 
+            #                      develop when it is working at peak 
+            #                      performance level.  This is a readonly 
+            #                      option with a default of 0.2.
+            # @arg -maxaccel       This is a floating point number from 0.0 to 
+            #                      .5 and is the fraction of the speed of 
+            #                      light (\f$c\f$) of acceleration the engine can 
+            #                      develop at its current performance level. 
+            #                      The default is the @c -maxdesignaccel 
+            #                      setting.
+            # @arg -acceleration   This is a floating point number from 0.0 to 
+            #                      .5 and is the fraction of the speed of 
+            #                      light (\f$c\f$) of acceleration the engine is 
+            #                      currently developing.  The default is 0.0 
+            #                      (at rest or drifting).
+            # @par
+            
+            $self configurelist $args
+            if {[lsearch -exact -- $args -maxaccel] < 0} {
+                $self configure -maxaccel [$self cget -maxdesignaccel]
+            }
+        }
+    }
+    
+    snit::double ShieldStrength -min 0.0 -max 1.0
+    ## @typedef double ShieldStrength
+    # The current strength of the shields, as a floating point number from 0.0
+    # to 1.0. A value of 0.0 means the shields are completely down and a value
+    # of 1.0 means the shields are at maximum strength.
+    
+    snit::type StarshipShields {
+        ## @brief Starship shield type.
+        # The starship shields, which protects the starship both from small 
+        # objects in space (rocks, meteorites, etc.) and from enemy weapon 
+        # fire (lasers, missiles, etc.).
+        #
+        # Options:
+        # @arg -shieldstrength The current strength of the shields as a 
+        #                      floating point number from 0.0 to 1.0. A value 
+        #                      of 0.0 means the shields are completely down 
+        #                      and a value of 1.0 means the shields are at 
+        #                      maximum strength. The default is 1.0.
+        # @par
+        
+        option -shieldstrength -type starships::ShieldStrength -default 1.0
+        constructor {args} {
+            ## The constructor constructs a shield array.
+            #
+            # @param name The name of the shield object.
+            # @param ... Options:
+            # @arg -shieldstrength The current strength of the shields as a 
+            #                      floating point number from 0.0 to 1.0. A 
+            #                      value of 0.0 means the shields are 
+            #                      completely down and a value of 1.0 means 
+            #                      the shields are at maximum strength. The 
+            #                      default is 1.0.
+            # @par
+            
+            $self configurelist $args
+        }
+    }
+    
+    snit::integer LauncherCount -min 4 -max 25
+    ## @typedef integer LauncherCount
+    # The number of missle launchers, and integer from 4 (small destroyer) to 
+    # 25 (super dreadnought).
+    snit::enum LauncherSize -values {
+        ## @enum LauncherSize
+        # Missle size classes.
+        #
+        mark1
+        ## @brief Small destroyer missle.
+        mark2
+        ## @brief Basic cruiser missle.
+        mark4
+        ## @brief Shipkiller missle.
+        mark10
+        ## @brief Planet buster missle.
+    }
+    
+    
+    snit::type StarshipMissleLaunchers {
+        ## @brief A bank of missle launchers mounted on a starship.
+        #
+        # These are the starship main long range weapon system.  A missle is
+        # a small self-propeled device with some sort of warhead (usually
+        # a nuclear bomb or [nuclear] bomb pumped X-Ray lasers), a simple 
+        # guidence system, and some sort of propulsion system.  Some missles
+        # have an electronic warfare package that will distrupt the enemy's
+        # anti-missle defence system.
+        #
+        # Options
+        # @arg -count The number of launchers, as a integer between 4 and 25. 
+        #             This is a readonly option. The default is 4.
+        # @arg -size  The size class of the launchers, as an enumerated type.
+        #             This is a readonly option. The default is mark1.
+        # @par
+        
+        option -count -readonly yes -default 4 -type starships::LauncherCount
+        option -size  -readonly yes -default mark1 \
+              -type starships::LauncherSize
+        variable launchers -array {}
+        ## @privatesection These are the actual launchers, with their 
+        # magazines.
+        typevariable launcherspecs -array {
+            mark1,magazine 20
+            mark1,ewpercent 25
+            mark2,magazine 50
+            mark2,ewpercent 25
+            mark4,magazine 100
+            mark4,ewpercent 25
+            mark10,magazine 20
+            mark10,ewpercent 2
+        }
+        ## Launcher specifications: magazine size and percent of EW platforms.
+        
+        constructor {args} {
+            ## @publicsection Construct banks of missle launchers.
+            #
+            # These are the starship's missle launchers.
+            #
+            # @param name The name of the missle launchers object.
+            # @param ... Options:
+            # @arg -count The number of launchers, as a integer between 4 and 25. 
+            #             This is a readonly option. The default is 4.
+            # @arg -size  The size class of the launchers, as an enumerated type.
+            #             This is a readonly option. The default is mark1.
+            # @par
+            
+            $self configurelist $args
+            for {set ilaunch 0} {$ilaunch < $options(-count)} {incr ilaunch} {
+                set launchers($ilaunch,magazine) {}
+                set launchers($ilaunch,functional) yes
+            }
+        }
+        method launch {{number all}} {
+            ## @brief Launch missiles.
+            # Launch up to one missle per launcher.  
+            #
+            # @param number The number of missles to launch or all.  If all, 
+            # launch a missle from all launchers that are functional.
+            # @return The missles launched.
+            
+            if {$number eq "all"} {set number $options(-count)}
+            set launched [list]
+            for {set i 0} {$i < $number} {incr i} {
+                if {$launchers($i,functional) && 
+                    [llength $launchers($i,magazine)] > 0} {
+                    lappend launched [lindex $launchers($i,magazine) 0]
+                    set launchers($i,magazine) [lrange $launchers($i,magazine) 1 end]
+                }
+            }
+            return $launched
+        }
+        method reload {missles} {
+            ## Reload missle magazines from the supply provided.
+            #
+            # @param missles A supply of missles.  This is a list of 
+            # ``missles'', which is a list of w's (warheads) and e's (EW 
+            # platforms).
+            # @return Unused missles.  This is a list containing w's and e's
+            # that were not used.
+            
+            while {[llength $missles] > 0 && 
+                [$self reloadspace] > 0 && 
+                [lsearch -exact $missles w] >= 0} {
+                puts stderr "*** $self reload: missles = $missles, reloadspace is [$self reloadspace]"
+                set unused [list]
+                set i 0
+                foreach next $missles {
+                    set ew [$self _ewpercent]
+                    puts stderr "*** $self reload: i = $i, next = $next, ew = $ew"
+                    while {!$launchers($i,functional) || 
+                        [llength $launchers($i,magazine)] >= $launcherspecs($options(-size),magazine)} {
+                        incr i
+                        if {$i >= $options(-count)} {
+                            set i 0
+                        }
+                    }
+                    if {$next eq "e"} {
+                        if {$ew < $launcherspecs($options(-size),ewpercent)} {
+                            lappend launchers($i,magazine) $next
+                        } else {
+                            lappend unused $next
+                        }
+                    } else {
+                        if {$ew >=  $launcherspecs($options(-size),ewpercent)} {
+                            lappend launchers($i,magazine) $next
+                        } else {
+                            lappend unused $next
+                        }
+                    }
+                    if {[$self reloadspace] <= 0 ||
+                        [lsearch -exact $missles w] < 0} {break}
+                    
+                    incr i
+                    if {$i >= $options(-count)} {
+                        set i 0
+                    }
+                }
+                set missles $unused
+            }
+            return $missles
+        }
+        method available {} {
+            ## Return a count of available missles.
+            #
+            # @return A count of available missles.
+            
+            set total 0
+            for {set i 0} {$i < $options(-count)} {incr i} {
+                if {$launchers($i,functional)} {
+                    incr total [llength $launchers($i,magazine)]
+                }
+            }
+            return $total
+        }
+        method reloadspace {} {
+            ## Return a count of available magazine space.
+            #
+            # @return A count of available space in the magazines.
+            
+            set total 0
+            set msize $launcherspecs($options(-size),magazine)
+            for {set i 0} {$i < $options(-count)} {incr i} {
+                if {$launchers($i,functional)} {
+                    set used [llength $launchers($i,magazine)]
+                    incr total [expr {$msize - $used}]
+                }
+            }
+            return $total
+        }
+        method launchersavailable {} {
+            ## Return the number of available launchers.
+            #
+            # @return The number of available, functional launchers that
+            # still have missles in their magazines.
+            #
+            
+            set count 0
+            for {set i 0} {$i < $options(-count)} {incr i} {
+                if {$launchers($i,functional) && [llength $launchers($i,magazine)] > 0} {
+                    incr count
+                }
+            }
+            return $count
+        }
+        method _ewpercent {} {
+            ## @privatesection Return the percentage of EW platforms in the
+            # all of the magazines.
+            #
+            # @return The percentage of EW platforms in the magazine as a 
+            # number from 0 to 100.
+            
+            set l 0
+            set e 0
+            for {set i 0} {$i < $options(-count)} {incr i} {
+                if {$launchers($i,functional)} {
+                    incr l [llength $launchers($i,magazine)]
+                    incr e [llength [lsearch -all -inline -exact $launchers($i,magazine) e]]
+                }
+            }
+            if {$l == 0} {return 100}
+            return [expr {int(100 * (double($e) / double($l)))}]
+        }
+    }
+    
     snit::type Starship {
         ## @brief Main Starship type.
         #
         # Defines a Starship object.
         #
+        # Options:
+        # @arg -class The class of ship.  An Enum of StarshipClasses type.
+        #      No default value, readonly, @b must be specified at construct 
+        #      time.
+        # @arg -maxdesignaccel Delegated to the starship's engine component.  
+        #                      See the StarshipEngine type.
+        # @arg -maxaccel       Delegated to the starship's engine component.
+        #                      See the StarshipEngine type.
+        # @arg -acceleration   Delegated to the starship's engine component. 
+        #                      See the StarshipEngine type.
+        # @arg -shieldstrength Delegated to the starship's shields component.
+        #                      See the StarshipShields type.
+        # @arg -numberoflaunchers Delegated to the starship's misslelaunchers
+        #                      component as its -count option.  See the 
+        #                      StarshipMissleLaunchers type.
+        # @arg -sizeofmissle   Delegated to the starship's misslelaunchers
+        #                      component as its -size option.  See the 
+        #                      StarshipMissleLaunchers type.
+        # @par
         
         
+        option -class -readonly yes -type starships::StarshipClasses
+        component engine
+        ## @privatesection @brief The engine.
+        # This is the engine, which provides thrust in the direction of travel.
+        # It has a maximum design acceleration (@c -maxdesignaccel), a current
+        # maximum acceleration (@c -maxaccel), and a current acceleration
+        # (@c -acceleration).
+        delegate option -maxdesignaccel to engine
+        delegate option -maxaccel to engine
+        delegate option -acceleration to engine
+        component shields
+        ## @brief The starship's shields.
+        # The starship shields, which protects the starship both from 
+        # small objects in space (rocks, meteorites, etc.) and from enemy
+        # weapon fire (lasers, missiles, etc.).
+        delegate option -shieldstrength to shields
+        component misslelaunchers
+        ## @brief The starship's missle launchers.
+        # The starship missle launchers, which launch missles.  Bigger ships
+        # have more of them and larger ones (can launch larger (more powerful) 
+        # missles.
+        delegate option -numberoflaunchers to misslelaunchers as -count
+        delegate option -sizeofmissle to misslelaunchers as -size
+        delegate method launchmissiles to misslelaunchers as launch
+        delegate method reloadmissiles to misslelaunchers as reload
+        delegate method misslesavailable to misslelaunchers as available
+        delegate method reloadspaceavailable to misslelaunchers as reloadspace
+        delegate method launchersavailable to misslelaunchers
+        
+        constructor {args} {
+            ## @publicsection The constructor constructs a Starship object.
+            #
+            # @param name The name of the starship.
+            # @param ... Options:
+            # @arg -class The class of ship.  An Enum of StarshipClasses type.
+            #      No default value, readonly, @b must be specified at 
+            #      construct time.
+            # @arg -maxdesignaccel Delegated to the starship's engine component. 
+            #                      See the StarshipEngine type.
+            # @arg -maxaccel       Delegated to the starship's engine component. 
+            #                      See the StarshipEngine type.
+            # @arg -acceleration   Delegated to the starship's engine component. 
+            #                      See the StarshipEngine type.
+            # @arg -shieldstrength Delegated to the starship's shields component. 
+            #                      See the StarshipShields type.
+            # @arg -numberoflaunchers Delegated to the starship's misslelaunchers
+            #                      component as its -count option.  See the 
+            #                      StarshipMissleLaunchers type.
+            # @arg -sizeofmissle   Delegated to the starship's misslelaunchers
+            #                      component as its -size option.  See the 
+            #                      StarshipMissleLaunchers type.
+            # @par
+            
+            if {[lsearch -exact -- $args -class] < 0} {
+                error [_ "The -class option must be specified!"]
+            }
+            install engine using starships::StarshipEngine %AUTO% \
+                  -maxdesignaccel [from args -maxdesignaccel 0.2]
+            install shields using starships::StarshipShields %AUTO%
+            install misslelaunchers using starships::StarshipMissleLaunchers \
+                  %AUTO% -count [from args -numberoflaunchers 4] \
+                  -size [from args -sizeofmissle mark1]
+            $self configurelist $args
+        }
+            
     }
 
 }
