@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160329.1353>
+#  Last Modified : <160330.1417>
 #
 #  Description	
 #
@@ -63,6 +63,201 @@ namespace eval starships {
     # @author Robert Heller \<heller\@deepsoft.com\>
     #
     
+    snit::double radians -max [expr {acos(-1)}] -min [expr {-acos(-1)}]
+    ## @typedef double radians
+    # A double between \f$-\pi\f$ and \f$\pi\f$.
+    
+    snit::double rhotype -min 0.0
+    ## @typedef double rhotype
+    # A positive double.
+    
+    snit::listtype cartesiancoordtype -minlen 3 -maxlen 3 -type snit::double
+    ## @typedef listtype cartesiancoordtype
+    # A list of three doubles representing a cartesian coordinate.
+    # The three doubles are the \$x\f$, \f$y\f$, and \f$z\f$ values of the 
+    # coordinate.
+    
+    snit::type sphericalcoordtype {
+        ## @typedef listtype sphericalcoordtype
+        # A list of three doubles representing a spherical coordinate.
+        # The three doubles are the \$\rho\f$, \$\theta\f$, and \$\phi\f$
+        # values of the coordinate.
+        
+        pragma -hastypeinfo no -hastypedestroy no -hasinstances no
+        typemethod validate {object} {
+            ## @brief Validate the object as a sphericalcoordtype.
+            #
+            # A sphericalcoordtype is a list of three doubles representing a 
+            # spherical coordinate. \$\rho\f$, \$\theta\f$, and \$\phi\f$. 
+            # \$\rho\f$ is a positive double, \$\theta\f$ and \$\phi\f$ are 
+            # doubles between \$-\pi\f$ and \f$\pi\f$.
+            #
+            # @param object A possible sphericalcoordtype.
+            
+            if {[llength $object] != 3} {
+                error [_ "%s is not a %s!" $object $type]
+            } else {
+                if {[catch {starships::rhotype validate [lindex $object 0]}]} {
+                    error [_ "%s is not a %s (bad rho value: %s)!" $object \
+                           $type [lindex $object 0]]
+                }
+                if {[catch {starships::radians validate [lindex $object 1]}]} {
+                    error [_ "%s is not a %s (bad theta value: %s)!" $object \
+                           $type [lindex $object 1]]
+                }
+                if {[catch {starships::radians validate [lindex $object 2]}]} {
+                    error [_ "%s is not a %s (bad phi value: %s)!" $object \
+                           $type [lindex $object 2]]
+                }
+                return $object
+            }
+        }
+    }
+    
+    snit::type Coordinates {
+        ## @brief A set of 3D Coordinates.
+        #
+        # A representation of point in 3D space.  The coordinates are available
+        # as either cartesian or spherical (polar) coordinates, depending on
+        # what is needed.
+        #
+        # Options:
+        # @arg -cartesian A list of three floating point values 
+        #                 (\f$[x \quad y \quad z]\f$) representing The
+        #                 point in 3D space using cartesian coordinates.  The
+        #                 default is {0.0 0.0 0.0}.
+        # @arg -spherical A list of three floating point values 
+        #                 (\f$[\rho \quad \theta \quad \phi]\f$) representing the
+        #                 point in 3D space using spherical (polar) 
+        #                 coordinates. The default is {0.0 0.0 0.0}.
+        # @par
+        
+        variable cartesian yes
+        ## @privatesection A flag indicating that the internal representation
+        # is in cartesian coordinates.
+        variable x 0.0
+        ## The X cartesian coordinate.
+        variable y 0.0
+        ## The Y cartesian coordinate.
+        variable z 0.0
+        ## The Z cartesian coordinate.
+        variable rho 0.0
+        ## The \f$\rho\f$ spherical (polar) coordinate.
+        variable theta 0.0
+        ## The \f$\theta\f$ spherical (polar) coordinate.
+        variable phi 0.0
+        ## The \f$\phi\f$ spherical (polar) coordinate.
+        option -cartesian -type starships::cartesiancoordtype \
+              -default {0.0 0.0 0.0} -configuremethod _configurecart \
+              -cgetmethod _cgetcart
+        option -spherical -type starships::sphericalcoordtype \
+              -default {0.0 0.0 0.0} -configuremethod _configuresphere \
+              -cgetmethod _cgetsphere
+        method _configurecart {option value} {
+            ## @brief Configure the cartesian coordinates.
+            # Configure the cartesian coordinates, setting the cartesian flag 
+            # to yes, which invalidates the spherical (polar) coordinates.
+            #
+            # @param option Always  -cartesian.
+            # @param value The cartesian coordinates.
+            
+            foreach {x y z} $value {break}
+            set cartesian yes
+        }
+        method _cgetcart {option} {
+            ## @brief CGet the cartesian coordinates.
+            #
+            # @param option Always  -cartesian.
+            # @return A list of three doubles, containing the cartesian 
+            # coordinates.
+            
+            if {$cartesian} {
+                # We have the cartesian coordinates -- just return them.
+                return [list $x $y $z]
+            } else {
+                set x [expr {$rho * cos($theta) * sin($phi)}]
+                set y [expr {$rho * sin($theta) * sin($phi)}]
+                set z [expr {$rho * cos($phi)}]
+                return [list $x $y $z]
+            }
+        }
+        method _configuresphere {option value} {
+            ## @brief Configure the spherical coordinates.
+            # Configure the spherical coordinates, setting the cartesian flag 
+            # to no, which invalidates the cartesian coordinates.
+            #
+            # @param option Always  -spherical.
+            # @param value The spherical coordinates.
+            
+            foreach {rho theta phi} $value {break}
+            set cartesian no
+        }
+        method _cgetsphere {option} {
+            ## @brief CGet the spherical coordinates.
+            #
+            # @param option Always  -spherical.
+            # @return A list of three doubles, containing the spherical
+            # coordinates.
+            
+            if {!$cartesian} {
+                # We have the spherical coordinates -- just return them.
+                return [list $rho $theta $phi]
+            } else {
+                set rho [expr {sqrt(($x*$x) + ($y*$y) + ($z*$z))}]
+                set theta  [expr {atan2($y,$x)}]
+                if {abs($z) < .00001 && abs($rho) > .00001} {
+                    set phi [expr {acos($z/$rho)}]
+                } else {
+                    set phi [expr {atan2(sqrt(($x*$x) + ($y*$y)),$z)}]
+                }
+                return [list $rho $theta $phi]
+            }
+        }
+        constructor {args} {
+            ## @publicsection Construct a set of coordinates.
+            #
+            # @param name The name of the coordinate set.
+            # @param ... Options:
+            # @arg -cartesian A list of three floating point values 
+            #                 (\f$[x \quad y \quad z]\f$) representing The
+            #                 point in 3D space using cartesian coordinates.
+            #                 The default is {0.0 0.0 0.0}.
+            # @arg -spherical A list of three floating point values 
+            #                 (\f$[\rho \quad \theta \quad \phi]\f$) 
+            #                 representing the point in 3D space using 
+            #                 spherical (polar) coordinates. The default is 
+            #                 {0.0 0.0 0.0}.
+            # @par
+            
+            $self configurelist $args
+        }
+        typemethod copy {name othercoords} {
+            ## Copy constructor, make a copy of the passed Coordinates object.
+            #
+            # @param name The name of the new Coordinates object.
+            # @param othercoords A Coordinates object to copy.
+            # @return A freshly copied Coordinates object.
+            
+            $type valivate $othercoords
+            return [$type $name -cartesian [$othercoords cget -cartesian]]
+        }
+        
+        typemethod validate {object} {
+            ## Validate object as a Coordinates object.
+            #
+            # @param object The object to validate.
+            #
+            
+            if {[catch {$object info type} otype]} {
+                error [_ "%s is not a %s!" $object $type]
+            } elseif {$otype ne $type} {
+                error [_ "%s is not a %s!" $object $type]
+            } else {
+                return $object
+            }
+        }
+    }
+
     snit::enum StarshipClasses -values {
         ## @enum StarshipClasses
         # Starship classes
@@ -87,9 +282,9 @@ namespace eval starships {
         ## @brief All Others
     }
     
-    snit::double StarshipAcceleration  -min 0.0 -max .5
+    snit::double StarshipAcceleration  -min 0.0 -max 1000
     ## @typedef double StarshipAcceleration
-    # Starship acceleration type:  A double between 0.0 and .5.
+    # Starship acceleration type:  A double between 0.0 and 1000.
     
     snit::type StarshipEngine {
         ## @brief Starship Engine type.
@@ -99,24 +294,25 @@ namespace eval starships {
         #
         # Options:
         # 
-        # @arg -maxdesignaccel This is a floating point number from 0.0 to .5 
-        #                      and is the fraction of the speed of light (\f$c\f$) 
-        #                      of acceleration the engine can develop when it 
-        #                      is working at peak performance level.  This is
-        #                      a readonly option with a default of 0.2.
-        # @arg -maxaccel       This is a floating point number from 0.0 to .5 
-        #                      and is the fraction of the speed of light (\f$c\f$) 
-        #                      of acceleration the engine can develop at its
-        #                      current performance level. The default is the
-        #                      @c -maxdesignaccel setting.
-        # @arg -acceleration   This is a floating point number from 0.0 to .5 
-        #                      and is the fraction of the speed of light (\f$c\f$) 
+        # @arg -maxdesignaccel This is a floating point number from 0.0 to 
+        #                      1000 and is the number of times the Earth normal
+        #                      gravitational constant (\f$9.80665m/s^2\f$). 
+        #                      This is a readonly option with a default of 500.
+        # @arg -maxaccel       This is a floating point number from 0.0 to
+        #                      1000 and is the number of times the Earth 
+        #                      normal gravitational constant 
+        #                      (\f$9.80665m/s^2\f$) of acceleration the engine 
+        #                      can develop at its current performance level. 
+        #                      The default is the @c -maxdesignaccel setting.
+        # @arg -acceleration   This is a floating point number from 0.0 to
+        #                      1000 and is the number of times the Earth normal
+        #                      gravitational constant (\f$9.80665m/s^2\f$) 
         #                      of acceleration the engine is currently 
         #                      developing.  The default is 0.0 (at rest or 
         #                      drifting).
         # @par
         
-        option -maxdesignaccel -readonly yes -default 0.2 \
+        option -maxdesignaccel -readonly yes -default 500 \
               -type starships::StarshipAcceleration
         option -maxaccel -type starships::StarshipAcceleration \
               -configuremethod _checkaccel
@@ -127,7 +323,7 @@ namespace eval starships {
             # design or current: The @c -maxaccel value must be less than or
             # equal to the @c -maxdesignaccel value, and the @c -acceleration 
             # must be less than or equal to the @c -maxaccel value.
-            set accellimit 0.2
+            set accellimit 1000
             switch -- $option {
                 -maxaccel {
                     catch {set options(-maxdesignaccel)} accellimit
@@ -153,22 +349,23 @@ namespace eval starships {
             # @param name The name of the engine.
             # @param ... Options:
             # @arg -maxdesignaccel This is a floating point number from 0.0 to 
-            #                      .5 and is the fraction of the speed of 
-            #                      light (\f$c\f$) of acceleration the engine can 
-            #                      develop when it is working at peak 
-            #                      performance level.  This is a readonly 
-            #                      option with a default of 0.2.
-            # @arg -maxaccel       This is a floating point number from 0.0 to 
-            #                      .5 and is the fraction of the speed of 
-            #                      light (\f$c\f$) of acceleration the engine can 
-            #                      develop at its current performance level. 
-            #                      The default is the @c -maxdesignaccel 
-            #                      setting.
-            # @arg -acceleration   This is a floating point number from 0.0 to 
-            #                      .5 and is the fraction of the speed of 
-            #                      light (\f$c\f$) of acceleration the engine is 
-            #                      currently developing.  The default is 0.0 
-            #                      (at rest or drifting).
+            #                      1000 and is the number of times the Earth 
+            #                      normal gravitational constant 
+            #                      (\f$9.80665m/s^2\f$). This is a readonly 
+            #                      option with a default of 500.
+            # @arg -maxaccel       This is a floating point number from 0.0 to
+            #                      1000 and is the number of times the Earth 
+            #                      normal gravitational constant 
+            #                      (\f$9.80665m/s^2\f$) of acceleration the 
+            #                      engine can develop at its current 
+            #                      performance level. The default is the 
+            #                      @c -maxdesignaccel setting.
+            # @arg -acceleration   This is a floating point number from 0.0 to
+            #                      1000 and is the number of times the Earth 
+            #                      normal gravitational constant 
+            #                      (\f$9.80665m/s^2\f$) of acceleration the 
+            #                      engine is currently developing.  The 
+            #                      default is 0.0 (at rest or drifting).
             # @par
             
             $self configurelist $args
@@ -220,8 +417,8 @@ namespace eval starships {
     ## @typedef integer LauncherCount
     # The number of missle launchers, and integer from 0 (a non-missle firing 
     # ship, such as a troop carrier) to 25 (super dreadnought).
-    snit::enum LauncherSize -values {
-        ## @enum LauncherSize
+    snit::enum MissleType -values {
+        ## @enum MissleType
         # Missle size classes.
         #
         mark1
@@ -234,9 +431,6 @@ namespace eval starships {
         ## @brief Planet buster missle.
     }
     
-    snit::double radians -max [expr {acos(-1)}] -min [expr {acos(1)}]
-    ## @typedef double radians
-    # A double between \f$0\f$ and \f$\pi\f$.
     
     snit::type ThrustVector {
         ## @brief ThrustVector object, representing a 3D thrust vector.
@@ -245,8 +439,10 @@ namespace eval starships {
         # object (such as a ship or missle) in space.
         # 
         # Options:
-        # @arg -acceleration The fraction of \f$c\f$ of thrust. This is a
-        #            readonly option and defaults to 0.0.
+        # @arg -acceleration This is a floating point number from 0.0 to 1000 
+        #            and is the number of times the Earth normal gravitational 
+        #            constant (\f$9.80665m/s^2\f$). This is a readonly option 
+        #            and defaults to 0.0.
         # @arg -xang The x angle of the thrust vector as a floating point 
         #            number in radians between \f$0\f$ and \f$\pi\f$. 
         #            This is a readonly option and defaults to 0.0.
@@ -260,15 +456,15 @@ namespace eval starships {
         
         variable dx
         ## @privatesection This is the x component of the thrust vector, in
-        # millions of kilometers per second, squared.
+        # kilometers per second, squared.
         variable dy
-        ## This is the y component of the thrust vector, in millions of 
-        # kilometers per second, squared.
+        ## This is the y component of the thrust vector, in kilometers per 
+        # second, squared.
         variable dz
-        ## This is the z component of the thrust vector, in millions of 
-        # kilometers per second, squared.
-        typevariable c 299.792458 
-        ## The speed of light (\f$c\f$) in millions of kilometers per second.
+        ## This is the z component of the thrust vector, in kilometers per 
+        # second, squared.
+        typevariable G 0.00980665
+        ## Earth normal gravitional constant in kilometers per second, squared.
         option -acceleration -readonly yes -default 0.0 \
               -type starships::StarshipAcceleration
         option -xang -readonly yes -default 0.0 -type starships::radians
@@ -280,8 +476,10 @@ namespace eval starships {
             #
             # @param name The name of the Thrust Vector.
             # @param ... Options:
-            # @arg -acceleration The fraction of \f$c\f$ of thrust. This is a
-            #            readonly option and defaults to 0.0.
+            # @arg -acceleration This is a floating point number from 0.0 to 
+            #            1000 and is the number of times the Earth normal 
+            #            gravitational constant (\f$9.80665m/s^2\f$). This is 
+            #            a readonly option and defaults to 0.0.
             # @arg -xang The x angle of the thrust vector as a floating point 
             #            number in radians between \f$0\f$ and \f$\pi\f$. 
             #            This is a readonly option and defaults to 0.0.
@@ -308,7 +506,7 @@ namespace eval starships {
             if {$ulength < 1} {
                 error [_ "Imposible launch angle: %f6.3 %f6.3 %f6.3!" $alpha $beta $gamma]
             }
-            set adelta [expr {($options(-acceleration) * $c) / $ulength}]
+            set adelta [expr {($options(-acceleration) * $G) / $ulength}]
             set dx [expr {$_dx *  $adelta}]
             set dy [expr {$_dy *  $adelta}]
             set dz [expr {$_dz *  $adelta}]
@@ -366,6 +564,183 @@ namespace eval starships {
         }
     }
     
+    snit::type Missle {
+        ## @brief A missle.
+        # This is an object representing a fired missle.  It has an engine,
+        # guidence system and a warhead or EW package.  The engine produces
+        # thrust for a limited amount of time, then shuts down (runs out of
+        # ``fuel'').  After engine shutdown, the missle drifts until it 
+        # detonates or engages its EW package.
+        #
+        # Options, all readonly and must be set at create time, none have 
+        # defaults:
+        # @arg -missletype   The missle's type as an enum.
+        # @arg -haswarhead   A boolean indicating if this missle has a 
+        #                    warhead or an EW package.
+        # @arg -start        The starting position as a Coordinates object.
+        #                    This option can only be set at creation time.
+        #                    It has no default value.
+        # @arg -cartesianposition The absolute position in cartesian 
+        #                    coordinates.   This option can only be 
+        #                    accessed, never set, even at creation time
+        #                    (see -start option).
+        # @arg -sphericalposition The absolute position in spherical 
+        #                    coordinates.   This option can only be 
+        #                    accessed, never set, even at creation time
+        #                    (see -start option).
+        # @arg -xang         The absolute X launch angle in radians, between 
+        #                    \f$0\f$ and \f$\pi\f$.
+        # @arg -yang         The absolute Y launch angle in radians, between 
+        #                    \f$0\f$ and \f$\pi\f$.
+        # @arg -zang         The absolute Z launch angle in radians, between 
+        #                    \f$0\f$ and \f$\pi\f$.
+        # @par
+        
+        component thrustvector
+        ## @privatesection Current thrustvector.
+        variable thrusttime
+        ## Remaining thrust time.
+        component position
+        ## Current position.
+        option -start -type starships::Coordinates -readonly yes
+        #delegate option -cartesianposition to position as -cartesian
+        #delegate option -sphericalposition to position as -spherical
+        option -cartesianposition -type starships::cartesiancoordtype \
+              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetcart \
+              -configuremethod _notsettable
+        method _cgetcart {option} {
+            ## Get the cartesian coordinates.
+            #
+            # @param option Allways -cartesianposition
+            # @return The cartesian coordinates.
+            
+            return [$position cget -cartesian]
+        }
+        method _configurecart {option value} {
+            ## Set the cartesian coordinates.
+            #
+            # @param option Allways -cartesianposition
+            # @param value The cartesian coordinates.
+            
+            $position configure -cartesian $value
+        }
+        option -sphericalposition -type starships::sphericalcoordtype \
+              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetsphere \
+              -configuremethod _notsettable
+        method _cgetsphere {option} {
+            ## Get the spherical coordinates.
+            #
+            # @param option Allways -sphericalposition
+            # @return The spherical coordinates.
+            
+            return [$position cget -spherical]
+        }
+        method _configuresphere {option value} {
+            ## Set the spherical coordinates.
+            #
+            # @param option Allways -sphericalposition
+            # @param value The spherical coordinates.
+            
+            $position configure -spherical $value
+        }
+        method _notsettable {option value} {
+            ## Generic method for non settable options.
+            #
+            # @param option Name of the option.
+            # @param value Not used.
+            
+            error [_ "Cannot set option %s!" $option]
+        }
+        variable xspeed 0
+        ## Current X speed.
+        variable yspeed 0
+        ## Current Y speed.
+        variable zspeed 0
+        ## Current Z speed.
+        typevariable misslespecs -array {
+            mark1,acceleration 1000
+            mark1,burntime 300
+            mark2,acceleration 1000
+            mark2,burntime 300
+            mark4,acceleration 1000
+            mark4,burntime 600
+            mark10,acceleration 1000
+            mark10,burntime 600
+        }
+        ## Missle specifications: acceleration (fraction of c) and burntime 
+        # in seconds.
+        option -missletype -readonly yes -default mark1 \
+              -type starships::MissleType
+        option -haswarhead -readonly yes -default yes -type snit::boolean
+        option -xang -readonly yes -default 0.0 -type starships::radians
+        option -yang -readonly yes -default 0.0 -type starships::radians
+        option -zang -readonly yes -default 0.0 -type starships::radians
+        constructor {args} {
+            ## @publicsection @brief Construct a missle.
+            # Create a new missle.  Missles are ``created'' when they are 
+            # launched.
+            #
+            # @arg -missletype   The missle's type as an enum.
+            # @arg -haswarhead   A boolean indicating if this missle has a 
+            #                    warhead or an EW package.
+            # @arg -start        The starting position as a Coordinates object.
+            #                    This option can only be set at creation time.
+            #                    It has no default value.
+            # @arg -cartesianposition The absolute position in cartesian 
+            #                    coordinates.  This option can only be 
+            #                    accessed, never set, even at creation time
+            #                    (see -start option).
+            # @arg -sphericalposition The absolute position in spherical 
+            #                    coordinates.  This option can only be 
+            #                    accessed, never set, even at creation time
+            #                    (see -start option).
+            # @arg -xang         The absolute X launch angle in radians, between 
+            #                    \f$0\f$ and \f$\pi\f$.
+            # @arg -yang         The absolute Y launch angle in radians, between 
+            #                    \f$0\f$ and \f$\pi\f$.
+            # @arg -zang         The absolute Z launch angle in radians, between 
+            #                    \f$0\f$ and \f$\pi\f$.
+            # @par
+            
+            set position [starships::Coordinates copy %AUTO% \
+                          [from args -start]]
+            $self configurelist $args
+            set mtype [$self cget -missletype]
+            install thrustvector using ::starships::ThrustVector \
+                  ${mtype}%AUTO% \
+                  -acceleration $misslespecs($mtype,acceleration) \
+                  -xang  [$self cget -xang] \
+                  -yang  [$self cget -yang] \
+                  -zang  [$self cget -zang]
+            set xspeed [$thrustvector DeltaX]
+            set yspeed [$thrustvector DeltaY]
+            set zspeed [$thrustvector DeltaZ]
+            set thrusttime $misslespecs($mtype,burntime)
+        }
+        method update {} {
+            ## @brief Update the missle.
+            # The missle's x,y,z position is updated.
+            #
+            # @return A list containing the new X, Y, Z position of the missle.
+            
+            foreach {xpos ypos zpos} [$position cget -cartesian] {break}
+            set xpos [expr {$xpos + $xspeed}]
+            set ypos [expr {$ypos + $yspeed}]
+            set zpos [expr {$zpos + $zspeed}]
+            $position configure -cartesian [list $xpos $ypos $zpos]
+            if {$thrusttime > 0} {
+                set xspeed [expr {$xspeed + [$thrustvector DeltaX]}]
+                set yspeed [expr {$yspeed + [$thrustvector DeltaY]}]
+                set zspeed [expr {$zspeed + [$thrustvector DeltaZ]}]
+                incr thrusttime -1
+            }
+            return [list $xpos $ypos $zpos]
+        }
+        method _terminal {} {
+            while {$thrusttime > 0} {$self update}
+            return [list $xspeed $yspeed $zspeed]
+        }
+    }
     snit::type StarshipMissleLaunchers {
         ## @brief A bank of missle launchers mounted on a starship.
         #
@@ -385,27 +760,19 @@ namespace eval starships {
         
         option -count -readonly yes -default 4 -type starships::LauncherCount
         option -size  -readonly yes -default mark1 \
-              -type starships::LauncherSize
+              -type starships::MissleType
         variable launchers -array {}
         ## @privatesection These are the actual launchers, with their 
         # magazines.
         typevariable launcherspecs -array {
             mark1,magazine 20
             mark1,ewpercent 25
-            mark1,acceleration .1
-            mark1,range 1.0
             mark2,magazine 50
             mark2,ewpercent 25
-            mark2,acceleration .15
-            mark2,range 1.25
             mark4,magazine 100
             mark4,ewpercent 25
-            mark4,acceleration .175
-            mark4,range 1.5
             mark10,magazine 20
             mark10,ewpercent 2
-            mark10,acceleration .2
-            mark10,range 1.75
         }
         ## Launcher specifications: magazine size, percent of EW platforms,
         # range (10^6 Km), and acceleration (fraction of c).
@@ -429,10 +796,11 @@ namespace eval starships {
                 set launchers($ilaunch,functional) yes
             }
         }
-        method launch {xang yang zang {number all}} {
+        method launch {position xang yang zang {number all}} {
             ## @brief Launch missiles.
             # Launch up to one missle per launcher.  
             #
+            # @param position The launch position as a Coordinates object.
             # @param xang The x launch angle in radians, between
             #             \f$0\f$ and \f$\pi\f$.
             # @param yang The y launch angle in radians, between
@@ -441,30 +809,35 @@ namespace eval starships {
             #             \f$0\f$ and \f$\pi\f$.
             # @param number The number of missles to launch or all.  If all, 
             # launch a missle from all launchers that are functional.
-            # @return The ThrustVector, range, missle size with a list of the 
-            # missles launched.
+            # @return A list of the missles launched (a list of 
+            # starships::Missle objects).
             
+            starships::Coordinates validate $position
+            starships::radians validate $xang
+            starships::radians validate $yang
+            starships::radians validate $zang
             if {$number eq "all"} {set number $options(-count)}
             set launched [list]
             for {set i 0} {$i < $number} {incr i} {
                 if {$launchers($i,functional) && 
                     [llength $launchers($i,magazine)] > 0} {
-                    lappend launched [lindex $launchers($i,magazine) 0]
+                    if {[lindex $launchers($i,magazine) 0] eq "w"} {
+                        set haswarhead yes
+                    } else {
+                        set haswarhead no
+                    }
+                    set missle [starships::missle %AUTO% \
+                                -missletype [$self cget -size] \
+                                -haswarhead $haswarhead \
+                                -start $position \
+                                -xang   $xang \
+                                -yang   $yang \
+                                -zang   $zang]
+                    lappend launched $missle
                     set launchers($i,magazine) [lrange $launchers($i,magazine) 1 end]
                 }
             }
-            if {[llength $launched] == 0} {
-                return $launched
-            } else {
-                set size [$self cget -size]
-                set accel $launcherspecs($size,acceleration)
-                set range $launcherspecs($size,range)
-                return [linsert $launched 0 [starships::ThrustVector $size%AUTO% \
-                                             -acceleration $accel \
-                                             -xang $xang \
-                                             -yang $yang \
-                                             -zang $zang] $range $size]
-            }
+            return $launched
         }
         method reload {missles} {
             ## Reload missle magazines from the supply provided.
@@ -585,6 +958,9 @@ namespace eval starships {
         # Defines a Starship object.
         #
         # Options:
+        # @arg -start        The starting position as a Coordinates object.
+        #                    This option can only be set at creation time.
+        #                    It has no default value.
         # @arg -class The class of ship.  An Enum of StarshipClasses type.
         #      No default value, readonly, @b must be specified at construct 
         #      time.
@@ -628,17 +1004,90 @@ namespace eval starships {
         # missles.
         delegate option -numberoflaunchers to misslelaunchers as -count
         delegate option -sizeofmissle to misslelaunchers as -size
-        delegate method launchmissiles to misslelaunchers as launch
         delegate method reloadmissiles to misslelaunchers as reload
         delegate method misslesavailable to misslelaunchers as available
         delegate method reloadspaceavailable to misslelaunchers as reloadspace
         delegate method launchersavailable to misslelaunchers
+        component lasers
+        ## @brief The starship's lasers.
+        # These are short range ship to ship weapons.
+        component countermissles
+        ## @brief The starship's counter missles.
+        # These are small missles meant as an anti-missle defence.
+        component pointdefence
+        ## @brief The starship's point defence lasers.
+        # These are small lasers meant as an anti-missle defence.
+        component munitions
+        ## @brief This is the cargo of an ammunition ship.
+        component troops
+        ## @brief The ship's marine complement.
+        # The marine is usually a small group meant to be used as boarding
+        # parties and SAR.  A troop carrier would have a much larger 
+        # complement intrended for planetary occupation.
+        component position 
+        ## Current position.
+        option -start -type starships::Coordinates -readonly yes
+        #delegate option -cartesianposition to position as -cartesian
+        #delegate option -sphericalposition to position as -spherical
+        option -cartesianposition -type starships::cartesiancoordtype \
+              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetcart \
+              -configuremethod _configurecart
+        method _cgetcart {option} {
+            ## Get the cartesian coordinates.
+            #
+            # @param option Allways -cartesianposition
+            # @return The cartesian coordinates.
+            
+            return [$position cget -cartesian]
+        }
+        method _configurecart {option value} {
+            ## Set the cartesian coordinates.
+            #
+            # @param option Allways -cartesianposition
+            # @param value The cartesian coordinates.
+            
+            $position configure -cartesian $value
+        }
+        option -sphericalposition -type starships::sphericalcoordtype \
+              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetsphere \
+              -configuremethod _configuresphere
+        method _cgetsphere {option} {
+            ## Get the spherical coordinates.
+            #
+            # @param option Allways -sphericalposition
+            # @return The spherical coordinates.
+            
+            return [$position cget -spherical]
+        }
+        method _configuresphere {option value} {
+            ## Set the spherical coordinates.
+            #
+            # @param option Allways -sphericalposition
+            # @param value The spherical coordinates.
+            
+            $position configure -spherical $value
+        }
+        variable xang [expr {acos(1)}]
+        ## The ship's current X orientation.
+        variable yang [expr {acos(0)}]
+        ## The ship's current Y orientation.
+        variable zang [expr {acos(0)}]
+        ## The ship's current Z orientation.
+        variable xspeed 0.0
+        ## The ship's current X velocity.
+        variable yspeed 0.0
+        ## The ship's current Y velocity.
+        variable zspeed 0.0
+        ## The ship's current Z velocity.
         
         constructor {args} {
             ## @publicsection The constructor constructs a Starship object.
             #
             # @param name The name of the starship.
             # @param ... Options:
+            # @arg -start        The starting position as a Coordinates object.
+            #                    This option can only be set at creation time.
+            #                    It has no default value.
             # @arg -class The class of ship.  An Enum of StarshipClasses type.
             #      No default value, readonly, @b must be specified at 
             #      construct time.
@@ -662,11 +1111,13 @@ namespace eval starships {
                 error [_ "The -class option must be specified!"]
             }
             install engine using starships::StarshipEngine %AUTO% \
-                  -maxdesignaccel [from args -maxdesignaccel 0.2]
+                  -maxdesignaccel [from args -maxdesignaccel 500]
             install shields using starships::StarshipShields %AUTO%
             install misslelaunchers using starships::StarshipMissleLaunchers \
                   %AUTO% -count [from args -numberoflaunchers 4] \
                   -size [from args -sizeofmissle mark1]
+            set position [starships::Coordinates copy %AUTO% \
+                          [from args -start]]
             $self configurelist $args
         }
         
@@ -685,96 +1136,140 @@ namespace eval starships {
             lappend report ReloadSpaceAvailable [$self reloadspaceavailable]
             return $report                                                     
         }
-        typemethod destroyer {name} {
-            ## Create a destroyer.  Destroyer accelerate at up to \f$.1c\f$,
-            # and have 4 Mark1 launchers.
+        method launchmissiles {xang yang zang {number all}} {
+            ## @brief Launch missles.
+            # Launch the selected number of missles in the specified direction.
+            #
+            # @param xang The x launch angle in radians, between
+            #             \f$0\f$ and \f$\pi\f$.
+            # @param yang The y launch angle in radians, between
+            #             \f$0\f$ and \f$\pi\f$.
+            # @param zang The z launch angle in radians, between
+            #             \f$0\f$ and \f$\pi\f$.
+            # @param number The number of missles to launch or all.  If all, 
+            # launch a missle from all launchers that are functional.
+            # @return A list of the missles launched (a list of 
+            # starships::Missle objects).
+            
+            return [$misslelaunchers launch $position \
+                    $xang $yang $zang $number]
+        }
+            
+        method update {} {
+            ## @brief Update the starship.
+            # The starchip's x,y,z position is updated.
+            #
+            # @return A list containing the new X, Y, Z position of the 
+            # starship.
+            
+            set thrustvector [starships::ThrustVector %AUTO% \
+                              -acceleration [$engine cget -acceleration] \
+                              -xang $xang \
+                              -yang $yang \
+                              -zang $zang]
+            set xspeed [expr {$xspeed + [$thrustvector DeltaX]}]
+            set yspeed [expr {$yspeed + [$thrustvector DeltaY]}]
+            set zspeed [expr {$zspeed + [$thrustvector DeltaZ]}]
+            foreach {xpos ypos zpos} [$position cget -cartesian] {break}
+            set xpos [expr {$xpos + $xspeed}]
+            set ypos [expr {$ypos + $yspeed}]
+            set zpos [expr {$zpos + $zspeed}]
+            $position configure -cartesian [list $xpos $ypos $zpos]
+            return [list $xpos $ypos $zpos]
+        }
+        typemethod destroyer {name start} {
+            ## Create a destroyer.  Destroyer accelerate at up to 500 
+            # gravities, and have 4 Mark1 launchers.
             #
             # @param name The name of the destroyer.
+            # @param start The starting position as a Coordinates object.
             # @return A destroyer class starship.
             
-            return [$type create $name -class destroyer -maxdesignaccel .1 \
-                    -numberoflaunchers 4 -sizeofmissle mark1]
+            return [$type create $name -class destroyer -maxdesignaccel 500 \
+                    -numberoflaunchers 4 -sizeofmissle mark1 -start $start]
         }
-        typemethod lightcrusier {name} {
+        typemethod lightcrusier {name start} {
             ## Create a lightcrusier.  Lightcrusiers accelerate at up to 
-            # \f$.11c\f$, and have 6 Mark1 launchers.
+            # 500 gravities, and have 6 Mark1 launchers.
             #
             # @param name The name of the lightcrusier.
+            # @param start The starting position as a Coordinates object.
             # @return A lightcrusier class starship.
             
             return [$type create $name -class lightcrusier \
-                    -maxdesignaccel .11 -numberoflaunchers 6 \
-                    -sizeofmissle mark1]
+                    -maxdesignaccel 500 -numberoflaunchers 6 \
+                    -sizeofmissle mark1 -start $start]
         }
-        typemethod heavycrusier {name} {
+        typemethod heavycrusier {name start} {
             ## Create a heavycrusier.  Heavycrusiers accelerate at up to 
-            # \f$.12c\f$, and have 8 Mark2 launchers.
+            # 500 gravities, and have 8 Mark2 launchers.
             #
             # @param name The name of the heavycrusier.
+            # @param start The starting position as a Coordinates object.
             # @return A heavycrusier class starship.
             
             return [$type create $name -class heavycrusier \
-                    -maxdesignaccel .12 -numberoflaunchers 8 \
-                    -sizeofmissle mark2]
+                    -maxdesignaccel 500 -numberoflaunchers 8 \
+                    -sizeofmissle mark2 -start $start]
         }
-        typemethod battlecrusier {name} {
+        typemethod battlecrusier {name start} {
             ## Create a battlecrusier.  Battlecrusiers accelerate at up to 
-            # \f$.15c\f$, and have 10 Mark2 launchers.
+            # 450 gravities, and have 10 Mark2 launchers.
             #
             # @param name The name of the battlecrusier.
+            # @param start The starting position as a Coordinates object.
             # @return A battlecrusier class starship.
             
             return [$type create $name -class battlecrusier \
-                    -maxdesignaccel .15 -numberoflaunchers 10 \
-                    -sizeofmissle mark2]
+                    -maxdesignaccel 450 -numberoflaunchers 10 \
+                    -sizeofmissle mark2 -start $start]
         }
-        typemethod dreadnought {name} {
+        typemethod dreadnought {name start} {
             ## Create a dreadnought.  Dreadnoughts accelerate at up to 
-            # \f$.18c\f$, and have 15 Mark4 launchers.
+            # 450 gravities, and have 15 Mark4 launchers.
             #
             # @param name The name of the dreadnought.
+            # @param start The starting position as a Coordinates object.
             # @return A dreadnought class starship.
             
             return [$type create $name -class dreadnought \
-                    -maxdesignaccel .18 -numberoflaunchers 15 \
-                    -sizeofmissle mark4]
+                    -maxdesignaccel 450 -numberoflaunchers 15 \
+                    -sizeofmissle mark4 -start $start]
         }
-        typemethod superdreadnought {name} {
+        typemethod superdreadnought {name start} {
             ## Create a super dreadnought.  Super Dreadnoughts accelerate at 
-            # up to \f$.2c\f$, and have 25 Mark4 launchers.
+            # up to 400 gravities, and have 25 Mark4 launchers.
             #
             # @param name The name of the super dreadnought.
+            # @param start The starting position as a Coordinates object.
             # @return A super dreadnought class starship.
             
             return [$type create $name -class superdreadnought \
-                    -maxdesignaccel .2 -numberoflaunchers 25 \
-                    -sizeofmissle mark4]
+                    -maxdesignaccel 400 -numberoflaunchers 25 \
+                    -sizeofmissle mark4 -start $start]
         }
-        typemethod ammunition {name} {
+        typemethod ammunition {name start} {
             ## Create an ammunition ship.  Ammunition ships accelerate at up 
-            # to \f$.2c\f$, and have no missle launchers.
+            # to 400 gravities, and have no missle launchers.
             #
             # @param name The name of the ammunition ship.
+            # @param start The starting position as a Coordinates object.
             # @return A ammunition ship class starship.
             
             return [$type create $name -class ammunition \
-                    -maxdesignaccel .2  -numberoflaunchers 0]
+                    -maxdesignaccel 400  -numberoflaunchers 0 -start $start]
         }
-        typemethod troopcarrier {name} {
+        typemethod troopcarrier {name start} {
             ## Create a troop carrier.  Troop Carriers accelerate at up to 
-            # \f$.15c\f$, and have no missle launchers.
+            # 450 gravities, and have no missle launchers.
             #
             # @param name The name of the troop carrier.
+            # @param start The starting position as a Coordinates object.
             # @return A troop carrier class starship.
             
             return [$type create $name -class troopcarrier \
-                    -maxdesignaccel .15 -numberoflaunchers 0]
+                    -maxdesignaccel 450 -numberoflaunchers 0 -start $start]
         }
-        
-        
-        
-        
-        
     }
 }
 
