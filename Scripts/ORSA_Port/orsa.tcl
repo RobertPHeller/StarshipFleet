@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160402.0602>
+#  Created       : Sat Apr 2 06:49:13 2016
+#  Last Modified : <160403.0847>
 #
 #  Description	
 #
@@ -16,9 +16,7 @@
 #
 #  History
 #	
-#  $Log$
-#
-##############################################################################
+#*****************************************************************************
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -40,7 +38,17 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-SUBDIRS = ORSA_Port
+namespace eval orsa {
+    variable ORSA_DIR [file dirname [info script]]
+}
+
+source [file join $orsa::ORSA_DIR orsa_common.tcl]
+source [file join $orsa::ORSA_DIR orsa_coord.tcl]
+source [file join $orsa::ORSA_DIR orsa_body.tcl]
+source [file join $orsa::ORSA_DIR orsa_units.tcl]
+
+package provide orsa 0.7
+

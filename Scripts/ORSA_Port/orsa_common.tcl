@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160402.0602>
+#  Created       : Sat Apr 2 06:03:23 2016
+#  Last Modified : <160402.1559>
 #
 #  Description	
 #
@@ -16,9 +16,7 @@
 #
 #  History
 #	
-#  $Log$
-#
-##############################################################################
+#*****************************************************************************
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -40,7 +38,16 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-SUBDIRS = ORSA_Port
+
+namespace eval orsa {
+    #puts stderr "*** defining orsa constants"
+    variable pi  3.1415926535897932384626433832795029
+    variable halfpi [expr {$pi / 2.0}]
+    variable twopi [expr {$pi + $pi}]
+    variable pisq  [expr {$pi * $pi}]
+}
+
+

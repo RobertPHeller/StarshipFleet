@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160330.1417>
+#  Last Modified : <160402.1533>
 #
 #  Description	
 #
@@ -47,6 +47,7 @@
 
 
 package require snit
+package require orsa
 
 proc _ {args} {
     return [eval format $args]
@@ -70,6 +71,10 @@ namespace eval starships {
     snit::double rhotype -min 0.0
     ## @typedef double rhotype
     # A positive double.
+    
+    snit::integer masstype -min 1
+    ## @typedef integer masstype
+    # A positive non-zero integer.
     
     snit::listtype cartesiancoordtype -minlen 3 -maxlen 3 -type snit::double
     ## @typedef listtype cartesiancoordtype
@@ -594,12 +599,40 @@ namespace eval starships {
         #                    \f$0\f$ and \f$\pi\f$.
         # @arg -zang         The absolute Z launch angle in radians, between 
         #                    \f$0\f$ and \f$\pi\f$.
+        # @arg -mass           The mass of the missle in metric tons.
+        #                      It has no default value and can only be set 
+        #                      at creation time.
+        # @arg -system         The planetary system the ship is in. See
+        #                      PlantarySystem.
         # @par
         
         component thrustvector
         ## @privatesection Current thrustvector.
         variable thrusttime
         ## Remaining thrust time.
+        option -mass  -readonly yes -type starships::masstype
+        component system
+        ## @privatesection @brief The planetary system.
+        option -system -type starships::PlantarySystem \
+              -configuremethod _setSystem -cgetmethod _getSystem
+        method _setSystem {option value} {
+            ## Set the planetary system.
+            #
+            # @param option Allways -system.
+            # @param value The planetary system.
+            #
+            
+            set system $value
+        }
+        method _getSystem {option} {
+            ## Get the planetary system.
+            #
+            # @param option Allways -system.
+            # @return The planetary system.
+            
+            return $system
+        }
+        
         component position
         ## Current position.
         option -start -type starships::Coordinates -readonly yes
@@ -660,12 +693,16 @@ namespace eval starships {
         typevariable misslespecs -array {
             mark1,acceleration 1000
             mark1,burntime 300
+            mark1,mass 1
             mark2,acceleration 1000
             mark2,burntime 300
+            mark2,mass 1
             mark4,acceleration 1000
             mark4,burntime 600
+            mark4,mass 2
             mark10,acceleration 1000
             mark10,burntime 600
+            mark10,mass 4
         }
         ## Missle specifications: acceleration (fraction of c) and burntime 
         # in seconds.
@@ -700,6 +737,11 @@ namespace eval starships {
             #                    \f$0\f$ and \f$\pi\f$.
             # @arg -zang         The absolute Z launch angle in radians, between 
             #                    \f$0\f$ and \f$\pi\f$.
+            # @arg -mass           The mass of the missle in metric tons.
+            #                      It has no default value and can only be set 
+            #                      at creation time.
+            # @arg -system         The planetary system the ship is in. See
+            #                      PlantarySystem.
             # @par
             
             set position [starships::Coordinates copy %AUTO% \
@@ -716,6 +758,7 @@ namespace eval starships {
             set yspeed [$thrustvector DeltaY]
             set zspeed [$thrustvector DeltaZ]
             set thrusttime $misslespecs($mtype,burntime)
+            set options(-mass) $misslespecs($mtype,mass)
         }
         method update {} {
             ## @brief Update the missle.
@@ -964,6 +1007,11 @@ namespace eval starships {
         # @arg -class The class of ship.  An Enum of StarshipClasses type.
         #      No default value, readonly, @b must be specified at construct 
         #      time.
+        # @arg -mass           The mass of the starship in metric tons.
+        #                      It has no default value and can only be set 
+        #                      at creation time.
+        # @arg -system         The planetary system the ship is in. See
+        #                      PlantarySystem.
         # @arg -maxdesignaccel Delegated to the starship's engine component.  
         #                      See the StarshipEngine type.
         # @arg -maxaccel       Delegated to the starship's engine component.
@@ -982,8 +1030,31 @@ namespace eval starships {
         
         
         option -class -readonly yes -type starships::StarshipClasses
+        option -mass  -readonly yes -type starships::masstype
+        component system
+        ## @privatesection @brief The planetary system.
+        option -system -type starships::PlantarySystem \
+              -configuremethod _setSystem -cgetmethod _getSystem
+        method _setSystem {option value} {
+            ## Set the planetary system.
+            #
+            # @param option Allways -system.
+            # @param value The planetary system.
+            #
+            
+            set system $value
+        }
+        method _getSystem {option} {
+            ## Get the planetary system.
+            #
+            # @param option Allways -system.
+            # @return The planetary system.
+            
+            return $system
+        }
+        
         component engine
-        ## @privatesection @brief The engine.
+        ## @brief The engine.
         # This is the engine, which provides thrust in the direction of travel.
         # It has a maximum design acceleration (@c -maxdesignaccel), a current
         # maximum acceleration (@c -maxaccel), and a current acceleration
@@ -1088,6 +1159,11 @@ namespace eval starships {
             # @arg -start        The starting position as a Coordinates object.
             #                    This option can only be set at creation time.
             #                    It has no default value.
+            # @arg -mass         The mass of the starship in metric tons. 
+            #                    It has no default value and can only be set 
+            #                    at creation time.
+            # @arg -system       The planetary system the starship is in. See
+            #                    PlantarySystem.
             # @arg -class The class of ship.  An Enum of StarshipClasses type.
             #      No default value, readonly, @b must be specified at 
             #      construct time.
@@ -1110,6 +1186,12 @@ namespace eval starships {
             if {[lsearch -exact $args -class] < 0} {
                 error [_ "The -class option must be specified!"]
             }
+            if {[lsearch -exact $args -mass] < 0} {
+                error [_ "The -mass option must be specified!"]
+            }
+            if {[lsearch -exact $args -system] < 0} {
+                error [_ "The -system option must be specified!"]
+            }
             install engine using starships::StarshipEngine %AUTO% \
                   -maxdesignaccel [from args -maxdesignaccel 500]
             install shields using starships::StarshipShields %AUTO%
@@ -1119,6 +1201,7 @@ namespace eval starships {
             set position [starships::Coordinates copy %AUTO% \
                           [from args -start]]
             $self configurelist $args
+            $system add $self
         }
         
         method statusreport {} {
@@ -1151,8 +1234,12 @@ namespace eval starships {
             # @return A list of the missles launched (a list of 
             # starships::Missle objects).
             
-            return [$misslelaunchers launch $position \
-                    $xang $yang $zang $number]
+            set launched [$misslelaunchers launch $position $xang $yang $zang $number]
+            foreach m $launched {
+                $m configure -system $system
+                $system add $m
+            }
+            return $launched
         }
             
         method update {} {
@@ -1177,7 +1264,7 @@ namespace eval starships {
             $position configure -cartesian [list $xpos $ypos $zpos]
             return [list $xpos $ypos $zpos]
         }
-        typemethod destroyer {name start} {
+        typemethod destroyer {name start psystem} {
             ## Create a destroyer.  Destroyer accelerate at up to 500 
             # gravities, and have 4 Mark1 launchers.
             #
@@ -1186,9 +1273,10 @@ namespace eval starships {
             # @return A destroyer class starship.
             
             return [$type create $name -class destroyer -maxdesignaccel 500 \
-                    -numberoflaunchers 4 -sizeofmissle mark1 -start $start]
+                    -numberoflaunchers 4 -sizeofmissle mark1 -start $start \
+                    -mass 75000 -system $psystem]
         }
-        typemethod lightcrusier {name start} {
+        typemethod lightcrusier {name start psystem} {
             ## Create a lightcrusier.  Lightcrusiers accelerate at up to 
             # 500 gravities, and have 6 Mark1 launchers.
             #
@@ -1198,9 +1286,10 @@ namespace eval starships {
             
             return [$type create $name -class lightcrusier \
                     -maxdesignaccel 500 -numberoflaunchers 6 \
-                    -sizeofmissle mark1 -start $start]
+                    -sizeofmissle mark1 -start $start \
+                    -mass 200000 -system $psystem]
         }
-        typemethod heavycrusier {name start} {
+        typemethod heavycrusier {name start psystem} {
             ## Create a heavycrusier.  Heavycrusiers accelerate at up to 
             # 500 gravities, and have 8 Mark2 launchers.
             #
@@ -1210,9 +1299,10 @@ namespace eval starships {
             
             return [$type create $name -class heavycrusier \
                     -maxdesignaccel 500 -numberoflaunchers 8 \
-                    -sizeofmissle mark2 -start $start]
+                    -sizeofmissle mark2 -start $start \
+                    -mass 350000 -system $psystem]
         }
-        typemethod battlecrusier {name start} {
+        typemethod battlecrusier {name start psystem} {
             ## Create a battlecrusier.  Battlecrusiers accelerate at up to 
             # 450 gravities, and have 10 Mark2 launchers.
             #
@@ -1222,9 +1312,10 @@ namespace eval starships {
             
             return [$type create $name -class battlecrusier \
                     -maxdesignaccel 450 -numberoflaunchers 10 \
-                    -sizeofmissle mark2 -start $start]
+                    -sizeofmissle mark2 -start $start \
+                    -mass 500000 -system $psystem]
         }
-        typemethod dreadnought {name start} {
+        typemethod dreadnought {name start psystem} {
             ## Create a dreadnought.  Dreadnoughts accelerate at up to 
             # 450 gravities, and have 15 Mark4 launchers.
             #
@@ -1234,9 +1325,10 @@ namespace eval starships {
             
             return [$type create $name -class dreadnought \
                     -maxdesignaccel 450 -numberoflaunchers 15 \
-                    -sizeofmissle mark4 -start $start]
+                    -sizeofmissle mark4 -start $start \
+                    -mass 1000000 -system $psystem]
         }
-        typemethod superdreadnought {name start} {
+        typemethod superdreadnought {name start psystem} {
             ## Create a super dreadnought.  Super Dreadnoughts accelerate at 
             # up to 400 gravities, and have 25 Mark4 launchers.
             #
@@ -1246,9 +1338,10 @@ namespace eval starships {
             
             return [$type create $name -class superdreadnought \
                     -maxdesignaccel 400 -numberoflaunchers 25 \
-                    -sizeofmissle mark4 -start $start]
+                    -sizeofmissle mark4 -start $start \
+                    -mass 8000000 -system $psystem]
         }
-        typemethod ammunition {name start} {
+        typemethod ammunition {name start psystem} {
             ## Create an ammunition ship.  Ammunition ships accelerate at up 
             # to 400 gravities, and have no missle launchers.
             #
@@ -1257,9 +1350,10 @@ namespace eval starships {
             # @return A ammunition ship class starship.
             
             return [$type create $name -class ammunition \
-                    -maxdesignaccel 400  -numberoflaunchers 0 -start $start]
+                    -maxdesignaccel 400  -numberoflaunchers 0 -start $start \
+                    -mass 5000000 -system $psystem]
         }
-        typemethod troopcarrier {name start} {
+        typemethod troopcarrier {name start psystem} {
             ## Create a troop carrier.  Troop Carriers accelerate at up to 
             # 450 gravities, and have no missle launchers.
             #
@@ -1268,9 +1362,66 @@ namespace eval starships {
             # @return A troop carrier class starship.
             
             return [$type create $name -class troopcarrier \
-                    -maxdesignaccel 450 -numberoflaunchers 0 -start $start]
+                    -maxdesignaccel 450 -numberoflaunchers 0 -start $start \
+                    -mass 500000 -system $psystem]
         }
     }
+    snit::type PlantarySystem {
+        ## @brief A planetary system.
+        # The object implements a planetary system, which consists of a ``sun''
+        # at the origin of the coordenate system, and a collection of planets,
+        # moons, asteroids, etc. in various orbits.
+        #
+        # Options:
+        # @par
+        
+        variable sun {}
+        ## @privatesection The sun.
+        variable planets -array {}
+        ## The planets and their moons.
+        variable object [list]
+        ## Other objects
+        constructor {args} {
+            ## @publicsection Construct a planetary system.
+            
+            # set sun [starships::Star %AUTO% ...]
+            # set nplanets [expr {4+int(rand()*6)}];# 4 to 6 planets
+            
+            after 100 [mymethod _updater]
+        }
+        method add {object} {
+            ## Add an object to the list of known objects.
+            # @param object The object to add.
+            
+            lappend objects $ship
+        }
+        method _updater {} {
+            ## @privatesection Update everything.
+            
+            foreach p [array names planets] {
+                $planets($p) update
+            }
+            foreach o $objects {
+                $o update
+            }
+            after 100 [mymethod _updater]
+        }
+        
+        typemethod validate {object} {
+            ## Validate object as a PlantarySystem object.
+            #
+            # @param object The object to validate.
+            #
+            
+            if {[catch {$object info type} otype]} {
+                error [_ "%s is not a %s!" $object $type]
+            } elseif {$otype ne $type} {
+                error [_ "%s is not a %s!" $object $type]
+            } else {
+                return $object
+            }
+        }
+    }        
 }
 
 
