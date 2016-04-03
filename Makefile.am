@@ -10,6 +10,7 @@ ORSA_PortScripts = Scripts/ORSA_Port/pkgIndex.tcl \
 		   Scripts/ORSA_Port/orsa_coord.tcl \        
                    Scripts/ORSA_Port/orsa_body.tcl \
                    Scripts/ORSA_Port/orsa_units.tcl \
+                   Scripts/ORSA_Port/orsa_orbit.tcl \
                    Scripts/ORSA_Port/orsa.tcl
 
 StarshipFleet.kit : StarshipFleet.tcl $(ORSA_PortScripts)
@@ -19,6 +20,8 @@ StarshipFleet.kit : StarshipFleet.tcl $(ORSA_PortScripts)
 	-rm -rf StarshipFleet.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarshipFleet \
 		lib $(SNITLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarshipFleet \
+		lib $(CONTROLLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit wrap StarshipFleet.kit

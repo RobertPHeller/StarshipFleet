@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 06:49:13 2016
-#  Last Modified : <160403.0847>
+#  Last Modified : <160403.1537>
 #
 #  Description	
 #
@@ -49,6 +49,100 @@ source [file join $orsa::ORSA_DIR orsa_common.tcl]
 source [file join $orsa::ORSA_DIR orsa_coord.tcl]
 source [file join $orsa::ORSA_DIR orsa_body.tcl]
 source [file join $orsa::ORSA_DIR orsa_units.tcl]
+source [file join $orsa::ORSA_DIR orsa_orbit.tcl]
+
+namespace eval ::tcl::mathfunc {
+    ## From orsa_secure_math.{h,cc}
+    
+    # avoids domain errors when x<0 and non-integer y
+    proc secure_pow {x  y} {
+    
+        if {$x<0.0} {
+            if {int($y)!=$y} {
+                #ORSA_DOMAIN_ERROR("secure_pow(%g,%g) is undefined!",x,y);
+                return 1.0;# better value?
+            } else {
+                return [pow $x $y]
+            }
+        } else {
+            return [pow $x $y]
+        }
+    }
+  
+    # avoids domain errors when x<=0
+    proc secure_log {x} {
+        if {$x>0} {
+            return [log $x]
+        } else {
+            #ORSA_DOMAIN_ERROR("secure_log(%g) is undefined!",x);
+            return 1.0;#/ better value?
+        }
+    }
+  
+    # avoids domain errors when x<=0
+    proc secure_log10 {x} {
+        if {$x>0} {
+            return [log10 $x]
+        } else {
+            #ORSA_DOMAIN_ERROR("secure_log10(%g) is undefined!",x);
+            return 1.0;# better value?
+        }
+    }
+  
+    # avoids domain errors when x=y=0
+    proc secure_atan2 {x y} {
+        if {$x==0.0} {
+            if {$y==0.0} {
+                # domain error
+                # ORSA_DOMAIN_ERROR("secure_atan2(%g,%g) is undefined!",x,y);
+                return 1.0;# better value?
+            } else {
+                return [atan2 $x $y]
+            }
+        } else {
+            return [atan2 $x $y]
+        }
+    }
+  
+    # avoids domain errors when x is not in [-1,1]
+    proc secure_asin {x} {
+        if {($x>1.0) || ($x<-1.0)} {
+            # domain error
+            #ORSA_DOMAIN_ERROR("secure_asin(%g) is undefined!",x);
+            return 1.0;# better value?
+        } else {
+            return [asin $x]
+        }
+    }
+  
+    # avoids domain errors when x is not in [-1,1]
+    proc secure_acos {x} {
+        if {($x>1.0) || ($x<-1.0)} {
+            # domain error
+            # ORSA_DOMAIN_ERROR("secure_acos(%g) is undefined!",x);
+            return 1.0;# better value?
+        } else {
+            return [acos $x]
+        }
+    }
+    
+    # avoids domain errors when x<0
+    proc secure_sqrt {x} {
+        if {$x<0} {
+            #domain error
+            #ORSA_DOMAIN_ERROR("secure_sqrt(%g) is undefined!",x);
+            return [sqrt [abs $x]];# better value?
+        } else {
+            return [sqrt $x];
+        }
+    }
+    
+    # missing cbrt function.  Fake it with pow
+    proc cbrt {x} {
+        return [expr {secure_pow($x,1.0/3.0)}]
+    }
+    
+}
 
 package provide orsa 0.7
 

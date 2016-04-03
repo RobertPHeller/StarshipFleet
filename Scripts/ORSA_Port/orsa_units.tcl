@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 08:50:05 2016
-#  Last Modified : <160403.1116>
+#  Last Modified : <160403.1253>
 #
 #  Description	
 #
@@ -118,12 +118,13 @@ namespace eval orsa {
     }
     snit::type mass_unit {
         pragma -hastypeinfo false -hastypedestroy false -hasinstances false
-        typevariable enums {MSUN MJUPITER MEARTH MMOON KG GRAM}
+        typevariable enums {MSUN MJUPITER MEARTH MMOON MT KG GRAM}
         typevariable labels -array {
             MSUN     "Sun mass"
             MJUPITER "Jupiter mass"
             MEARTH   "Earth mass"
             MMOON    "Moon mass"
+            MT       "MTon"
             KG       "kg"
             GRAM     "g"
         }
@@ -330,6 +331,7 @@ namespace eval orsa {
                 MJUPITER {set ms  $MJupiter_base}
                 MEARTH   {set ms  $MEarth_base}
                 MMOON    {set ms  $MMoon_base}
+                MT       {set ms  1000.0}
                 KG       {set ms  1.0}
                 GRAM     {set ms  0.001}
             }
@@ -356,7 +358,7 @@ namespace eval orsa {
         variable parsec_base
     }
     
-    variable units [orsa::Units %AUTO% SECOND KM KG]
+    variable units [orsa::Units %AUTO% SECOND KM MT]
     
     proc GetG {} {return [$orsa::units GetG]}
     proc GetG_MKS {} {return [$orsa::units GetG_MKS]}

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160402.1533>
+#  Last Modified : <160403.1826>
 #
 #  Description	
 #
@@ -1424,4 +1424,60 @@ namespace eval starships {
     }        
 }
 
+namespace eval orsa {
+    namespace export *
+}
 
+
+namespace import orsa::*
+
+proc print {v} {
+    Vector validate $v
+    puts "[$v GetX] [$v GetY] [$v GetZ]"
+}
+
+set a [Vector %AUTO% 0 10 0]
+
+puts -nonewline "a: ";print $a
+
+set b [Vector %AUTO% 3 6 7]
+
+puts -nonewline "b: ";print $b
+
+puts -nonewline "a + b: ";print [$a + $b]
+
+puts "$a ScalarProduct $b: [$a ScalarProduct $b]"
+
+set c [Vector %AUTO% $orsa::pi $orsa::twopi $orsa::pisq]
+
+puts -nonewline "c: "; print $c
+
+set d [$a ExternalProduct $b]
+
+puts -nonewline "d: ";print $d
+
+puts "(1) [$orsa::units GetG]"
+puts "(2) [orsa::GetG]"
+
+puts "G*MSun = [expr {[GetG]*[GetMSun]}]"
+
+puts [format "G*MSun = %24.18f" [expr {[GetG]*[GetMSun]}]]
+puts [format "  MSun = %24.18f" [GetMSun]]
+
+puts "=================="
+
+set samples [list \
+             [Vector %AUTO% -5 0 77 -par 0] \
+             [Vector %AUTO% -4 2 73 -par 1] \
+             [Vector %AUTO% -3 4 72 -par 2] \
+             [Vector %AUTO% -2 6 77 -par 3]]
+
+puts "size: [llength $samples]"
+  
+set vi [Vector %AUTO% 0 0 0]
+set verr [Vector %AUTO% 0 0 0]
+
+Vector Interpolate $samples 1.9 vi verr
+
+print $vi
+print $verr

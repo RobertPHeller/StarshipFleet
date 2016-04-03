@@ -33,24 +33,24 @@
 #*  
 #* 
 
-AC_DEFUN([AX_BWIDGET],[
-AC_MSG_CHECKING(bwidget dir)
+AC_DEFUN([AX_CONTROL],[
+AC_MSG_CHECKING(control dir)
 [searchdirs=`echo 'puts $auto_path'|${HOSTTCLSH}`]
 for dir in $searchdirs ; do
-  [dirs="${dir}/bwidget* ${dir}/tcllib*/bwidget*"]
+  [dirs="${dir}/control* ${dir}/tcllib*/control*"]
   for i in $dirs ; do 
     if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
-      [BWLIB=`cd $i; pwd`]
+      [CONTROLLIB=`cd $i; pwd`]
     fi
   done
 done
-AC_ARG_WITH(bwlib, [  --with-bwlib=DIR          use BWidget from DIR], [BWLIB=$withval],)
-if test x$BWLIB != x -a -d $BWLIB; then
-   AC_MSG_RESULT([using BWidget library in $BWLIB])
+AC_ARG_WITH(controllib, [  --with-controllib=DIR          use control from DIR], [CONTROLLIB=$withval],)
+if test x$CONTROLLIB != x -a -d $CONTROLLIB; then
+   AC_MSG_RESULT([using control library in $CONTROLLIB])
 else
-   AC_MSG_ERROR(BWidget library directory not found)
+   AC_MSG_ERROR(Control library directory not found)
 fi
-AC_SUBST(BWLIB)
+AC_SUBST(CONTROLLIB)
 ])
 
 AC_DEFUN([AX_SNIT],[

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 1 22:16:30 2016
-#  Last Modified : <160403.1056>
+#  Last Modified : <160403.1831>
 #
 #  Description	
 #
@@ -118,35 +118,35 @@ namespace eval orsa {
             }
         }
         method * {f} {
-            snit::validate $f
+            snit::double validate $f
             return [$type create %AUTO% [expr {$x * $f}] [expr {$y * $f}] [expr {$z * $f}]]
         }
         method / {f} {
-            snit::validate $f
+            snit::double validate $f
             return [$type create %AUTO% [expr {$x / $f}] [expr {$y / $f}] [expr {$z / $f}]]
         }
         method + {v} {
-            $type validate v
+            $type validate $v
             return [$type create %AUTO% [expr {$x + [$v GetX]}] [expr {$y + [$v GetY]}] [expr {$z + [$v GetZ]}]]
         }
         method - {v} {
-            $type validate v
+            $type validate $v
             return [$type create %AUTO% [expr {$x - [$v GetX]}] [expr {$y - [$v GetY]}] [expr {$z - [$v GetZ]}]]
         }
         method ExternalProduct {v} {
-            $type validate v
+            $type validate $v
             return [$type create %AUTO% [expr {$y*[$v GetZ]-$z*[$v GetY]}] [expr {$z*[$v GetX]-$x*[$v GetZ]}] [expr {$x*[$v GetY]-$y*[$v GetX]}]]
         }
         method Cross {v} {
-            $type validate v
+            $type validate $v
             return [$type create %AUTO% [expr {$y*[$v GetZ]-$z*[$v GetY]}] [expr {$z*[$v GetX]-$x*[$v GetZ]}] [expr {$x*[$v GetY]-$y*[$v GetX]}]]
         }
-        method ScalerProduct {v} {
-            $type validate v
+        method ScalarProduct {v} {
+            $type validate $v
             return [expr {($x*[$v GetX])+($y*[$v GetY])+($z*[$v GetZ])}]
         }
         method == {v} {
-            $type validate v
+            $type validate $v
             if {$x != [$v GetX]} {return no}
             if {$y != [$v GetY]} {return no}
             if {$z != [$v GetZ]} {return no}
@@ -212,14 +212,14 @@ namespace eval orsa {
             set n_points [llength $vx_in]
             if {$n_points < 2} {
                 puts stderr "too few points..."
-                $v_out = [[lindex $vx_in 0] GetVector]
+                $v_out = [lindex $vx_in 0]
                 $err_v_out = [orsa::Vector %AUTO% 0 0 0]
                 return
             }
             set c [list]
             set d [list]
             set w [orsa::Vector %AUTO% 0 0 0]
-            set diff [expr {abd($x - [[lindex $vx_in 0] cget -par])}]
+            set diff [expr {abs($x - [[lindex $vx_in 0] cget -par])}]
             set i_closest 0
             set j 0
             foreach vp_j $vx_in {
@@ -228,12 +228,12 @@ namespace eval orsa {
                     set diff $tmp_double
                     set i_closest $j
                 }
-                lappend c [$vp_j GetVector]
-                lappend d [$vp_j GetVector]
+                lappend c $vp_j
+                lappend d $vp_j
                 incr j
             }
-            $v_out = [[lindex $vx_in $i_closest] GetVector]
-            $err_v_out = [[lindex $vx_in $i_closest] GetVector]
+            $v_out = [lindex $vx_in $i_closest]
+            $err_v_out = [lindex $vx_in $i_closest]
             incr i_closest -1
             
             for {set m 1} {$m <= ($n_points - 2)} {incr m} {
@@ -256,7 +256,7 @@ namespace eval orsa {
                     lset d $i [[$w / $denom] * $hp]
                     lset c $i [[$w / $denom] * $ho]
                 }
-                if { (2*$i_closest) < ($n_points-m) } {
+                if { (2*$i_closest) < ($n_points-$m) } {
                     $err_v_out Set [lindex $c [expr {$i_closest + 1}]]
                 } else {
                     $err_v_out Set [lindex $d $i_closest]
