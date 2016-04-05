@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160402.0602>
+#  Last Modified : <160405.0956>
 #
 #  Description	
 #
@@ -43,4 +43,4 @@
 ##############################################################################
 
 
-SUBDIRS = ORSA_Port
+SUBDIRS = ORSA_Port PlanetarySystem

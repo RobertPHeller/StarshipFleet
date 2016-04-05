@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 1 22:16:30 2016
-#  Last Modified : <160403.1831>
+#  Last Modified : <160403.2207>
 #
 #  Description	
 #
@@ -266,4 +266,5 @@ namespace eval orsa {
             }
         }
     }
+    namespace export Vector_list Vector
 }

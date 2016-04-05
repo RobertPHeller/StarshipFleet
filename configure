@@ -14420,7 +14420,7 @@ fi
 
 
 
-ac_config_files="$ac_config_files Makefile BuildScripts/Makefile BuildData/Makefile Scripts/Makefile Scripts/ORSA_Port/Makefile Docs/Makefile Docs/Doxyfile Docs/tcldoxyfilter.sh UserManual/Makefile UserManual/Doxyfile po/Makefile intl/Makefile"
+ac_config_files="$ac_config_files Makefile BuildScripts/Makefile BuildData/Makefile Scripts/Makefile Scripts/ORSA_Port/Makefile Scripts/PlanetarySystem/Makefile Docs/Makefile Docs/Doxyfile Docs/tcldoxyfilter.sh UserManual/Makefile UserManual/Doxyfile po/Makefile intl/Makefile"
 
 ac_config_commands="$ac_config_commands default"
 
@@ -15087,6 +15087,7 @@ do
     "BuildData/Makefile") CONFIG_FILES="$CONFIG_FILES BuildData/Makefile" ;;
     "Scripts/Makefile") CONFIG_FILES="$CONFIG_FILES Scripts/Makefile" ;;
     "Scripts/ORSA_Port/Makefile") CONFIG_FILES="$CONFIG_FILES Scripts/ORSA_Port/Makefile" ;;
+    "Scripts/PlanetarySystem/Makefile") CONFIG_FILES="$CONFIG_FILES Scripts/PlanetarySystem/Makefile" ;;
     "Docs/Makefile") CONFIG_FILES="$CONFIG_FILES Docs/Makefile" ;;
     "Docs/Doxyfile") CONFIG_FILES="$CONFIG_FILES Docs/Doxyfile" ;;
     "Docs/tcldoxyfilter.sh") CONFIG_FILES="$CONFIG_FILES Docs/tcldoxyfilter.sh" ;;

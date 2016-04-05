@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 08:50:05 2016
-#  Last Modified : <160403.1253>
+#  Last Modified : <160405.1302>
 #
 #  Description	
 #
@@ -276,9 +276,9 @@ namespace eval orsa {
             set scale [expr {[$self GetLengthScale $l_in] / [$self GetLengthScale]}]
             return [expr {$x * [__int_pow__ $scale $power]}]
         }
-        method FromUnits_mass_tunit {x m_in {power 1}} {
+        method FromUnits_mass_unit {x m_in {power 1}} {
             snit::double validate $x
-            orsa::time_unit validate $m_in
+            orsa::mass_unit validate $m_in
             snit::integer validate $power
             set scale [expr {[$self GetMassScale $m_in] / [$self GetMassScale]}]
             return [expr {$x * [__int_pow__ $scale $power]}]
@@ -364,6 +364,10 @@ namespace eval orsa {
     proc GetG_MKS {} {return [$orsa::units GetG_MKS]}
     proc GetMSun {} {return [$orsa::units GetMSun]}
     proc GetC {} {return [$orsa::units GetC]}
-
+    
+    namespace export time_unit length_unit mass_unit UnitBaseScale<time_unit> \
+          UnitBaseScale<length_unit> UnitBaseScale<mass_unit> GetG G_MKS \
+          MSUN_MKS MJUPITER_MKS MEARTH_MKS MMOON_MKS AU_MKS c_MKS R_EARTH_MKS \
+          R_MOON_MKS Units units units GetG_MKS GetMSun GetC
     
 }

@@ -156,6 +156,7 @@ AC_CONFIG_FILES([Makefile \
                  BuildData/Makefile \
                  Scripts/Makefile \
                  Scripts/ORSA_Port/Makefile \
+                 Scripts/PlanetarySystem/Makefile \
                  Docs/Makefile \
                  Docs/Doxyfile \
                  Docs/tcldoxyfilter.sh \

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 20:44:55 2016
-#  Last Modified : <160403.1100>
+#  Last Modified : <160405.1316>
 #
 #  Description	
 #
@@ -237,10 +237,16 @@ namespace eval orsa {
         variable _velocity
         option -par -default 0.0 -type snit::double
         constructor {args} {
+            puts stderr "*** $type create $self $args"
             set par [from args -par 0.0]
+            puts stderr "*** $type create $self: par = $par"
             snit::double validate $par
-            set _position [orsa::Vector %AUTO%]
-            set _velocity [orsa::Vector %AUTO%]
+            puts stderr "*** $type create $self: par validated"
+            set _position [orsa::Vector %AUTO% 0 0 0]
+            puts stderr "*** $type create $self: _position = $_position"
+            set _velocity [orsa::Vector %AUTO% 0 0 0]
+            puts stderr "*** $type create $self: _velocity = $_velocity"
+            puts stderr "*** $type create $self: llength \$args is [llength $args]"
             switch [llength $args] {
                 1 {
                     set arg [lindex $args 0]
@@ -251,17 +257,17 @@ namespace eval orsa {
                     }
                 }
                 2 {
-                    lassign {name mass} $args
+                    foreach {name mass} $args {break}
                     install bc using BodyConstants %AUTO% \
                           $name $mass 0
                 }
                 3 {
-                    lassign {name mass radius} $args
+                    foreach {name mass radius} $args {break}
                     install bc using BodyConstants %AUTO% \
                           $name $mass $radius
                 }
                 4 {
-                    lassign {name mass position velocity} $args
+                    foreach {name mass position velocity} $args {break}
                     orsa::Vector validate $position
                     orsa::Vector validate $velocity
                     install bc using BodyConstants %AUTO% $name $mass
@@ -269,7 +275,7 @@ namespace eval orsa {
                     $_velocity = $velocity
                 }
                 5 {
-                    lassign {name mass radius position velocity} $args
+                    foreach {name mass radius position velocity} $args {break}
                     orsa::Vector validate $position
                     orsa::Vector validate $velocity
                     install bc using BodyConstants %AUTO% $name $mass $radius
@@ -277,12 +283,12 @@ namespace eval orsa {
                     $_velocity = $velocity
                 }
                 6 {
-                    lassign {name mass radius J2 J3 J4} $args
+                    foreach {name mass radius J2 J3 J4} $args {break}
                     install bc using BodyConstants %AUTO% $name $mass $radius \
                           $J2 $J3 $J4
                 }
                 7 {
-                    lassign {name mass position velocity J2 J3 J4} $args 
+                    foreach {name mass position velocity J2 J3 J4} $args  {break}
                     orsa::Vector validate $position
                     orsa::Vector validate $velocity
                     install bc using BodyConstants %AUTO% $name $mass 0 \
@@ -291,7 +297,7 @@ namespace eval orsa {
                     $_velocity = $velocity
                 }
                 8 {
-                    lassign {name mass radius position velocity J2 J3 J4} $args 
+                    foreach {name mass radius position velocity J2 J3 J4} $args  {break}
                     orsa::Vector validate $position
                     orsa::Vector validate $velocity
                     install bc using BodyConstants %AUTO% $name $mass $radius \
@@ -300,16 +306,21 @@ namespace eval orsa {
                     $_velocity = $velocity
                 }
                 21 {
-                    lassign {name mass radius J2 J3 J4 C22 C31 C32 C33 C41 C42 C43 C44 S31 S32 S33 S41 S42 S43 S44} $args
+                    foreach {name mass radius J2 J3 J4 C22 C31 C32 C33 C41 C42 C43 C44 S31 S32 S33 S41 S42 S43 S44} $args {break}
                     install bc using BodyConstants %AUTO% $name $mass $radius \
                           $J2 $J3 $J4 $C22 $C31 $C32 $C33 $C41 $C42 $C43 $C44 \
                           $S31 $S32 $S33 $S41 $S42 $S43 $S44
                 }
+                default {
+                    error "Wrong number of arguments!"
+                }
             }
+            puts stderr "*** $type create $self: bc = \{$bc\}"
         }
         method = {b} {
             $type validate $b
             set b_bc [$b info vars bc]
+            puts stderr "*** $self =: bc = \{$bc\}, b_bc = \{$b_bc\}"
             if {[set $b_bc] != $bc} {
                 $bc RemoveUser
                 if {[$bc Users] == 0} {
@@ -324,6 +335,7 @@ namespace eval orsa {
             return $self
         }
         destructor {
+            puts stderr "*** $self destroy: bc = \{$bc\}"
             $bc RemoveUser
             if {[$bc Users] == 0} {
                 $bc destroy
@@ -428,4 +440,5 @@ namespace eval orsa {
         }
         
     }
+    namespace export Body_list Body
 }

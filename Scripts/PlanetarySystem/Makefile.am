@@ -1,4 +1,4 @@
-#*****************************************************************************
+##-*- makefile -*-############################################################
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:03:23 2016
-#  Last Modified : <160403.2207>
+#  Created       : Tue Apr 5 09:50:37 2016
+#  Last Modified : <160405.0958>
 #
 #  Description	
 #
@@ -16,7 +16,9 @@
 #
 #  History
 #	
-#*****************************************************************************
+#  $Log$
+#
+##############################################################################
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -38,17 +40,7 @@
 #
 # 
 #
-#*****************************************************************************
+##############################################################################
 
 
-
-namespace eval orsa {
-    #puts stderr "*** defining orsa constants"
-    variable pi  3.1415926535897932384626433832795029
-    variable halfpi [expr {$pi / 2.0}]
-    variable twopi [expr {$pi + $pi}]
-    variable pisq  [expr {$pi * $pi}]
-    namespace export pi halfpi twopi pisq
-}
-
-
+EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl

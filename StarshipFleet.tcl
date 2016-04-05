@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160403.1826>
+#  Last Modified : <160405.1322>
 #
 #  Description	
 #
@@ -48,6 +48,7 @@
 
 package require snit
 package require orsa
+package require PlanetarySystem
 
 proc _ {args} {
     return [eval format $args]
@@ -63,6 +64,9 @@ namespace eval starships {
     #
     # @author Robert Heller \<heller\@deepsoft.com\>
     #
+    
+    namespace import ::orsa::*
+    namespace import ::planetarysystem::*
     
     snit::double radians -max [expr {acos(-1)}] -min [expr {-acos(-1)}]
     ## @typedef double radians
@@ -1033,7 +1037,7 @@ namespace eval starships {
         option -mass  -readonly yes -type starships::masstype
         component system
         ## @privatesection @brief The planetary system.
-        option -system -type starships::PlantarySystem \
+        option -system -type planetarysystem::PlanetarySystem \
               -configuremethod _setSystem -cgetmethod _getSystem
         method _setSystem {option value} {
             ## Set the planetary system.
@@ -1366,118 +1370,22 @@ namespace eval starships {
                     -mass 500000 -system $psystem]
         }
     }
-    snit::type PlantarySystem {
-        ## @brief A planetary system.
-        # The object implements a planetary system, which consists of a ``sun''
-        # at the origin of the coordenate system, and a collection of planets,
-        # moons, asteroids, etc. in various orbits.
-        #
-        # Options:
-        # @par
-        
-        variable sun {}
-        ## @privatesection The sun.
-        variable planets -array {}
-        ## The planets and their moons.
-        variable object [list]
-        ## Other objects
-        constructor {args} {
-            ## @publicsection Construct a planetary system.
-            
-            # set sun [starships::Star %AUTO% ...]
-            # set nplanets [expr {4+int(rand()*6)}];# 4 to 6 planets
-            
-            after 100 [mymethod _updater]
-        }
-        method add {object} {
-            ## Add an object to the list of known objects.
-            # @param object The object to add.
-            
-            lappend objects $ship
-        }
-        method _updater {} {
-            ## @privatesection Update everything.
-            
-            foreach p [array names planets] {
-                $planets($p) update
-            }
-            foreach o $objects {
-                $o update
-            }
-            after 100 [mymethod _updater]
-        }
-        
-        typemethod validate {object} {
-            ## Validate object as a PlantarySystem object.
-            #
-            # @param object The object to validate.
-            #
-            
-            if {[catch {$object info type} otype]} {
-                error [_ "%s is not a %s!" $object $type]
-            } elseif {$otype ne $type} {
-                error [_ "%s is not a %s!" $object $type]
-            } else {
-                return $object
-            }
-        }
-    }        
 }
-
-namespace eval orsa {
-    namespace export *
-}
-
-
-namespace import orsa::*
 
 proc print {v} {
     Vector validate $v
-    puts "[$v GetX] [$v GetY] [$v GetZ]"
+    puts "[format {X: %20.15g, Y: %20.15g, Z: %20.15g} [$v GetX] [$v GetY] [$v GetZ]]"
 }
 
-set a [Vector %AUTO% 0 10 0]
+set system [planetarysystem::PlanetarySystem create %AUTO% -seed 2060939112 -stellarmass 0.9244477969242483]
 
-puts -nonewline "a: ";print $a
-
-set b [Vector %AUTO% 3 6 7]
-
-puts -nonewline "b: ";print $b
-
-puts -nonewline "a + b: ";print [$a + $b]
-
-puts "$a ScalarProduct $b: [$a ScalarProduct $b]"
-
-set c [Vector %AUTO% $orsa::pi $orsa::twopi $orsa::pisq]
-
-puts -nonewline "c: "; print $c
-
-set d [$a ExternalProduct $b]
-
-puts -nonewline "d: ";print $d
-
-puts "(1) [$orsa::units GetG]"
-puts "(2) [orsa::GetG]"
-
-puts "G*MSun = [expr {[GetG]*[GetMSun]}]"
-
-puts [format "G*MSun = %24.18f" [expr {[GetG]*[GetMSun]}]]
-puts [format "  MSun = %24.18f" [GetMSun]]
-
-puts "=================="
-
-set samples [list \
-             [Vector %AUTO% -5 0 77 -par 0] \
-             [Vector %AUTO% -4 2 73 -par 1] \
-             [Vector %AUTO% -3 4 72 -par 2] \
-             [Vector %AUTO% -2 6 77 -par 3]]
-
-puts "size: [llength $samples]"
-  
-set vi [Vector %AUTO% 0 0 0]
-set verr [Vector %AUTO% 0 0 0]
-
-Vector Interpolate $samples 1.9 vi verr
-
-print $vi
-print $verr
+puts "Vars in system: [$system info vars]"
+puts "Planets:"
+parray [$system info vars planets]
+set sun [set [$system info vars sun]]
+puts "Vars in the sun: [$sun info vars]"
+puts "Options in the sun [$sun configure]"
+set body [set [$sun info vars body]]
+puts -nonewline "Solar position: ";print [$body position]
+puts -nonewline "Solar velocity: ";print [$body velocity]
+puts "Solar Mass: [$body mass] [$orsa::units MassLabel]"

@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:03:23 2016
-#  Last Modified : <160403.2207>
+#  Created       : Tue Apr 5 09:52:29 2016
+#  Last Modified : <160405.0956>
 #
 #  Description	
 #
@@ -41,14 +41,4 @@
 #*****************************************************************************
 
 
-
-namespace eval orsa {
-    #puts stderr "*** defining orsa constants"
-    variable pi  3.1415926535897932384626433832795029
-    variable halfpi [expr {$pi / 2.0}]
-    variable twopi [expr {$pi + $pi}]
-    variable pisq  [expr {$pi * $pi}]
-    namespace export pi halfpi twopi pisq
-}
-
-
+package ifneeded PlanetarySystem 0.1 [list source  [file join $dir PlanetarySystem.tcl]]
