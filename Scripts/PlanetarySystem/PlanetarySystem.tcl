@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160405.1638>
+#  Last Modified : <160405.2029>
 #
 #  Description	
 #
@@ -52,47 +52,48 @@ namespace eval planetarysystem {
     
     snit::type NameGenerator {
         pragma -hastypeinfo false -hastypedestroy false -hasinstances false
-        typevariable _corpus {}
+        typevariable default_corpus {}
         typeconstructor {
-            set _corpus { }
+            set default_corpus { }
             foreach w {} {
                 regsub -all {[^[:alpha:]]} $w {} word
                 if {$word eq {}} {continue}
                 set word [string tolower $word]
-                append _corpus "$word "
+                append default_corpus "$word "
             }
         }
-        proc rchar {{context ""}} {
+        proc rchar {{context ""} {corpus {}}} {
+            if {$corpus eq ""} {set corpus $default_corpus}
             set p "${context}(.)"
-            set n [expr {int(rand()*[string length $_corpus])}]
-            if {[regexp -start $n -indices $p $_corpus n_i c_i] < 1} {
-                if {[regexp -indices $p $_corpus n_i c_i] < 1} {
+            set n [expr {int(rand()*[string length $corpus])}]
+            if {[regexp -start $n -indices $p $corpus n_i c_i] < 1} {
+                if {[regexp -indices $p $corpus n_i c_i] < 1} {
                     return {}
                 }
             }
-            set rc1 [string index $_corpus [lindex $c_i 0]]
+            set rc1 [string index $corpus [lindex $c_i 0]]
             set n [lindex $n_i 0]
             incr n
-            if {[regexp -start $n -indices $p $_corpus n_i c_i] < 1} {
-                if {[regexp -indices $p $_corpus n_i c_i] < 1} {
+            if {[regexp -start $n -indices $p $corpus n_i c_i] < 1} {
+                if {[regexp -indices $p $corpus n_i c_i] < 1} {
                     return {}
                 }
             }
-            set rc2 [string index $_corpus [lindex $c_i 0]]
+            set rc2 [string index $corpus [lindex $c_i 0]]
             if {rand() > .5} {
                 return $rc1
             } else {
                 return $rc2
             }
         }
-        typemethod rword {k} {
+        typemethod rword {k {corpus {}}} {
             set result " "
             set c ""
             while {$c ne " "} {
                 set len [string length $result]
                 set s [expr {$len - $k}]
                 set context [string range $result $s end]
-                set c [rchar $context]
+                set c [rchar $context $corpus]
                 append result $c
             }
             return [string trim $result]
@@ -118,6 +119,69 @@ namespace eval planetarysystem {
         option -luminosity -default 0 -readonly yes -type {snit::double -min 0.0}
         option -age -default 0 -readonly yes -type {snit::double -min 0.0}
         option -habitable -default 0 -readonly yes -type {snit::double -min 0.0}
+        typevariable starname_corpus
+        ## Star name corpus.
+        typeconstructor {
+            set starname_corpus { }
+            foreach w {Acamar Achernar Achird Acrab Akrab Elakrab Graffias 
+                Acrux Acubens Adhafera Adhara Ain Aladfar Alamak Alathfar 
+                Alaraph Albaldah Albali Albireo Alchiba Alcor Alcyone 
+                Aldebaran Alderamin Aldhafera Aldhanab Aldhibain Aldib Fawaris
+                Alfecca Meridiana Alfirk Algedi Giedi Algenib Algenib Algieba 
+                Algol Algorab Alhajoth Alhena Alioth Alkaid Kurud Kalb Rai 
+                Alkalurops Kaphrah Alkes Alkurah Almach Minliar Asad Nair 
+                Alnasl Alnilam Alnitak Alniyat Niyat Alphard Alphecca 
+                Alpheratz Alrai Alrami Alrischa Alsafi Alsciaukat Alshain 
+                Alshat Altair Altais Altarf Alterf Thalimain Thalimain Aludra 
+                Alula Australis Alula Borealis Alwaid Alya Alzir Ancha 
+                Angetenar Ankaa Antares Arcturus Arich Arkab Armus Arneb 
+                Arrakis Alrakis Elrakis Ascella Asellus Australis Asellus 
+                Borealis Asellus Primus Asellus Secundus Asellus Tertius 
+                Askella Aspidiske Asterion Asterope Atik Atlas Atria Auva 
+                Avior Azaleh Azelfafage Azha Azmidiske Baham Baten Kaitos 
+                Becrux Mimosa Beid Bellatrix Benetnasch Betelgeuse Betria 
+                Biham Botein Brachium Bunda Canopus Capella Caph Castor 
+                Cebalrai Celaeno Chara Chara Cheleb Chertan Chort Chow Cor 
+                Caroli Cursa Dabih Decrux Deneb Deneb Algedi Deneb Dulfim 
+                Deneb Okab Deneb Kaitos Deneb Kaitos Schemali Denebola Dheneb 
+                Diadem Diphda Dnoces Dschubba Dubhe Duhr Edasich Electra 
+                Elmuthalleth Elnath Enif Errai Etamin Eltanin Fomalhaut Fum 
+                Samakah Furud Gacrux Garnet Gatria Gemma Gianfar Giedi Gienah 
+                Gurab Gienah Girtab Gomeisa Gorgonea Tertia Grumium Hadar 
+                Haedus Haldus Hamal Ras Hammel Hassaleh Hydrus Heka Heze 
+                Hoedus Hoedus Homam Hyadum Hyadum Hydrobius Jabbah Kabdhilinan 
+                Kaffaljidhma Kajam Kastra Kaus Australis Kaus Borealis Kaus 
+                Media Keid Kitalpha Kochab Kornephoros Kraz Rukbah Rucbah 
+                Ksora Kullat Nunu Kuma Superba Lesath Lucida Anseris Maasym
+                Mahasim Maia Marfark Marfik Markab Matar Mebsuta Media Megrez 
+                Meissa Mekbuda Menchib Menkab Menkalinan Menkar Menkent Menkib 
+                Merak Merga Merope Mesarthim Miaplacidus Minchir Minelava 
+                Minkar Mintaka Mira Mirach Miram Mirfak Mirzam Misam Mizar 
+                Mothallah Muliphein Muphrid Mufrid Murzim Muscida Muscida Nair
+                Saif Naos Nash Nashira Navi Nekkar Nembus Nihal Nunki Nusakan 
+                Okul Peacock Phact Phad Phecda Phekda Pherkad Pherkard Pleione 
+                Polaris Cynosure Polaris Australis Pollux Porrima Praecipua 
+                Procyon Propus Pulcherrima Izar Rana Ras Algethi Ras Alhague 
+                Ras Elased Australis Rasalas Rastaban Ras Thaoum Regor Regulus 
+                Rigel Rigil Kentaurus Rijl Awwa Rotanev Ruchba Rukbat Sabik 
+                Sadachbia Sadalbari Sadalmelik Sadalsuud Sadatoni Sadr Saiph 
+                Salm Sargas Sarin Sarir Sceptrum Scheat Scheddi Schedir 
+                Schedar Segin Seginus Sham Shaula Sheliak Sheratan Sinistra 
+                Sirius Situla Skat Spica Azimech Sterope Sualocin Subra Suhail 
+                Sulafat Syrma Tabit Talitha Australis Talitha Borealis Tania 
+                Australis Tania Borealis Tarazet Tarazed Taygeta Tegmen 
+                Tegmine Terebellum Tejat Posterior Tejat Prior Thabit Theemin 
+                Beemin Thuban Tien Kwan Torcularis Septentrionalis Tureis Tyl 
+                Unuk Unukalhai Vega Vindemiatrix Wasat Wazn Wezen Yed Prior 
+                Yed Posterior Yildun Zaniah Zaurak Zaurac Zavijava Zosma Zuben
+                Akrab Zuben Akribi Zubenelgenubi Zuben genubi Lanx Australis 
+                Zubeneschamali Zuben schemali Lanx Borealis} {
+                regsub -all {[^[:alpha:]]} $w {} word
+                if {$word eq {}} {continue}
+                set word [string tolower $word]
+                append starname_corpus "$word "
+            }
+        }
         constructor {args} {
             ## @publicsection Construct a sun (star).
             #
@@ -134,7 +198,11 @@ namespace eval planetarysystem {
             install body using Body %AUTO% $self $m [Vector %AUTO% 0 0 0] [Vector %AUTO% 0 0 0]
         }
         typemethod namegenerator {} {
-            return [planetarysystem::NameGenerator 2]
+            do {
+                set name [string totitle [planetarysystem::NameGenerator rword 2 $starname_corpus]]
+            } while {[llength [info commands ::$name]] > 0 || 
+                     [namespace exists ::$name]}
+            return ::$name
         }
     }
     snit::type Planet {
@@ -151,7 +219,7 @@ namespace eval planetarysystem {
         
         component body
         ## @privatesection The orsa body for this planet.
-        deledate method * to body
+        delegate method * to body
         component orbit
         ## The orbit of this planet
         option -mass -default 0 -readonly yes -type {snit::double -min 0}
@@ -159,6 +227,29 @@ namespace eval planetarysystem {
         option -radius -default 0 -readonly yes -type {snit::double -min 0}
         option -eccentricity -default 0 -readonly yes -type {snit::double -min 0}
         option -period -default 0 -readonly yes -type {snit::double -min 0}
+        typevariable planetname_corpus
+        ## Planet name corpus.
+        typeconstructor {
+            set planetname_corpus { }
+            foreach w {AMATERASU AMPHITRITE ANAHITA AMATERASU ARACELI ARACELIS 
+                ARACELY ARCELIA CAELIA CELESTE CELESTINA CELESTINE CELESTYNA 
+                CELIA CELINE CHIELA CIEL CORDELIA DI DIANA DIANE DIANN DIANNA 
+                DIANNE DIDI DIVINA DIJANA DYAN HEAVEN INANA INANNA KAILANI 
+                KAYLA KAYLE KIANA LANI LEIA LEILANI LUCINA MAPIYA MARICELA 
+                MINOO MINU NALANI NEVAEH NOELANI OKELANI OTTHILD OURANIA 
+                QUIANA QUIANNA URANIA VENUS AN ANHUR ANU ARISTARCHOS 
+                ARISTARCHUS BAHRAM CAELESTINUS CAELINUS CAELIUS CELESTIN 
+                CELESTINO CELESTYN CELINO CELIO DASHIELL GOKER GORLASSAR 
+                GORLOIS JUPITER LANGIT MAHPEE MARS MERCURY NEPTUNE ORION ORTZI 
+                OSKARBI OURANOS PHOBOS PHOIBOS PLUTO RANGI SATURN SVAROG TXERU 
+                URANUS ZERU CAELESTIS HANEUL IHUICATL KALANI SKY SKYE SORA 
+                XIHUITL} {
+                regsub -all {[^[:alpha:]]} $w {} word
+                if {$word eq {}} {continue}
+                set word [string tolower $word]
+                append planetname_corpus "$word "
+            }
+        }
         constructor {args} {
             ## @publicsection Create a planetary body.
             #
@@ -182,22 +273,22 @@ namespace eval planetarysystem {
             set p [$orsa::units FromUnits_time_unit $options(-period) DAY 1]
             
             ## Need: orbital parameters.
-            set a ?
-            set e $options(-eccentricity)
-            set i [expr {acos(rand()*.125-0.0625)}]
-            set omega_pericenter ?
-            set omega_node ?
-            set M ?
-            set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
-            
-            install orbit using Orbit %AUTO% \
-                  -a $a\
-                  -e $e \
-                  -i $i \
-                  -omega_pericenter $omega_pericenter \
-                  -omega_node $omega_node \
-                  -m_ $M \
-                  -mu $mu
+            #set a ?
+            #set e $options(-eccentricity)
+            #set i [expr {acos(rand()*.125-0.0625)}]
+            #set omega_pericenter ?
+            #set omega_node ?
+            #set M ?
+            #set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
+            #
+            #install orbit using Orbit %AUTO% \
+            #      -a $a\
+            #      -e $e \
+            #      -i $i \
+            #      -omega_pericenter $omega_pericenter \
+            #      -omega_node $omega_node \
+            #      -m_ $M \
+            #      -mu $mu
         }
         method update {} {
             $orbit RelativePosVel pos vel
@@ -207,7 +298,10 @@ namespace eval planetarysystem {
         }
         typemethod namegenerator {starname} {
             namespace eval $starname {}
-            return ::$starname::[planetarysystem::NameGenerator 2]
+            do {
+                set name [string totitle [planetarysystem::NameGenerator rword 2 $planetname_corpus]]
+            } while {[llength [info commands ${starname}::$name]] > 0}
+            return ${starname}::$name
         }
     }
     
@@ -228,7 +322,7 @@ namespace eval planetarysystem {
         ## @privatesection The sun.
         variable planets -array {}
         ## The planets and their moons.
-        variable object [list]
+        variable objects [list]
         ## Other objects
         variable StargenSeed
         ## Stargen Seed
@@ -267,7 +361,7 @@ namespace eval planetarysystem {
             set starname [planetarysystem::Sun namegenerator]
             set sun [planetarysystem::Sun $starname -mass $sm -luminosity $sl -age $sa -habitable $hr]
             
-            #puts stderr "*** $type create $self: sm = $sm, sl = $sl, sa = $sa, hr = $hr"
+            #puts stderr "*** $type create $self: starname = $starname, sm = $sm, sl = $sl, sa = $sa, hr = $hr"
             gets $genout;# 
             gets $genout;# Planets present at:
             set nplanets 0
@@ -373,12 +467,13 @@ namespace eval planetarysystem {
                     }
                 }
                 set planetname [planetarysystem::Planet namegenerator $starname]
+                #puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
                 set planets($i,planet) [planetarysystem::Planet $planetname \
-                                        -mass     planets($i,mass) \
-                                        -distance planets($i,distance) \
-                                        -radius   planets($i,radius) \
-                                        -eccentricity planets($i,eccentricity) \
-                                        -period   planets($i,year)]
+                                        -mass     $planets($i,mass) \
+                                        -distance $planets($i,distance) \
+                                        -radius   $planets($i,radius) \
+                                        -eccentricity $planets($i,eccentricity) \
+                                        -period   $planets($i,year)]
                 $self add $planets($i,planet)
             }
         }

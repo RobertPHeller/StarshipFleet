@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 20:44:55 2016
-#  Last Modified : <160405.1316>
+#  Last Modified : <160405.2019>
 #
 #  Description	
 #
@@ -237,16 +237,16 @@ namespace eval orsa {
         variable _velocity
         option -par -default 0.0 -type snit::double
         constructor {args} {
-            puts stderr "*** $type create $self $args"
+            #puts stderr "*** $type create $self $args"
             set par [from args -par 0.0]
-            puts stderr "*** $type create $self: par = $par"
+            #puts stderr "*** $type create $self: par = $par"
             snit::double validate $par
-            puts stderr "*** $type create $self: par validated"
+            #puts stderr "*** $type create $self: par validated"
             set _position [orsa::Vector %AUTO% 0 0 0]
-            puts stderr "*** $type create $self: _position = $_position"
+            #puts stderr "*** $type create $self: _position = $_position"
             set _velocity [orsa::Vector %AUTO% 0 0 0]
-            puts stderr "*** $type create $self: _velocity = $_velocity"
-            puts stderr "*** $type create $self: llength \$args is [llength $args]"
+            #puts stderr "*** $type create $self: _velocity = $_velocity"
+            #puts stderr "*** $type create $self: llength \$args is [llength $args]"
             switch [llength $args] {
                 1 {
                     set arg [lindex $args 0]
@@ -315,12 +315,12 @@ namespace eval orsa {
                     error "Wrong number of arguments!"
                 }
             }
-            puts stderr "*** $type create $self: bc = \{$bc\}"
+            #puts stderr "*** $type create $self: bc = \{$bc\}"
         }
         method = {b} {
             $type validate $b
             set b_bc [$b info vars bc]
-            puts stderr "*** $self =: bc = \{$bc\}, b_bc = \{$b_bc\}"
+            #puts stderr "*** $self =: bc = \{$bc\}, b_bc = \{$b_bc\}"
             if {[set $b_bc] != $bc} {
                 $bc RemoveUser
                 if {[$bc Users] == 0} {
@@ -335,7 +335,7 @@ namespace eval orsa {
             return $self
         }
         destructor {
-            puts stderr "*** $self destroy: bc = \{$bc\}"
+            #puts stderr "*** $self destroy: bc = \{$bc\}"
             $bc RemoveUser
             if {[$bc Users] == 0} {
                 $bc destroy

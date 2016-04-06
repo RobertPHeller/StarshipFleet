@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160405.1322>
+#  Last Modified : <160405.2037>
 #
 #  Description	
 #
@@ -1377,15 +1377,19 @@ proc print {v} {
     puts "[format {X: %20.15g, Y: %20.15g, Z: %20.15g} [$v GetX] [$v GetY] [$v GetZ]]"
 }
 
-set system [planetarysystem::PlanetarySystem create %AUTO% -seed 2060939112 -stellarmass 0.9244477969242483]
+set system [planetarysystem::PlanetarySystem create %AUTO%]
 
 puts "Vars in system: [$system info vars]"
-puts "Planets:"
-parray [$system info vars planets]
 set sun [set [$system info vars sun]]
-puts "Vars in the sun: [$sun info vars]"
-puts "Options in the sun [$sun configure]"
+puts "Vars in $sun: [$sun info vars]"
+puts "Options in $sun [$sun configure]"
 set body [set [$sun info vars body]]
 puts -nonewline "Solar position: ";print [$body position]
 puts -nonewline "Solar velocity: ";print [$body velocity]
 puts "Solar Mass: [$body mass] [$orsa::units MassLabel]"
+puts "Planets:"
+upvar #0 [$system info vars planets] planets
+set n [llength [array names planets *,planet]]
+for {set i 1} {$i <= $n} {incr i} {
+    puts "[namespace tail $sun] $i: [namespace tail $planets($i,planet)]"
+}
