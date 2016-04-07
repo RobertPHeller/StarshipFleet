@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160405.2029>
+#  Last Modified : <160407.1432>
 #
 #  Description	
 #
@@ -222,6 +222,7 @@ namespace eval planetarysystem {
         delegate method * to body
         component orbit
         ## The orbit of this planet
+        #delegate option * to orbit
         option -mass -default 0 -readonly yes -type {snit::double -min 0}
         option -distance -default 0 -readonly yes -type {snit::double -min 0}
         option -radius -default 0 -readonly yes -type {snit::double -min 0}
@@ -273,22 +274,30 @@ namespace eval planetarysystem {
             set p [$orsa::units FromUnits_time_unit $options(-period) DAY 1]
             
             ## Need: orbital parameters.
-            #set a ?
-            #set e $options(-eccentricity)
-            #set i [expr {acos(rand()*.125-0.0625)}]
-            #set omega_pericenter ?
-            #set omega_node ?
-            #set M ?
-            #set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
-            #
-            #install orbit using Orbit %AUTO% \
-            #      -a $a\
-            #      -e $e \
-            #      -i $i \
-            #      -omega_pericenter $omega_pericenter \
-            #      -omega_node $omega_node \
-            #      -m_ $M \
-            #      -mu $mu
+            set a  $d
+            set e  $options(-eccentricity)
+            set i  [expr {asin(rand()*.125-0.0625)}]
+            set omega_pericenter [expr {asin(rand()*.25-0.125)}]
+            set omega_node [expr {asin(rand()*.125-0.0625)}]
+            set M  .002
+            set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
+            
+            install orbit using Orbit %AUTO% \
+                  -a $a\
+                  -e $e \
+                  -i $i \
+                  -omega_pericenter $omega_pericenter \
+                  -omega_node $omega_node \
+                  -m_ $M \
+                  -mu $mu
+            $orbit RelativePosVel pos vel
+            $body SetPosition $pos
+            $body SetVelocity $vel
+            #puts stderr [format {*** %s create %s: pos = [%20.15g %20.15g %20.15g]} \
+            #             $type $self [$pos GetX] [$pos GetY] [$pos GetZ]]
+            #puts stderr [format {*** %s create %s: vel = [%20.15g %20.15g %20.15g]} \
+            #             $type $self [$vel GetX] [$vel GetY] [$vel GetZ]]
+            
         }
         method update {} {
             $orbit RelativePosVel pos vel
@@ -352,11 +361,32 @@ namespace eval planetarysystem {
             set genout [open "|$cmdline" r]
             regexp {seed=([[:digit:]]+)$} [gets $genout] => StargenSeed
             #puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
-            gets $genout;# SYSTEM  CHARACTERISTICS
-            regexp {^Stellar mass:[[:space:]]+([[:digit:].]+)[[:space:]]+solar masses} [gets $genout] => sm
-            regexp {^Stellar luminosity:[[:space:]]+([[:digit:].]+)$} [gets $genout] => sl
-            regexp {^Age:[[:space:]]+([[:digit:].]+)[[:space:]]+billion years} [gets $genout] => sa
-            regexp {^Habitable ecosphere radius: ([[:digit:].]+)[[:space:]]+AU$} [gets $genout] => hr
+            set line [gets $genout];# SYSTEM  CHARACTERISTICS
+            #puts stderr "*** $type create $self: $line"
+            set line [gets $genout]
+            #puts stderr "*** $type create $self: $line"
+            if {[regexp {^Stellar mass:[[:space:]]+([[:digit:].]+)[[:space:]]+solar masses} $line => sm] < 1} {
+                set sm 0
+                puts stderr "Input error (Stellar mass): $line"
+            }
+            set line [gets $genout]
+            #puts stderr "*** $type create $self: $line"
+            if {[regexp {^Stellar luminosity:[[:space:]]+([[:digit:].]+)$} $line => sl] < 1} {
+                set sl 0
+                puts stderr "Input error (Stellar luminosity): $line"
+            }
+            set line [gets $genout]
+            #puts stderr "*** $type create $self: $line"
+            if {[regexp {^Age:[[:space:]]+([[:digit:].]+)[[:space:]]+billion years} $line => sa] < 1} {
+                set sa 0
+                puts stderr "Input error (Age): $line"
+            }
+            set line [gets $genout]
+            #puts stderr "*** $type create $self: $line"
+            if {[regexp {^Habitable ecosphere radius: ([[:digit:].]+)[[:space:]]+AU$} $line => hr] < 1} {
+                set hr 0
+                puts stderr "Input error (Habitable ecosphere radius): $line"
+            }
             
             set starname [planetarysystem::Sun namegenerator]
             set sun [planetarysystem::Sun $starname -mass $sm -luminosity $sl -age $sa -habitable $hr]

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:50:37 2016
-#  Last Modified : <160405.0958>
+#  Last Modified : <160406.1946>
 #
 #  Description	
 #
@@ -43,4 +43,4 @@
 ##############################################################################
 
 
-EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl
+EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl structs.tcl
