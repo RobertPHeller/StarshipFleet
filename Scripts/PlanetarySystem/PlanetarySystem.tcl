@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160407.1432>
+#  Last Modified : <160408.1423>
 #
 #  Description	
 #
@@ -49,6 +49,10 @@ namespace eval planetarysystem {
     variable PLANETARYSYSTEM_DIR [file dirname [info script]]
 
     namespace import ::orsa::*
+    
+    snit::enum planet_type -values {Unknown Rock Venusian Terrestrial 
+        GasGiant Martian Water Ice SubGasGiant SubSubGasGiant Asteroids
+        1Face}
     
     snit::type NameGenerator {
         pragma -hastypeinfo false -hastypedestroy false -hasinstances false
@@ -197,6 +201,7 @@ namespace eval planetarysystem {
             set m [$orsa::units FromUnits_mass_unit $options(-mass) MSUN 1]
             install body using Body %AUTO% $self $m [Vector %AUTO% 0 0 0] [Vector %AUTO% 0 0 0]
         }
+        method GetBody {} {return $body}
         typemethod namegenerator {} {
             do {
                 set name [string totitle [planetarysystem::NameGenerator rword 2 $starname_corpus]]
@@ -204,17 +209,33 @@ namespace eval planetarysystem {
                      [namespace exists ::$name]}
             return ::$name
         }
+        typemethod validate {object} {
+            ## @publicsection Validate object as a PlantarySystem object.
+            #
+            # @param object The object to validate.
+            #
+            
+            if {[catch {$object info type} otype]} {
+                error [_ "%s is not a %s!" $object $type]
+            } elseif {$otype ne $type} {
+                error [_ "%s is not a %s!" $object $type]
+            } else {
+                return $object
+            }
+        }
     }
     snit::type Planet {
         ## @brief A planet.
         # A PlanetarySystem has one or more planets, in orbit about its sun.
         #
         # Options:
-        # @arg -mass The mass in Earth Masses
-        # @arg -distance The distance in AU
-        # @arg -radius The Equatorial radius in Km
-        # @arg -eccentricity Eccentricity of orbit
-        # @arg -period Length of year in days
+        # @arg -mass The mass in Earth Masses.
+        # @arg -distance The distance in AU.
+        # @arg -radius The Equatorial radius in Km.
+        # @arg -eccentricity Eccentricity of orbit.
+        # @arg -period Length of year in days.
+        # @arg -sun The sun.
+        # @arg -ptype The type of planet.
         # @par
         
         component body
@@ -228,6 +249,8 @@ namespace eval planetarysystem {
         option -radius -default 0 -readonly yes -type {snit::double -min 0}
         option -eccentricity -default 0 -readonly yes -type {snit::double -min 0}
         option -period -default 0 -readonly yes -type {snit::double -min 0}
+        option -ptype -default Unknown -type planetarysystem::planet_type
+        option -sun -type planetarysystem::Sun -readonly yes
         typevariable planetname_corpus
         ## Planet name corpus.
         typeconstructor {
@@ -256,13 +279,18 @@ namespace eval planetarysystem {
             #
             # @param name Name of the planetary body.
             # @param ... Options:
-            # @arg -mass The mass in Earth Masses
-            # @arg -distance The distance in AU
-            # @arg -radius The Equatorial radius in Km
-            # @arg -eccentricity Eccentricity of orbit
-            # @arg -period Length of year in days
+            # @arg -mass The mass in Earth Masses.
+            # @arg -distance The distance in AU.
+            # @arg -radius The Equatorial radius in Km.
+            # @arg -eccentricity Eccentricity of orbit.
+            # @arg -period Length of year in days.
+            # @arg -ptype The type of planet.
+            # @arg -sun The sun.
             # @par
             
+            if {[lsearch $args -sun] < 0} {
+                error "The -sun option is required!"
+            }
             $self configurelist $args
             ## Body options
             set m [$orsa::units FromUnits_mass_unit $options(-mass) MEARTH 1]
@@ -279,11 +307,11 @@ namespace eval planetarysystem {
             set i  [expr {asin(rand()*.125-0.0625)}]
             set omega_pericenter [expr {asin(rand()*.25-0.125)}]
             set omega_node [expr {asin(rand()*.125-0.0625)}]
-            set M  .002
+            set M  [expr {asin(rand()*2.0-1.0)}]
             set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
             
             install orbit using Orbit %AUTO% \
-                  -a $a\
+                  -a $a \
                   -e $e \
                   -i $i \
                   -omega_pericenter $omega_pericenter \
@@ -293,16 +321,24 @@ namespace eval planetarysystem {
             $orbit RelativePosVel pos vel
             $body SetPosition $pos
             $body SetVelocity $vel
+
             #puts stderr [format {*** %s create %s: pos = [%20.15g %20.15g %20.15g]} \
             #             $type $self [$pos GetX] [$pos GetY] [$pos GetZ]]
             #puts stderr [format {*** %s create %s: vel = [%20.15g %20.15g %20.15g]} \
             #             $type $self [$vel GetX] [$vel GetY] [$vel GetZ]]
             
         }
+        method GetBody {} {return $body}
+        method GetOrbit {} {return $orbit}
         method update {} {
-            $orbit RelativePosVel pos vel
+            set pos [$body position]
+            set vel [$pody velocity]
+            $pos += $vel
             $self SetPosition $pos
-            $self SetVelocity $vel
+            $orbit Compute Body $body [[$self cget -sun] GetBody]
+            $orbit RelativePosVel pos vel
+            $body SetPosition $pos
+            $body SetVelocity $vel
             return [list [$pos GetX] [$pos GetY] [$post GetY]]
         }
         typemethod namegenerator {starname} {
@@ -311,6 +347,20 @@ namespace eval planetarysystem {
                 set name [string totitle [planetarysystem::NameGenerator rword 2 $planetname_corpus]]
             } while {[llength [info commands ${starname}::$name]] > 0}
             return ${starname}::$name
+        }
+        typemethod validate {object} {
+            ## @publicsection Validate object as a PlantarySystem object.
+            #
+            # @param object The object to validate.
+            #
+            
+            if {[catch {$object info type} otype]} {
+                error [_ "%s is not a %s!" $object $type]
+            } elseif {$otype ne $type} {
+                error [_ "%s is not a %s!" $object $type]
+            } else {
+                return $object
+            }
         }
     }
     
@@ -325,16 +375,16 @@ namespace eval planetarysystem {
         # @arg -stellarmass The Stellar mass.
         # @par
         
-        typevariable STARGEN /home/heller/Deepwoods/StarshipFleet/assets/StarGenSource/stargen
-        
         variable sun {}
         ## @privatesection The sun.
         variable planets -array {}
         ## The planets and their moons.
+        variable nplanets 0
+        ## The number of nplanets.
         variable objects [list]
         ## Other objects
-        variable StargenSeed
-        ## Stargen Seed
+        typevariable STARGEN /home/heller/Deepwoods/StarshipFleet/assets/StarGenSource/stargen
+        ## StarGen executable path.
         option -seed -default 0 -type snit::integer
         option -stellarmass -default 0.0 -type {snit::double -min 0.0}
         constructor {args} {
@@ -348,18 +398,17 @@ namespace eval planetarysystem {
             
             $self configurelist $args
             if {$options(-stellarmass) == 0.0} {
-                set stellarmass [expr {.8+(rand()*.4)}]
-            } else {
-                set stellarmass $options(-stellarmass)
+                set $options(-stellarmass) [expr {.8+(rand()*.4)}]
             }
             if {$options(-seed) == 0} {
-                set cmdline "$STARGEN -m$stellarmass -p/tmp -H -M -t -n20"
+                set cmdline "$STARGEN -m$options(-stellarmass) -p/tmp -H -M -t -n20"
             } else {
-                set cmdline "$STARGEN -s$options(-seed) -m$stellarmass -p/tmp -H -M -t -n20"
+                set cmdline "$STARGEN -s$options(-seed) -m$options(-stellarmass) -p/tmp -H -M -t -n20"
             }
             #puts stderr "*** $type create $self: stellarmass = $stellarmass"
             set genout [open "|$cmdline" r]
             regexp {seed=([[:digit:]]+)$} [gets $genout] => StargenSeed
+            set options(-seed) $StargenSeed
             #puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
             set line [gets $genout];# SYSTEM  CHARACTERISTICS
             #puts stderr "*** $type create $self: $line"
@@ -392,6 +441,7 @@ namespace eval planetarysystem {
             set sun [planetarysystem::Sun $starname -mass $sm -luminosity $sl -age $sa -habitable $hr]
             
             #puts stderr "*** $type create $self: starname = $starname, sm = $sm, sl = $sl, sa = $sa, hr = $hr"
+            puts stderr "*** $type create $self: sun = $sun"
             gets $genout;# 
             gets $genout;# Planets present at:
             set nplanets 0
@@ -401,13 +451,13 @@ namespace eval planetarysystem {
                 if {[regexp {^([[:digit:]]+)[[:space:]]+([[:digit:].]+)[[:space:]]+AU[[:space:]]+([[:digit:].]+)[[:space:]]+EM[[:space:]]+(.)$} \
                      $line => indx dist mass char] > 0} {
                     incr nplanets
-                    set  planet_table($indx,dist) $dist
-                    set  planet_table($indx,mass) $mass
-                    set  planet_table($indx,char) $char
+                    set  planets($indx,dist) $dist
+                    set  planets($indx,mass) $mass
+                    set  planets($indx,char) $char
+                    set  planets($indx,ptype) [pchar2ptype $char]
                 } else {
                     error "Opps: planet_table regexp failed at line \{$line\}"
                 }
-                
             }
             #puts stderr "*** $type create $self: nplanets = $nplanets"
             for {set i 1} {$i <= $nplanets} {incr i} {
@@ -497,13 +547,15 @@ namespace eval planetarysystem {
                     }
                 }
                 set planetname [planetarysystem::Planet namegenerator $starname]
-                #puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
+                puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
                 set planets($i,planet) [planetarysystem::Planet $planetname \
                                         -mass     $planets($i,mass) \
                                         -distance $planets($i,distance) \
                                         -radius   $planets($i,radius) \
                                         -eccentricity $planets($i,eccentricity) \
-                                        -period   $planets($i,year)]
+                                        -period   $planets($i,year) \
+                                        -ptype    $planets($i,ptype) \
+                                        -sun      $sun]
                 $self add $planets($i,planet)
             }
         }
@@ -512,6 +564,45 @@ namespace eval planetarysystem {
             # @param object The object to add.
             
             lappend objects $object
+        }
+        method GetSun {} {return $sun}
+        method GetPlanet {i field} {
+            if {$i < 1 || $i > $nplanets} {
+                error [format {Planet index (%d) is out of range (1..%d)} \
+                       $i $nplanets]
+            }
+            return $planets($i,$field)
+        }
+        method GetPlanetCount {} {return $nplanets}
+        method PlanetExtents {} {
+            set MinX {}
+            set MaxX {}
+            set MinY {}
+            set MaxY {}
+            set MinZ {}
+            set MaxZ {}
+            for {set i 1} {$i < $nplanets} {incr i} {
+                set ppos [$planets($i,planet) position]
+                if {$MinX eq "" || [$ppos GetX] < $MinX} {
+                    set MinX [$ppos GetX]
+                }
+                if {$MaxX eq "" || [$ppos GetX] > $MaxX} {
+                    set MaxX [$ppos GetX]
+                }
+                if {$MinY eq "" || [$ppos GetY] < $MinY} {
+                    set MinY [$ppos GetY]
+                }
+                if {$MaxY eq "" || [$ppos GetY] > $MaxY} {
+                    set MaxY [$ppos GetY]
+                }
+                if {$MinZ eq "" || [$ppos GetZ] < $MinZ} {
+                    set MinZ [$ppos GetZ]
+                }
+                if {$MaxZ eq "" || [$ppos GetZ] > $MaxZ} {
+                    set MaxZ [$ppos GetZ]
+                }
+            }
+            return [list $MinX $MaxX $MinY $MaxY $MinZ $MaxZ]
         }
         method _updater {} {
             ## @privatesection Update everything.
@@ -524,9 +615,18 @@ namespace eval planetarysystem {
             }
             after 100 [mymethod _updater]
         }
-        
+        proc pchar2ptype {ch} {
+            switch -exact -- "$ch" {
+                O {return GasGiant}
+                + {return Venusian}
+                * {return Terrestrial}
+                . {return Rock}
+                o {return Martian}
+                default {return Unknown}
+            }
+        }
         typemethod validate {object} {
-            ## Validate object as a PlantarySystem object.
+            ## @publicsection Validate object as a PlantarySystem object.
             #
             # @param object The object to validate.
             #
@@ -541,10 +641,10 @@ namespace eval planetarysystem {
         }
     }        
 
-
+    namespace export Sun Planet PlanetarySystem
 }
 
-
+source [file join $planetarysystem::PLANETARYSYSTEM_DIR  SystemDisplay.tcl]
 
 namespace import planetarysystem::*
 

@@ -16,10 +16,14 @@ ORSA_PortScripts = Scripts/ORSA_Port/pkgIndex.tcl \
                    Scripts/ORSA_Port/orsa.tcl
 
 PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
-		 	 Scripts/PlanetarySystem/PlanetarySystem.tcl
+		 	 Scripts/PlanetarySystem/PlanetarySystem.tcl \
+		 	 Scripts/PlanetarySystem/SystemDisplay.tcl
+		 	 
+GUISupportScripts = Scripts/GUISupport/snitscrollw.tcl \
+		    Scripts/GUISupport/snitbuttonbox.tcl
 
 StarshipFleet.kit : StarshipFleet.tcl $(ORSA_PortScripts) \
-		$(PlanetarySystemScripts)
+		$(PlanetarySystemScripts) $(GUISupportScripts)
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarshipFleet.tcl
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit unwrap StarshipFleet.kit
@@ -32,6 +36,10 @@ StarshipFleet.kit : StarshipFleet.tcl $(ORSA_PortScripts) \
 		StarshipFleet lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/PlanetarySystem $(PlanetarySystemScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarshipFleet lib/GUISupport $(GUISupportScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit \
+		StarshipFleet GUISupport
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit wrap StarshipFleet.kit
 	-rm -rf StarshipFleet.vfs 
 

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160407.1441>
+#  Last Modified : <160408.1422>
 #
 #  Description	
 #
@@ -1377,35 +1377,7 @@ proc print {v} {
     puts "[format {X: %10.5g, Y: %10.5g, Z: %10.5g} [$v GetX] [$v GetY] [$v GetZ]]"
 }
 
-set system [planetarysystem::PlanetarySystem create %AUTO%]
 
-puts "Vars in system: [$system info vars]"
-set sun [set [$system info vars sun]]
-puts "Vars in $sun: [$sun info vars]"
-puts "Options in $sun [$sun configure]"
-set body [set [$sun info vars body]]
-puts -nonewline "Solar position: ";print [$body position]
-puts -nonewline "Solar velocity: ";print [$body velocity]
-puts "Solar Mass: [$body mass] [$orsa::units MassLabel]"
-puts "Planets:"
-upvar #0 [$system info vars planets] planets
-set n [llength [array names planets *,planet]]
-set bigunits [orsa::Units %AUTO% DAY AU MEARTH]
-for {set i 1} {$i <= $n} {incr i} {
-    set p $planets($i,planet)
-    puts "[namespace tail $sun] $i: [namespace tail $p]"
-    set porbit [set [$p info vars orbit]]
-    puts "\tOrbit options: [$porbit configure]"
-    set P [$porbit Period]
-    set P1 [$orsa::units FromUnits_time_unit [$p cget -period] DAY]
-    puts "\tORSA Period = $P, StarGen Period = $P1"
-    set pos [$p position]
-    set d [$pos Length]
-    puts "\tORSA Distance = $d, StarGen Distance = [$orsa::units FromUnits_length_unit [$p cget -distance] AU]"
-    puts -nonewline "\tPostiion vector is ";print $pos
-    puts "\tZ Offset (in AU): [$bigunits FromUnits_length_unit [$pos GetZ] KM]" 
-    set vel [$p velocity]
-    set v [$vel Length]
-    puts "\tORSA velocity = $v"
-    puts -nonewline "\tVelocity vector is ";print $vel
-}
+set pd [planetarysystem::PlanetaryDisplay .pd]
+
+pack $pd -expand yes -fill both

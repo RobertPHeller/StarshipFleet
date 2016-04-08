@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160408.1303>
+#  Created       : Fri Apr 8 13:04:01 2016
+#  Last Modified : <160408.1317>
 #
 #  Description	
 #
@@ -43,4 +43,4 @@
 ##############################################################################
 
 
-SUBDIRS = ORSA_Port PlanetarySystem GUISupport
+EXTRA_DIST = snitscrollw.tcl snitbuttonbox.tcl
