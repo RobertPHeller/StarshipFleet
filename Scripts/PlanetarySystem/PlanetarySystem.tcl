@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160408.1423>
+#  Last Modified : <160408.2146>
 #
 #  Description	
 #
@@ -474,6 +474,10 @@ namespace eval planetarysystem {
                         set planets($i,gasgiant) yes
                     } else {
                         set planets($i,gasgiant) no
+                        if {$planets($i,ptype) eq "GasGiant"} {
+                            puts stderr "Opps: ptype wrong, fixing"
+                            set planets($i,ptype) Rock
+                        }
                     }
                 }
                 while {[gets $genout line] > 0} {
@@ -546,6 +550,12 @@ namespace eval planetarysystem {
                         puts stderr "*** Not matched: \{$line\}"
                     }
                 }
+                if {$planets($i,gasgiant)} {
+                    set u [orsa::Units %AUTO% SECOND KM MSUN]
+                    set psm [$u FromUnits_mass_unit $planets($i,mass) MEARTH]
+                    if {$psm < 20} {
+                        set planets($i,ptype) SubGasGiant
+                    }
                 set planetname [planetarysystem::Planet namegenerator $starname]
                 puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
                 set planets($i,planet) [planetarysystem::Planet $planetname \

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160408.1428>
+#  Last Modified : <160408.2037>
 #
 #  Description	
 #
@@ -58,6 +58,9 @@ namespace eval planetarysystem {
         delegate option * to system
         variable scalex
         variable scaley
+        variable zoomfactor 1.0
+        variable sunmenu
+        variable planetmenus -array {}
         
         constructor {args} {
             install system using PlanetarySystem %AUTO% \
@@ -95,7 +98,7 @@ namespace eval planetarysystem {
             set color [format {#%02x%02x%02x} $red $green $blue]
             set suntag $sun
             $canvas create oval -5 -5 5 5 -fill $color -outline {} -tag $suntag
-            $canvas bind $suntag <3> [mymethod _sunMenu]
+            $canvas bind $suntag <3> [mymethod _sunMenu %X %Y]
             set nplanets [$system GetPlanetCount]
             for {set i 1} {$i <= $nplanets} {incr i} {
                 set p [$system GetPlanet $i planet]
@@ -139,11 +142,52 @@ namespace eval planetarysystem {
                       [expr {$centerx + $size}] \
                       [expr {$centery + $size}] -fill $color -outline {} \
                       -tag $p
-                $canvas bind $p <3> [mymethod _planetmenu $i]
+                $canvas bind $p <3> [mymethod _planetMenu $i %X %Y]
             }
-            $canvas configure -scrollregion [$canvas bbox all]
+            $canvas configure -scrollregion [list -550 -550 550 550]
         }
-                         
+        method _sunMenu {X Y} {
+            if {[info exists sunmenu] && [winfo exists $sunmenu]} {
+                $sunmenu post $X $Y
+            } else {
+                set sunmenu [menu $win.sunmenu -tearoff 0]
+                $sunmenu add command -label Info -command [mymethod _sunInfo]
+                $sunmenu post $X $Y
+            }
+        }
+        method _sunInfo {} {
+            set sun [$system GetSun]
+            tk_messageBox -type ok \
+                  -message [format {%s: mass %f, luminosity %f} \
+                            [namespace tail $sun] \
+                            [$sun cget -mass] \
+                            [$sun cget -luminosity]]
+        }
+        method _planetMenu {iplanet X Y} {
+            if {[info exists planetmenus($iplanet)] && 
+                [winfo exists $planetmenus($iplanet)]} {
+                $planetmenus($iplanet) post $X $Y
+            } else {
+                set planetmenus($iplanet) [menu $win.planetmenu$iplanet -tearoff 0]
+                $planetmenus($iplanet) add command -label Info \
+                      -command [mymethod _planetInfo $iplanet]
+                $planetmenus($iplanet) post $X $Y
+            }
+        }
+        method _planetInfo {iplanet} {
+            set sun [$system GetSun]
+            set planet [$system GetPlanet $iplanet planet]
+            tk_messageBox -type ok \
+                  -message [format {%s %d: %s, mass %f, ptype %s, period %f} \
+                            [namespace tail $sun] $iplanet \
+                            [namespace tail $planet] \
+                            [$planet cget -mass] \
+                            [$planet cget -ptype] \
+                            [$planet cget -period]]
+        }
     }
+    
+    
+    
     namespace export PlanetaryDisplay
 }
