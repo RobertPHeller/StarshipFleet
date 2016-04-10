@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160409.2230>
+#  Last Modified : <160410.1514>
 #
 #  Description	
 #
@@ -91,6 +91,18 @@ namespace eval stargen {
         }
     }
     
+    snit::type SunOrNull {
+        pragma -hastypeinfo no -hastypedestroy no -hasinstances no
+        typemethod validate {o} {
+            if {$o eq {}} {
+                return $o
+            } else {
+                ::stargen::Sun validate $o
+            }
+        }
+    }
+    
+    
     snit::type Planets_Record {
         typemethod validate {o} {
             if {[catch {$o info type} ot]} {
@@ -141,11 +153,23 @@ namespace eval stargen {
 	option -hydrosphere -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -cloud_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -ice_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
-	option -sun -type ::stargen::Sun
+	option -sun -type ::stargen::SunOrNull
 	option -atmosphere -type ::stargen::GasList
 	option -ptype -type ::stargen::Planet_Type -default tUnknown;# Type code
-	option -minor_moons -type snit::integer -default 0
-	variable moons [list]
+	# Zeros end here
+        option -minor_moons -type snit::integer -default 0
+	variable moons
+        option -moons -type ::stargen::Planetlist  -default {} -readonly yes \
+              -configuremethod _setmoons -cgetmethod _getmoons
+        method _setmoons {o v} {
+            set moons $v
+        }
+        method _getmoons {o} {
+            if {[catch {set moons}]} {
+                set moons [list]
+            }
+            return $moons
+        }
         #planet_pointer first_moon;
         constructor {args} {
             $self configurelist $args
@@ -184,18 +208,17 @@ namespace eval stargen {
                 return $o
             }
         }
-        option -luminosity -default 0.0 -type {snit::double -min 0.0}
-        option -mass -default 0.0 -type {snit::double -min 0.0}
-        option -m2 -default 0.0 -type {snit::double -min 0.0}
-        option -e -default 0.0 -type {snit::double -min 0.0 -max 1.0}
-        option -a -default 0.0 -type {snit::double -min 0.0}
-        variable known_planets [list]
+        option -luminosity -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -mass -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -m2 -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -e -default 0.0 -type {snit::double -min 0.0 -max 1.0} -readonly yes
+        option -a -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -name -default ""  -readonly yes
+        option -in_celestia -default false -type snit::boolean -readonly yes
+        option -known_planets -default {} -type ::stargen::Planetlist -readonly yes
         constructor {args} {
             $self configurelist $args
-        }
-        method addplanet {planet} {
-            ::stargen::Planets_Record validate $planet
-            lappend known_planets $planet
+            
         }
     }
     snit::type Catalog {

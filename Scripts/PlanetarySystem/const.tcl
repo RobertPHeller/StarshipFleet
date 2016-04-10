@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:57:46 2016
-#  Last Modified : <160409.1900>
+#  Last Modified : <160410.1044>
 #
 #  Description	
 #
@@ -112,7 +112,7 @@ namespace eval stargen {
     variable SECONDS_PER_HOUR		3600.0;#
     variable CM_PER_AU				1.495978707E13;#/* number of cm in an AU	*/
     variable CM_PER_KM				1.0E5;#			/* number of cm in a km		*/
-    variable KM_PER_AU				CM_PER_AU / CM_PER_KM;#
+    variable KM_PER_AU				[expr {$CM_PER_AU / $CM_PER_KM}];#
     variable CM_PER_METER			100.0;#
     #//#define MILLIBARS_PER_BAR		(1013.25)
     variable MILLIBARS_PER_BAR		1000.00;#
