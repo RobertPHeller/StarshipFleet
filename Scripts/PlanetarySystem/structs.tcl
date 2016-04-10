@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160406.1904>
+#  Last Modified : <160409.2230>
 #
 #  Description	
 #
@@ -44,10 +44,10 @@
 package require snit
 
 namespace eval stargen {
-    snit::enum planet_type -values {tUnknown tRock tVenusian tTerrestrial 
+    snit::enum Planet_Type -values {tUnknown tRock tVenusian tTerrestrial 
         tGasGiant tMartian tWater tIce tSubGasGiant tSubSubGasGiant tAsteroids
         t1Face}
-    snit:;type gas {
+    snit::type Gas {
         option -num -type {snit::integer -min 0} -default 0
         option -surf_pressure -type snit::double -default 0
         typemethod validate {o} {
@@ -59,14 +59,20 @@ namespace eval stargen {
                 return $o
             }
         }
+        constructor {args} {
+            $self configurelist $args
+        }
     }
-    snit::type sun {
-        option -luminosity -default 0.0 -type {snit::double -min 0.0}
-        option -mass -default 0.0 -type {snit::double -min 0.0}
-        option -life -default 0.0 -type {snit::double -min 0.0}
-        option -age -default 0.0 -type {snit::double -min 0.0}
-        option -r_ecosphere -default 0.0 -type {snit::double -min 0.0}
-        option -name -default ""
+    snit::listtype GasList -type ::stargen::Gas
+    snit::listtype Planetlist -type ::stargen::Planets_Record
+    snit::type Sun {
+        option -luminosity -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -mass -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -life -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -age -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -r_ecosphere -default 0.0 -type {snit::double -min 0.0} -readonly yes
+        option -name -default "" -readonly yes
+        variable planets [list]
         typemethod validate {o} {
             if {[catch {$o info type} ot]} {
                 error [format "%s is not a %s" $o $type]
@@ -76,8 +82,16 @@ namespace eval stargen {
                 return $o
             }
         }
+        constructor {args} {
+            $self configurelist $args
+        }
+        method addplanet {planet} {
+            ::stargen::Planets_Record validate  $planet
+            lappend planets $planet
+        }
     }
-    snit::type planets_record {
+    
+    snit::type Planets_Record {
         typemethod validate {o} {
             if {[catch {$o info type} ot]} {
                 error [format "%s is not a %s" $o $type]
@@ -87,8 +101,7 @@ namespace eval stargen {
                 return $o
             }
         }
-        typevariable numberofplanets 0
-        variable planet_no 1
+        option -planet_no -type {snit::integer -min 0} -default 0
         option -a -type {snit::double -min 0.0} -default 0.0;# semi-major axis of solar orbit (in AU)
         option -e -type {snit::double -min 0.0 -max 1.0} -default 0.0;# eccentricity of solar orbit
 	option -axial_tilt -type snit::double -default 0.0;# units of degrees
@@ -97,7 +110,7 @@ namespace eval stargen {
 	option -dust_mass -type {snit::double -min 0.0} -default 0.0;# mass, ignoring gas
 	option -gas_mass -type {snit::double -min 0.0} -default 0.0;# mass, ignoring dust
         #  ZEROES start here
-	option -moon_a -type {snit::double -min 0.0} -default 0.0; semi-major axis of lunar orbit (in AU)
+	option -moon_a -type {snit::double -min 0.0} -default 0.0;# semi-major axis of lunar orbit (in AU)
 	option -moon_e -type {snit::double -min 0.0 -max 1.0} -default 0.0;# eccentricity of lunar orbit
 	option -core_radius -type {snit::double -min 0.0} -default 0.0;# radius of the rocky core (in km)
 	option -radius -type {snit::double -min 0.0} -default 0.0;# equatorial radius (in km)
@@ -128,16 +141,155 @@ namespace eval stargen {
 	option -hydrosphere -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -cloud_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -ice_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
-	option -sun -type ::stargen::sun
-        option -gases -type {snit::integer -min 0} -default 0;# Count of gases in the atmosphere:
-	option -atmosphere -type ::stargen::gas
-	option -ptype -type ::stargen::planet_type -default tUnknown;# Type code
+	option -sun -type ::stargen::Sun
+	option -atmosphere -type ::stargen::GasList
+	option -ptype -type ::stargen::Planet_Type -default tUnknown;# Type code
 	option -minor_moons -type snit::integer -default 0
-	#planet_pointer first_moon;
+	variable moons [list]
+        #planet_pointer first_moon;
         constructor {args} {
-            incr numberofplanets
-            set planet_no $numberofplanets
+            $self configurelist $args
+        }
+        method addmoon {moon} {
+            ::stargen::Planets_Record validate $moon
+            lappend moons $moon
         }
     }
+    snit::listtype Dustlist -type ::stargen::Dust_Record
+    snit::type Dust_Record {
+        typemethod validate {o} {
+            if {[catch {$o info type} ot]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$ot ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
+            }
+        }
+        option -inner_edge -type {snit::double -min 0.0} -default 0.0
+        option -outer_edge -type {snit::double -min 0.0} -default 0.0
+        option -dust_present -type snit::boolean -default no
+        option -gas_present -type snit::boolean -default no
+        constructor {args} {
+            $self configurelist $args
+        }
+    }
+    snit::type Star {
+        typemethod validate {o} {
+            if {[catch {$o info type} ot]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$ot ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
+            }
+        }
+        option -luminosity -default 0.0 -type {snit::double -min 0.0}
+        option -mass -default 0.0 -type {snit::double -min 0.0}
+        option -m2 -default 0.0 -type {snit::double -min 0.0}
+        option -e -default 0.0 -type {snit::double -min 0.0 -max 1.0}
+        option -a -default 0.0 -type {snit::double -min 0.0}
+        variable known_planets [list]
+        constructor {args} {
+            $self configurelist $args
+        }
+        method addplanet {planet} {
+            ::stargen::Planets_Record validate $planet
+            lappend known_planets $planet
+        }
+    }
+    snit::type Catalog {
+        typemethod validate {o} {
+            if {[catch {$o info type} ot]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$ot ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
+            }
+        }
+        variable arg ""
+        variable stars [list]
+        constructor {args} {
+            set arg [from args -arg ""]
+            foreach star $args {
+                ::stargen::Star validate $star
+                lappend stars $star
+            }
+        }
+        method getstar {i} {
+            if {$i < 0 || $i >= [llength $stars]} {
+                error [format "Index (%d) out of range: 0..%d" $i [expr {[llength $stars] - 1}]]
+            }
+            return [lindex $stars $i]
+        }
+        method numstars {} {return [llength $stars]}
+        method getarg {} {return $arg}
+    }
+    snit::type Generation {
+        typemethod validate {o} {
+            if {[catch {$o info type} ot]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$ot ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
+            }
+        }
+        variable dusts [list]
+        variable planets [list]
+        constructor {args} {
+        }
+        method adddust {dust} {
+            ::stargen::Dust_Record validate $dust
+            lappend dusts $dust
+        }
+        method getdust {i} {
+            if {$i < 0 || $i >= [llength $dusts]} {
+                error [format "Index (%d) out of range: 0..%d" \
+                       $i [expr {[llength $dusts] - 1}]]
+            }
+            return [lindex $dusts $i]
+        }
+        method dustcount {} {return [llength $dusts]}
+        method addplanet {planet} {
+            ::stargen::Planets_Record validate $planet
+            lappend planets $planet
+        }
+        method getplanet {i} {
+            if {$i < 0 || $i >= [llength $planets]} {
+                error [format "Index (%d) out of range: 0..%d" \
+                       $i [expr {[llength $planets] - 1}]]
+            }
+            return [lindex $planets $i]
+        }
+        method planetcount {} {return [llength $planets]}
+    }
+    snit::type ChemTable {
+        typemethod validate {o} {
+            if {[catch {$o info type} ot]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$ot ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
+            }
+        }
+        option -num -type {snit::integer -min 1} -readonly yes
+        option -symbol -readonly yes
+        option -name -readonly yes
+        option -weight -type {snit::double -min 0.0} -readonly yes
+        option -melt -type snit::double -readonly yes
+        option -boil -type snit::double -readonly yes
+        option -density -type {snit::double -min 0.0} -readonly yes
+        option -abunde -type snit::double -readonly yes
+        option -abunds -type snit::double -readonly yes
+        option -reactivity -type snit::double -readonly yes
+        option -max_ipp -type {snit::double -min 0.0} -readonly yes
+        constructor {args} {
+            $self configurelist $args
+        }
+    }
+    snit::listtype ChemTableList -type ::stargen::ChemTable
 }
 
