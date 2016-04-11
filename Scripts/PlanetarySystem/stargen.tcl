@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160410.1718>
+#  Last Modified : <160411.0926>
 #
 #  Description	
 #
@@ -231,9 +231,12 @@ namespace eval stargen {
     #puts stderr "mercury: [mercury configure]"
     #planet_pointer solar_system = &mercury;
     variable solar_system [list ::stargen::mercury ::stargen::venus \
-                      ::stargen::earth ::stargen::mars ::stargen::ceres \
-                      ::stargen::jupiter ::stargen::saturn ::stargen::uranus \
-                           ::stargen::neptune ::stargen::pluto ::stargen::xena]
+                           ::stargen::earth ::stargen::mars ::stargen::ceres \
+                           ::stargen::jupiter ::stargen::saturn \
+                           ::stargen::uranus ::stargen::neptune \
+                           ::stargen::pluto ::stargen::xena]
+    namespace export solar_system
+    namespace export earth
     
     #/* Seeds for accreting the solar system */
     #planets pluto1  ={10,39.529,0.248, 0, 0, 0, 0, 0, ZEROES,0,NULL, NULL};
@@ -665,12 +668,59 @@ namespace eval stargen {
     set gases [lsort -command ::stargen::diminishing_abundance $gases]
     variable max_gas [llength $gases]
 
+    variable flag_verbose 0
+    
+    namespace export dust_density_coeff flag_verbose
+    
+    variable total_earthlike 0
+    variable total_habitable 0
+    
+    variable	min_breathable_terrestrial_g 1000.0
+    variable	min_breathable_g 1000.0
+    variable	max_breathable_terrestrial_g 0.0
+    variable	max_breathable_g 0.0
+    variable	min_breathable_temp 1000.0
+    variable	max_breathable_temp 0.0
+    variable	min_breathable_p 100000.0
+    variable	max_breathable_p 0.0
+    variable	min_breathable_terrestrial_l 1000.0
+    variable	min_breathable_l 1000.0
+    variable	max_breathable_terrestrial_l 0.0
+    variable	max_breathable_l 0.0
+    
+    namespace export total_earthlike total_habitable \
+          min_breathable_terrestrial_g min_breathable_g \
+          max_breathable_terrestrial_g max_breathable_g \
+          min_breathable_terrestrial_l min_breathable_l \
+          max_breathable_terrestrial_l max_breathable_l \
+          min_breathable_temp max_breathable_temp min_breathable_p \
+          max_breathable_p
+    
     snit::type stargen {
         component sun
         delegate option * to sun
         delegate method * to sun
         typevariable flag_seed 0
+        variable innermost_planet {}
+        typevariable dust_density_coeff $::stargen::DUST_DENSITY_COEFF
+        variable earthlike 0
+        variable habitable 0
+        variable habitable_jovians 0
         
+        variable type_counts [list]
+        variable type_count 0
+        
+        typemethod clone {sun} {
+            ::stargen::Sun validate $sun
+            set sys [$type create %AUTO$ \
+                     -luminosity [$sun cget -luminosity] \
+                     -mass [$sun cget -mass] \
+                     -life [$sun cget -life] \
+                     -age [$sun cget -age] \
+                     -r_ecosphere [$sun cget -r_ecosphere] \
+                     -name [$sun cget -name]]
+            return $sys
+        }
         typemethod init {} {
             if {flag_seed != 0} {
                 set seed [clock seconds]
@@ -688,10 +738,15 @@ namespace eval stargen {
                   -age        [from args -age 0] \
                   -r_ecosphere [from args -r_ecosphere 0] \
                   -name       [from args -name]
+            set type_counts [list 0 0 0 0 0 0 0 0 0 0 0 0]
+            set type_count 0
         }
-        typemethod generate_stellar_system {use_seed_system seed_system 
+        method generate_stellar_system {use_seed_system seed_system 
             flag_char sys_no system_name outer_planet_limit do_gases 
             do_moons args} {
+        }
+        method post_generate {only_habitable only_multi_habitable 
+            only_jovian_habitable only_earthlike} {
         }
         method calculate_gases {planets planet_id} {
         }
@@ -704,12 +759,14 @@ namespace eval stargen {
         typevariable inc_mass 0.05
         typevariable max_mass 2.35
         
-        typemethod stargen {flag_char path url_path_arg filename_arg 
-            sys_name_arg sgOut sgErr prognam mass_arg seed_arg incr_arg 
-            cat_arg sys_no_arg ratio_arg flags_arg out_format graphic_format} {
+        typemethod stargen {flag_char sys_name_arg mass_arg seed_arg incr_arg 
+            cat_arg sys_no_arg ratio_arg flags_arg} {
+
+            set sun_mass $mass_arg
+            set sun [::stargen::Sun %AUTO% -mass $sun_mass]
             set system_count 1
             set seed_increment 1
-
+            
             if {$cat_arg ne {} && $sys_no_arg == 0} {
                 set do_catalog yes
             } else {
@@ -719,6 +776,7 @@ namespace eval stargen {
             set use_solar_system [expr {($flags_arg & $::stargen::fUseSolarsystem) != 0}]
             set reuse_solar_system [expr {($flags_arg & $::stargen::fReuseSolarsystem) != 0}]
             set use_known_planets [expr {($flags_arg & $::stargen::fUseKnownPlanets) != 0}]
+            set no_generate [expr {($flags_arg & $::stargen::fNoGenerate) != 0}]
             set do_moons [expr {($flags_arg & $::stargen::fDoMoons) != 0}]
             set only_habitable [expr {($flags_arg & $::stargen::fOnlyHabitable) != 0}]
             set only_multi_habitable [expr {($flags_arg & $::stargen::fOnlyMultiHabitable) != 0}]
@@ -726,7 +784,7 @@ namespace eval stargen {
             set only_earthlike [expr {($flags_arg & $::stargen::fOnlyEarthlike) != 0}]
             
             if {$do_catalog} {
-                set catalog_count [$cat_arg count]
+                set catalog_count [$cat_arg numstars]
             } else {
                 set catalog_count 0
             }
@@ -739,29 +797,135 @@ namespace eval stargen {
             }
             
             set flag_seed $seed_arg
-            set sun_mass $mass_arg
             set system_count $count_arg
             set seed_increment $incr_arg
             if {$ratio_arg > 0.0} {
                 set dust_density_coeff [expr {$dust_density_coeff * $ratio_arg}]
             }
+            $::stargen::earth configure -mass [EM 1.0]
+            
+            
             if {$reuse_solar_system} {
+                set system_count [expr {1 + int(($max_mass - $min_mass) / $inc_mass)}]
+                $::stargen::earth configure -mass [EM $min_mass]
+                $sun configure -luminosity 1.0 -mass 1.0 -life 1.0E10 \
+                      -age 5.0E9 -r_ecosphere 1.0
+                set use_solar_system true
+            } elseif {$do_catalog} {
+                set system_count [expr {$catalog_count + (($system_count - 1) * ($catalog_count - 1))}]
+                set use_solar_system true
             }
             
             set result [list]
             for {set index 0} {$index < $system_count} {incr index} {
+                set system_name ""
+                set designation ""
+                set outer_limit 0.0
+                set sys_no 0
+                set has_known_planets false
+                set seed_planets [list]
+                set use_seed_system false
+                set in_celestia false
+
                 $type init
                 
-                set system [$type generate_stellar_system $use_seed_system $seed_planets $flag_char $sys_no $system_name $outer_limit $do_gases $do_moons -luminosity $sun_lum -mass $sun_mass -life $sun_life -age $sun_age -r_ecosphere $sun_r_ecosphere -name $sun_name]
+                if {$do_catalog || $sys_no_arg != 0} {
+                    if {$sys_no_arg != 0} {
+                        set sys_no [expr {$sys_no_arg - 1}]
+                    } else {
+                        if {$index >= $catalog_count} {
+                            set sys_no = [expr {(($index - 1) % ($catalog_count - 1)) + 1}]
+                        } else {
+                            set sys_no $index
+                        }
+                    }
+                    set star [$cat_arg getstar $sys_no]
+                    if {[llength [$star cget -known_planets]] > 0} {
+                        set has_known_planets true
+                    }
+                    if {$use_known_planets || $no_generate} {
+                        set seed_planets [$star cget -known_planets]
+                        set use_seed_system $no_generate
+                    } else {
+                        set seed_planets [list]
+                    }
+                    set in_celestia [$star cget -in_celestia]
+                    $sun configure -mass [$star cget -mass]
+                    $sun configure -luminosity [$star cget -luminosity]
+                    if {$do_catalog || $sys_name_arg eq ""} {
+                        set system_name [$star cget -name]
+                        set designation [regexp -all {_$} [namespace tail $star] {}]
+                    } else {
+                        set system_name $sys_name_arg
+                        set designation $sys_name_arg
+                    }
+                    if {[$star cget -m2] > .001} {
+                        #*
+                        #*	The following is Holman & Wiegert's equation 1 from
+                        #*	Long-Term Stability of Planets in Binary Systems
+                        #*	The Astronomical Journal, 117:621-628, Jan 1999
+                        #*
+                        set m1 [$sun cget -mass]
+                        set m2 [$star cget -m2]
+                        set mu [expr {$m2 / ($m1 + $m2)}]
+                        set e  [$star cget -e]
+                        set a  [$star cget -a]
+                        
+                        set outer_limit [expr {(0.464 + (-0.380 * $mu) + (-0.631 * $e) + \
+                                                (0.586 * $mu * $e) + (0.150 * pow2($e)) + \
+                                                (-0.198 * $mu * pow2($e))) * $a}]
+                    } else {
+                        set outer_limit 0.0
+                    }
+                } elseif {$reuse_solar_system} {
+                    set system_name [format "Earth-M%LG" [expr {[$::stargen::earth cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+                    set designation [format "Earth-M%LG" [expr {[$::stargen::earth cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+                    set outer_limit 0.0
+                } else {
+                    if {$sys_name_arg ne ""} {
+                        set system_name $sys_name_arg
+                        set designation $sys_name_arg
+                    } else {
+                        set system_name [format {%s %ld-%LG} \
+                                         [file rootname [file tail [info script]]] \
+                                         $flag_seed [$sun cget -mass]]
+                        set designation [file rootname [file tail [info script]]]
+                    }
+                    set outer_limit 0.0
+                }
+                $sun configure -name $system_name
+                set earthlike 0
+                set habitable 0
+                set habitable_jovians 0
+                if {$reuse_solar_system} {
+                    set seed_planets $::stargen::solar_system
+                    set use_seed_system true
+                } elseif {$use_solar_system} {
+                    if {$index == 0} {
+                        set seed_planets $::stargen::solar_system
+                        set use_seed_system true
+                    } else {
+                        set use_seed_system false
+                        if {!$use_known_planets} {
+                            set seed_planets [list]
+                        }
+                    }
+                }
+                
+                set system [$type clone $sun]
+                $system generate_stellar_system  $use_seed_system \
+                      $seed_planets $flag_char $sys_no $system_name \
+                      $outer_limit $do_gases $do_moons
+                if {[$system post_generate $only_habitable \
+                     $only_multi_habitable $only_jovian_habitable \
+                     $only_earthlike]} {
+                    lappend result $system
+                }
+                
             }
-            
+            return $result
         }
     }
-
-
-    variable planets [list]
-    variable dust_density_coeff $DUST_DENSITY_COEFF
-    variable flag_verbose 0
 }    
     
 

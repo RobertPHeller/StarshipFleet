@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160410.1514>
+#  Last Modified : <160411.0826>
 #
 #  Description	
 #
@@ -66,12 +66,12 @@ namespace eval stargen {
     snit::listtype GasList -type ::stargen::Gas
     snit::listtype Planetlist -type ::stargen::Planets_Record
     snit::type Sun {
-        option -luminosity -default 0.0 -type {snit::double -min 0.0} -readonly yes
-        option -mass -default 0.0 -type {snit::double -min 0.0} -readonly yes
-        option -life -default 0.0 -type {snit::double -min 0.0} -readonly yes
-        option -age -default 0.0 -type {snit::double -min 0.0} -readonly yes
-        option -r_ecosphere -default 0.0 -type {snit::double -min 0.0} -readonly yes
-        option -name -default "" -readonly yes
+        option -luminosity -default 0.0 -type {snit::double -min 0.0}
+        option -mass -default 0.0 -type {snit::double -min 0.0}
+        option -life -default 0.0 -type {snit::double -min 0.0}
+        option -age -default 0.0 -type {snit::double -min 0.0}
+        option -r_ecosphere -default 0.0 -type {snit::double -min 0.0}
+        option -name -default ""
         variable planets [list]
         typemethod validate {o} {
             if {[catch {$o info type} ot]} {
