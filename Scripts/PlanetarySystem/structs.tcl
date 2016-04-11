@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160411.0826>
+#  Last Modified : <160411.1459>
 #
 #  Description	
 #
@@ -64,7 +64,7 @@ namespace eval stargen {
         }
     }
     snit::listtype GasList -type ::stargen::Gas
-    snit::listtype Planetlist -type ::stargen::Planets_Record
+    snit::listtype PlanetList -type ::stargen::Planets_Record
     snit::type Sun {
         option -luminosity -default 0.0 -type {snit::double -min 0.0}
         option -mass -default 0.0 -type {snit::double -min 0.0}
@@ -88,6 +88,11 @@ namespace eval stargen {
         method addplanet {planet} {
             ::stargen::Planets_Record validate  $planet
             lappend planets $planet
+        }
+        destructor {
+            foreach planet $planets {
+                $planet destroy
+            }
         }
     }
     
@@ -159,7 +164,7 @@ namespace eval stargen {
 	# Zeros end here
         option -minor_moons -type snit::integer -default 0
 	variable moons
-        option -moons -type ::stargen::Planetlist  -default {} -readonly yes \
+        option -moons -type ::stargen::PlanetList  -default {} -readonly yes \
               -configuremethod _setmoons -cgetmethod _getmoons
         method _setmoons {o v} {
             set moons $v
@@ -173,6 +178,11 @@ namespace eval stargen {
         #planet_pointer first_moon;
         constructor {args} {
             $self configurelist $args
+        }
+        destructor {
+            foreach moon $moons {
+                $moon destroy
+            }
         }
         method addmoon {moon} {
             ::stargen::Planets_Record validate $moon
@@ -215,7 +225,7 @@ namespace eval stargen {
         option -a -default 0.0 -type {snit::double -min 0.0} -readonly yes
         option -name -default ""  -readonly yes
         option -in_celestia -default false -type snit::boolean -readonly yes
-        option -known_planets -default {} -type ::stargen::Planetlist -readonly yes
+        option -known_planets -default {} -type ::stargen::PlanetList -readonly yes
         constructor {args} {
             $self configurelist $args
             
@@ -259,9 +269,28 @@ namespace eval stargen {
                 return $o
             }
         }
-        variable dusts [list]
-        variable planets [list]
+        variable dusts
+        option -dusts -default {} -type ::stargen::DustList \
+              -configuremethod _setdusts -cgetmethod _getdusts
+        method _setdusts {o v} {set dusts $v}
+        method _getdusts {o} {
+            if {[catch {set dusts}]} {
+                set dusts [list]
+            }
+            return $dusts
+        }
+        variable planets
+        option -planets -default {} -type ::stargen::PlanetList \
+              -configuremethod _setplanets -cgetmethod _getplanets
+        method _setplanets {o v} {set planets $v}
+        method _getplanets {o} {
+            if {[catch {set planets}]} {
+                set planets [list]
+            }
+            return $planets
+        }
         constructor {args} {
+            $self configurelist $args
         }
         method adddust {dust} {
             ::stargen::Dust_Record validate $dust
@@ -314,5 +343,8 @@ namespace eval stargen {
         }
     }
     snit::listtype ChemTableList -type ::stargen::ChemTable
+    namespace export Planet_Type Gas GasList PlanetList Sun SunOrNull \
+          Planets_Record Dustlist Dust_Record Star Catalog Generation \
+          ChemTable ChemTableList
 }
 

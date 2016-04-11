@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Tue Apr 5 09:50:37 2016
-#  Last Modified : <160411.1424>
+#  Created       : Mon Apr 11 14:01:31 2016
+#  Last Modified : <160411.1422>
 #
 #  Description	
 #
@@ -16,9 +16,7 @@
 #
 #  History
 #	
-#  $Log$
-#
-##############################################################################
+#*****************************************************************************
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -40,8 +38,23 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl structs.tcl const.tcl \
-		stargen.tcl main.tcl accrete.tcl enviro.tcl utils.tcl 
+namespace eval stargen::utils {
+    proc random_number {inner outer} {
+        set range [expr {$outer - $inner}]
+        return [expr {(rand() * $range) + $inner}]
+    }
+    proc about {value variation} {
+        set mv [expr {0.0 - $variation}]
+        return [expr {$value + [random_number $mv $variation]}]
+    }
+    proc random_eccentricity {} {
+        set e [expr {1.0 - pow(rand(),$::stargen::ECCENTRICITY_COEFF)}]
+        if {$e > .99} {set e .99}
+        return $e
+    }
+    namespace export random_number about random_eccentricity
+}
+

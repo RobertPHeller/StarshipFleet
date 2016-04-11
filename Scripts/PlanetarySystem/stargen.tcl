@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160411.0926>
+#  Last Modified : <160411.1458>
 #
 #  Description	
 #
@@ -45,9 +45,9 @@ package require snit
 
 source [file join [file dirname [info script]] const.tcl]
 source [file join [file dirname [info script]] structs.tcl]
-#source [file join [file dirname [info script]] accrete.tcl]
-#source [file join [file dirname [info script]] enviro.tcl]
-#source [file join [file dirname [info script]] utils.tcl]
+source [file join [file dirname [info script]] utils.tcl]
+source [file join [file dirname [info script]] accrete.tcl]
+source [file join [file dirname [info script]] enviro.tcl]
 
 namespace eval stargen {
        
@@ -55,7 +55,7 @@ namespace eval stargen {
     variable fReuseSolarsystem		0x0002
     variable fUseKnownPlanets		0x0004
     variable fNoGenerate		0x0008
-    variable tDoGases			0x0010
+    variable fDoGases			0x0010
     variable fDoMoons			0x0020
     
     variable fOnlyHabitable		0x0100
@@ -66,7 +66,7 @@ namespace eval stargen {
     variable stargen_revision {$Revision$ (Tcl version Based on C version 1.43)}
     
     namespace export fUseSolarsystem fReuseSolarsystem fUseKnownPlanets \
-          fNoGenerate tDoGases fDoMoons fOnlyHabitable fOnlyMultiHabitable \
+          fNoGenerate fDoGases fDoMoons fOnlyHabitable fOnlyMultiHabitable \
           fOnlyJovianHabitable fOnlyEarthlike stargen_revision
     
     proc diminishing_abundance {xp yp} {
@@ -96,6 +96,7 @@ namespace eval stargen {
     proc AVE {x y} {
         return [expr {double($x + $y) / 2.0}]
     }
+    namespace export EM AVE
     
     #planets luna     ={1,2.571e-3,0.055,1.53, EM(.01229), FALSE, EM(.01229), 0, ZEROES,0,NULL, NULL};
     Planets_Record luna -planet_no 1 -a 2.571e-3 -e 0.055 -axial_tilt 1.53 \
@@ -568,6 +569,7 @@ namespace eval stargen {
            -name "MLO 4 (HR 6426) A"] \
           [Star "BD-05 1844 A" -luminosity 0.146 -mass 0.80 -m2 0.50 -e 0.5 \
            -a  500. -known_planets {} -in_celestia false -name "BD-05 1844 A"]
+    namespace export solstation
 
     #star	various[] = 
     #{
@@ -581,7 +583,8 @@ namespace eval stargen {
           ::stargen::Sol_ \
           [Star "ALF Car" -luminosity 14800. -mass 8 -m2 0 -e 0 -a 0 \
            -known_planets {} -in_celestia true -name "Canopus"]
-          
+    namespace export jimb
+
     #//   An   sym   HTML symbol                      name                 Aw      melt    boil    dens       ABUNDe       ABUNDs         Rea	Max inspired pp
     #{AN_H,  "H",  "H<SUB><SMALL>2</SMALL></SUB>",	 "Hydrogen",         1.0079,  14.06,  20.40,  8.99e-05,  0.00125893,  27925.4,       1,		0.0},
     #{AN_HE, "He", "He",							 "Helium",           4.0026,   3.46,   4.20,  0.0001787, 7.94328e-09, 2722.7,        0,		MAX_HE_IPP},
@@ -667,7 +670,8 @@ namespace eval stargen {
                    -max_ipp $::stargen::MAX_CH4_IPP]
     set gases [lsort -command ::stargen::diminishing_abundance $gases]
     variable max_gas [llength $gases]
-
+    namespace export gases max_gas
+    
     variable flag_verbose 0
     
     namespace export dust_density_coeff flag_verbose
@@ -696,13 +700,19 @@ namespace eval stargen {
           min_breathable_temp max_breathable_temp min_breathable_p \
           max_breathable_p
     
-    snit::type stargen {
+    snit::type System {
         component sun
         delegate option * to sun
         delegate method * to sun
         typevariable flag_seed 0
         variable innermost_planet {}
-        typevariable dust_density_coeff $::stargen::DUST_DENSITY_COEFF
+        typevariable dust_density_coeff 
+        typeconstructor {
+            set dust_density_coeff $::stargen::DUST_DENSITY_COEFF
+            namespace import ::stargen::accrete::*
+            namespace import ::stargen::enviro::*
+            namespace import ::stargen::utils::*
+        }
         variable earthlike 0
         variable habitable 0
         variable habitable_jovians 0
@@ -711,8 +721,9 @@ namespace eval stargen {
         variable type_count 0
         
         typemethod clone {sun} {
+            puts stderr "*** $type clone $sun"
             ::stargen::Sun validate $sun
-            set sys [$type create %AUTO$ \
+            set sys [$type create %AUTO% \
                      -luminosity [$sun cget -luminosity] \
                      -mass [$sun cget -mass] \
                      -life [$sun cget -life] \
@@ -722,7 +733,8 @@ namespace eval stargen {
             return $sys
         }
         typemethod init {} {
-            if {flag_seed != 0} {
+            puts stderr "*** $type init"
+            if {$flag_seed != 0} {
                 set seed [clock seconds]
                 expr {srand($seed)}
                 set flag_seed [expr {rand()*0x0ffffffff}]
@@ -731,6 +743,7 @@ namespace eval stargen {
         }
         
         constructor {args} {
+            puts stderr "*** $type create $self $args"
             install sun using stargen::Sun %AUTO% \
                   -luminosity [from args -luminosity 0] \
                   -mass       [from args -mass 0] \
@@ -741,27 +754,50 @@ namespace eval stargen {
             set type_counts [list 0 0 0 0 0 0 0 0 0 0 0 0]
             set type_count 0
         }
+        destructor {
+            $sun destroy
+        }
+        
         method generate_stellar_system {use_seed_system seed_system 
             flag_char sys_no system_name outer_planet_limit do_gases 
-            do_moons args} {
+            do_moons} {
+            puts stderr "*** $self generate_stellar_system $use_seed_system \{$seed_system\} $flag_char $sys_no $system_name $outer_planet_limit $do_gases $do_moons"
+            if {([$sun cget -mass] < 0.2) || ([$sun cget -mass] > 1.5)} {
+                $sun configure -mass [random_number 0.7 1.4]
+            }
+            set outer_dust_limit [stellar_dust_limit [$sun cget -mass]]
+            if {[$sun cget -luminosity] == 0.0} {
+                $sun configure -luminosity [luminosity [$sun cget -mass]]
+            }
+            $sun configure -r_ecosphere [expr {sqrt([$sun cget -mass])}]
+            $sun configure -life [expr {1.0E10 * ([$sun cget -mass] / [$sun cget -luminosity])}]
+            
         }
         method post_generate {only_habitable only_multi_habitable 
             only_jovian_habitable only_earthlike} {
+            puts stderr "*** $self post_generate $only_habitable $only_multi_habitable"
+            return false
         }
         method calculate_gases {planets planet_id} {
+            puts stderr "*** $self calculate_gases $planets $planet_id"
         }
-        method generate_planet {planet planet_no random_tilt do_gases do_moons is_moon} {
+        method generate_planet {planet planet_no random_tilt do_gases do_moons 
+            is_moon} {
+            puts stderr "*** $self generate_planet $planet $planet_no $random_tilt $do_gases $do_moons $is_moon"
         }
-        method generate_planets {random_tilt flag_char sys_no system_name do_gases do_moons} {
+        method generate_planets {random_tilt flag_char sys_no system_name 
+            do_gases do_moons} {
+            puts stderr "*** $self generate_planets $random_tilt $flag_char $sys_no $system_name $do_gases $do_moons"
         }
         
         typevariable min_mass 0.4
         typevariable inc_mass 0.05
         typevariable max_mass 2.35
         
-        typemethod stargen {flag_char sys_name_arg mass_arg seed_arg incr_arg 
-            cat_arg sys_no_arg ratio_arg flags_arg} {
+        typemethod stargen {flag_char sys_name_arg mass_arg seed_arg count_arg 
+            incr_arg cat_arg sys_no_arg ratio_arg flags_arg} {
 
+            
             set sun_mass $mass_arg
             set sun [::stargen::Sun %AUTO% -mass $sun_mass]
             set system_count 1
@@ -802,7 +838,7 @@ namespace eval stargen {
             if {$ratio_arg > 0.0} {
                 set dust_density_coeff [expr {$dust_density_coeff * $ratio_arg}]
             }
-            $::stargen::earth configure -mass [EM 1.0]
+            ::stargen::earth configure -mass [EM 1.0]
             
             
             if {$reuse_solar_system} {
@@ -878,15 +914,15 @@ namespace eval stargen {
                         set outer_limit 0.0
                     }
                 } elseif {$reuse_solar_system} {
-                    set system_name [format "Earth-M%LG" [expr {[$::stargen::earth cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
-                    set designation [format "Earth-M%LG" [expr {[$::stargen::earth cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+                    set system_name [format "Earth-M%lG" [expr {[$::stargen::earth cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+                    set designation [format "Earth-M%lG" [expr {[$::stargen::earth cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
                     set outer_limit 0.0
                 } else {
                     if {$sys_name_arg ne ""} {
                         set system_name $sys_name_arg
                         set designation $sys_name_arg
                     } else {
-                        set system_name [format {%s %ld-%LG} \
+                        set system_name [format {%s %ld-%lG} \
                                          [file rootname [file tail [info script]]] \
                                          $flag_seed [$sun cget -mass]]
                         set designation [file rootname [file tail [info script]]]
@@ -920,12 +956,16 @@ namespace eval stargen {
                      $only_multi_habitable $only_jovian_habitable \
                      $only_earthlike]} {
                     lappend result $system
+                } else {
+                    $system destroy
                 }
                 
             }
+            $sun destroy
             return $result
         }
     }
+    namespace export System
 }    
     
 
