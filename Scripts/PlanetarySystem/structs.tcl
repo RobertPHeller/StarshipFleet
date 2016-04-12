@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160411.1459>
+#  Last Modified : <160412.1219>
 #
 #  Description	
 #
@@ -187,6 +187,10 @@ namespace eval stargen {
         method addmoon {moon} {
             ::stargen::Planets_Record validate $moon
             lappend moons $moon
+        }
+        method consmoon {moon} {
+            ::stargen::Planets_Record validate $moon
+            set moons [linsert $moons 0 $moon]
         }
     }
     snit::listtype Dustlist -type ::stargen::Dust_Record
