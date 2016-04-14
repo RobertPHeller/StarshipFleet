@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160412.1219>
+#  Last Modified : <160414.1157>
 #
 #  Description	
 #
@@ -295,6 +295,16 @@ namespace eval stargen {
         }
         constructor {args} {
             $self configurelist $args
+        }
+        destructor {
+            foreach d $dusts {
+                $d destroy
+            }
+            set dusts [list]
+            foreach p $planets {
+                $p destroy
+            }
+            set planets [list]
         }
         method adddust {dust} {
             ::stargen::Dust_Record validate $dust

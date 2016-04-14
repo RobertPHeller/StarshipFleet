@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:05 2016
-#  Last Modified : <160412.1345>
+#  Last Modified : <160414.1158>
 #
 #  Description	
 #
@@ -500,14 +500,95 @@ namespace eval ::stargen::accrete {
     proc dist_planetary_masses {stell_mass_ratio stell_luminosity_ratio 
         inner_dust outer_dust outer_planet_limit dust_density_coeff 
         seed_system do_moons} {
+        variable dust_left
+        variable r_inner
+        variable r_outer
+        variable reduced_mass
+        variable dust_density
+        variable cloud_eccentricity
+        variable dust_head
+        variable planet_head
+        variable hist_head
+        
+        set seeds $seed_system
+        
+        set_initial_conditions $inner_dust $outer_dust
+        set planet_inner_bound [nearest_planet $stell_mass_ratio]
+        if {$outer_planet_limit == 0} {
+            set planet_outer_bound [farthest_planet $stell_mass_ratio]
+        } else {
+            set planet_outer_bound $outer_planet_limit
+        }
+        while {$dust_left} {
+            if {[llength $seeds] > 0} {
+                set seed [lindex $seeds 0]
+                set seeds [lrange $seeds 1 end]
+                set a [$seed cget -a]
+                set e [$seed cget -e]
+            } else {
+                set a [random_number $planet_inner_bound $planet_outer_bound]
+                set e [random_eccentricity]
+            }
+            set mass $::stargen::PROTOPLANET_MASS
+            set dust_mass 0
+            set gas_mass 0
+            
+            if {($::stargen::flag_verbose & 0x0200) != 0} {
+                puts stderr [format "Checking %lg AU." $a]
+            }
+            if {[dust_available [inner_effect_limit $a $e $mass] \
+                 [outer_effect_limit $a $e $mass]]} {
+                if {($::stargen::flag_verbose & 0x0100) != 0} {
+                    puts stderr [format "Injecting protoplanet at %Lg AU." $a]
+                }
+                set dust_density [expr {$dust_density_coeff * \
+                                  sqrt($stell_mass_ratio) * \
+                                  exp(-$::stargen::ALPHA * pow($aa,(1.0 / $::stargen::N)))}]
+                set crit_mass [critical_limit $a $e $stell_luminosity_ratio]
+                accrete_dust mass dust_mass gas_mass $a $e $crit_mass \
+                      $planet_inner_bound $planet_outer_bound    
+                set dust_mass [expr {$dust_mass + $::stargen::PROTOPLANET_MASS}]
+                if {$mass > $::stargen::PROTOPLANET_MASS} {
+                    coalesce_planetesimals $a $e $mass $crit_mass $dust_mass \
+                          $gas_mass $stell_luminosity_ratio \
+                          $planet_inner_bound $planet_outer_bound $do_moons
+                } elseif {($::stargen::flag_verbose & 0x0100) != 0} {
+                    puts stderr ".. failed due to large neighbor."
+                }
+            } elseif {($::stargen::flag_verbose & 0x0200) != 0} {
+                puts stderr ".. failed."
+            }
+        }
+        return $planet_head
     }
     proc free_dust {head} {
+        foreach d $head {
+            $d destroy
+        }
     }
     proc free_planet {head} {
+        foreach p $head {
+            $p destroy
+        }
     }
     proc free_atmosphere {head} {
+        foreach p $head {
+            foreach a [$p cget -atmosphere] {
+                $a destroy
+            }
+            free_atmosphere [$p cget -moons]
+        }
     }
     proc free_generations {} {
+        variable hist_head
+        variable dust_head
+        variable planet_head
+
+        foreach h $hist_head {
+            $h destroy
+        }
+        free_dust $dust_head
+        free_planet $planet_head
     }
     namespace export set_initial_conditions stellar_dust_limit nearest_planet \
           farthest_planet inner_effect_limit outer_effect_limit dust_available \
