@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:34 2016
-#  Last Modified : <160414.1303>
+#  Last Modified : <160415.1601>
 #
 #  Description	
 #
@@ -180,13 +180,11 @@ namespace eval ::stargen::enviro {
     #*	masses.	 The period returned is in terms of Earth days.					*/
     #*--------------------------------------------------------------------------*/
     
-    long double period(separation, small_mass, large_mass)
-    long double separation, small_mass, large_mass;
-    {
+    proc period {separation small_mass large_mass} {
 	long double period_in_years; 
 	
-	period_in_years = sqrt(pow3(separation) / (small_mass + large_mass));
-	return(period_in_years * DAYS_IN_A_YEAR);
+	set period_in_years [expr {sqrt(pow3($separation) / ($small_mass + $large_mass))}]
+	return [expr {$period_in_years * $::stargen::DAYS_IN_A_YEAR}]
     }
     
     
@@ -207,83 +205,72 @@ namespace eval ::stargen::enviro {
     #*	 The length of the day is returned in units of hours.					*/
     #*--------------------------------------------------------------------------*/
     
-    long double day_length(planet_pointer	planet)
-    {
-	long double planetary_mass_in_grams = planet->mass * SOLAR_MASS_IN_GRAMS;
-	long double	equatorial_radius_in_cm = planet->radius * CM_PER_KM;
-	long double	year_in_hours			= planet->orb_period * 24.0;
-	int giant = (planet->type == tGasGiant ||
-                     planet->type == tSubGasGiant || 
-                     planet->type == tSubSubGasGiant);
-	long double	k2;
-	long double	base_angular_velocity;
-	long double	change_in_angular_velocity;
-	long double	ang_velocity;
-	long double	spin_resonance_factor;
-	long double	day_in_hours;
+    proc day_length {planet} {
         
-	int stopped = FALSE;
+	set planetary_mass_in_grams [expr {[$planet cget -mass] * $::stargen::SOLAR_MASS_IN_GRAMS}]
+	set equatorial_radius_in_cm [expr {[$planet cget -radius] * $::stargen::CM_PER_KM}]
+	set year_in_hours [expr {[$planet cget -orb_period] * 24.0}]
+	set giant [expr {[$planet cget -ptype] eq "tGasGiant" || \
+                   [$planet cget -ptype] eq "tSubGasGiant" || \
+                   [$planet cget -ptype] eq "tSubSubGasGiant"}];
         
-	planet->resonant_period = FALSE;	#* Warning: Modify the planet */
+	set stopped false
         
-	if (giant)
-        k2 = 0.24;
-	else 
-        k2 = 0.33;
+	$planet configure -resonant_period false;	#* Warning: Modify the planet */
         
-	base_angular_velocity = sqrt(2.0 * J * (planetary_mass_in_grams) /
-                                     (k2 * pow2(equatorial_radius_in_cm)));
+	if {$giant} {
+            set k2 0.24
+	} else { 
+            set k2 0.33
+        }
+        
+	set base_angular_velocity [expr {sqrt(2.0 * $::stargen::J * ($planetary_mass_in_grams) / \
+                                              ($k2 * pow2($equatorial_radius_in_cm)))}]
         
         #*	This next calculation determines how much the planet's rotation is	 */
         #*	slowed by the presence of the star.								 */
         
-	change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL *
-        (planet->density / EARTH_DENSITY) *
-        (equatorial_radius_in_cm / EARTH_RADIUS) *
-        (EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) *
-        pow(planet->sun->mass, 2.0) *
-        (1.0 / pow(planet->a, 6.0));
-	ang_velocity = base_angular_velocity + (change_in_angular_velocity * 
-                                                planet->sun->age);
+	set change_in_angular_velocity [expr {$::stargen::CHANGE_IN_EARTH_ANG_VEL * \
+                                        ([$planet cget -density] / $::stargen::EARTH_DENSITY) * \
+                                        ($equatorial_radius_in_cm / $::stargen::EARTH_RADIUS) * \
+                                        ($::stargen::EARTH_MASS_IN_GRAMS / $planetary_mass_in_grams) * \
+                                        pow([[$planet cget -sun] cget -mass], 2.0) * \
+                                        (1.0 / pow([$planet cget -a], 6.0))}]
+	set ang_velocity [expr {$base_angular_velocity + ($change_in_angular_velocity * \ 
+                                                          [[$planet cget -sun] cget -age])}]
         
         #* Now we change from rad/sec to hours/rotation.						 */
         
-	if (ang_velocity <= 0.0)
-	{
-            stopped = TRUE;
-            day_in_hours = INCREDIBLY_LARGE_NUMBER ;
-	}
-	else 
-        day_in_hours = RADIANS_PER_ROTATION / (SECONDS_PER_HOUR * ang_velocity);
+	if {$ang_velocity <= 0.0} {
+            set stopped true
+            set day_in_hours $::stargen::INCREDIBLY_LARGE_NUMBER 
+	} else {
+            set day_in_hours [expr {$::stargen::RADIANS_PER_ROTATION / ($::stargen::SECONDS_PER_HOUR * $ang_velocity)}]
+        }
         
-	if ((day_in_hours >= year_in_hours) || stopped)
-	{
-            if (planet->e > 0.1)
-            {
-                spin_resonance_factor 	= (1.0 - planet->e) / (1.0 + planet->e);
-                planet->resonant_period 	= TRUE;
-                return(spin_resonance_factor * year_in_hours);
+	if {($day_in_hours >= $year_in_hours) || $stopped} {
+            if {[$planet cget -e] > 0.1} {
+                set spin_resonance_factor [expr { (1.0 - [$planet cget -e]) / (1.0 + [$planet cget -e])}]
+                $planet configure -resonant_period true
+                return [expr {$spin_resonance_factor * $year_in_hours}]
+            } else {
+                return $year_in_hours
             }
-            else 
-            return(year_in_hours);
 	}
         
-	return(day_in_hours);
+	return $day_in_hours
     }
-
+    
 
     #*--------------------------------------------------------------------------*/
     #*	 The orbital radius is expected in units of Astronomical Units (AU).	*/
     #*	 Inclination is returned in units of degrees.							*/
     #*--------------------------------------------------------------------------*/
 
-    int inclination(orb_radius)
-    long double orb_radius; 
-    {
-	int temp; 
+    proc inclination {orb_radius} {
 	
-	temp = (int)(pow(orb_radius,0.2) * about(EARTH_AXIAL_TILT,0.4));
-	return(temp % 360);
+	set temp [expr {int(pow($orb_radius,0.2) * about($::stargen::EARTH_AXIAL_TILT,0.4))}]
+	return [expr {$temp % 360}]
     }
 
 
@@ -294,14 +281,11 @@ namespace eval ::stargen::enviro {
     #*	velocity returned is in cm/sec.											*/
     #*--------------------------------------------------------------------------*/
     
-    long double escape_vel(mass, radius)
-    long double mass, radius;
-    {
-	long double mass_in_grams, radius_in_cm;
+    proc escape_vel {mass radius} {
 	
-	mass_in_grams = mass * SOLAR_MASS_IN_GRAMS;
-	radius_in_cm = radius * CM_PER_KM;
-	return(sqrt(2.0 * GRAV_CONSTANT * mass_in_grams / radius_in_cm));
+	set mass_in_grams [expr {$mass * $::stargen::SOLAR_MASS_IN_GRAMS}]
+	set radius_in_cm [expr {$radius * $::stargen::CM_PER_KM}]
+	return [expr {(sqrt(2.0 * $::stargen::GRAV_CONSTANT * $mass_in_grams / $radius_in_cm))}]
     }
 
 
@@ -312,65 +296,65 @@ namespace eval ::stargen::enviro {
     #*	Orbital radius is in A.U.(ie: in units of the earth's orbital radius).	*/
     #*--------------------------------------------------------------------------*/
 
-long double rms_vel(long double molecular_weight, long double exospheric_temp)
-{
+    long double rms_vel(long double molecular_weight, long double exospheric_temp)
+    {
 	return(sqrt((3.0 * MOLAR_GAS_CONST * exospheric_temp) / molecular_weight)
-		   * CM_PER_METER);
-}
-
-
-#*--------------------------------------------------------------------------*/
-#*	 This function returns the smallest molecular weight retained by the	*/
-#*	body, which is useful for determining the atmosphere composition.		*/
-#*	Mass is in units of solar masses, and equatorial radius is in units of	*/
-#*	kilometers.																*/
-#*--------------------------------------------------------------------------*/
-
-long double molecule_limit(mass, equat_radius, exospheric_temp)
-long double mass, equat_radius, exospheric_temp;
-{
+               * CM_PER_METER);
+    }
+    
+    
+    #*--------------------------------------------------------------------------*/
+    #*	 This function returns the smallest molecular weight retained by the	*/
+    #*	body, which is useful for determining the atmosphere composition.		*/
+    #*	Mass is in units of solar masses, and equatorial radius is in units of	*/
+    #*	kilometers.																*/
+    #*--------------------------------------------------------------------------*/
+    
+    long double molecule_limit(mass, equat_radius, exospheric_temp)
+    long double mass, equat_radius, exospheric_temp;
+    {
 	long double esc_velocity = escape_vel(mass,equat_radius);
 	
 	return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
-			(pow2((esc_velocity/ GAS_RETENTION_THRESHOLD) / CM_PER_METER)));
-
-}
-
-#*--------------------------------------------------------------------------*/
-#*	 This function calculates the surface acceleration of a planet.	 The	*/
-#*	mass is in units of solar masses, the radius in terms of km, and the	*/
-#*	acceleration is returned in units of cm/sec2.							*/
-#*--------------------------------------------------------------------------*/
-
-long double acceleration(mass, radius)
-long double mass, radius;
-{
+                (pow2((esc_velocity/ GAS_RETENTION_THRESHOLD) / CM_PER_METER)));
+        
+    }
+    
+    #*--------------------------------------------------------------------------*/
+    #*	 This function calculates the surface acceleration of a planet.	 The	*/
+    #*	mass is in units of solar masses, the radius in terms of km, and the	*/
+    #*	acceleration is returned in units of cm/sec2.							*/
+    #*--------------------------------------------------------------------------*/
+    
+    long double acceleration(mass, radius)
+    long double mass, radius;
+    {
 	return(GRAV_CONSTANT * (mass * SOLAR_MASS_IN_GRAMS) /
-					   pow2(radius * CM_PER_KM));
-}
+               pow2(radius * CM_PER_KM));
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 This function calculates the surface gravity of a planet.	The			*/
-#*	acceleration is in units of cm/sec2, and the gravity is returned in		*/
-#*	units of Earth gravities.												*/
-#*--------------------------------------------------------------------------*/
-
-long double gravity(acceleration)
-long double acceleration; 
-{
+    #*--------------------------------------------------------------------------*/
+    #*	 This function calculates the surface gravity of a planet.	The			*/
+    #*	acceleration is in units of cm/sec2, and the gravity is returned in		*/
+    #*	units of Earth gravities.												*/
+    #*--------------------------------------------------------------------------*/
+    
+    long double gravity(acceleration)
+    long double acceleration; 
+    {
 	return(acceleration / EARTH_ACCELERATION);
-}
+    }
 
-#*--------------------------------------------------------------------------*/
-#*	This implements Fogg's eq.17.  The 'inventory' returned is unitless.	*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	This implements Fogg's eq.17.  The 'inventory' returned is unitless.	*/
+    #*--------------------------------------------------------------------------*/
 
-long double vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone, 
-					 greenhouse_effect, accreted_gas)
-long double mass, escape_vel, rms_vel, stellar_mass;
-int zone, greenhouse_effect, accreted_gas;
-{
+    long double vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone, 
+                              greenhouse_effect, accreted_gas)
+    long double mass, escape_vel, rms_vel, stellar_mass;
+    int zone, greenhouse_effect, accreted_gas;
+    {
 	long double velocity_ratio, proportion_const, temp1, temp2, earth_units;
 	
 	velocity_ratio = escape_vel / rms_vel;
@@ -402,28 +386,28 @@ int zone, greenhouse_effect, accreted_gas;
 	}
 	else 
 		return(0.0);
-}
+   }
+            
+            
+   #*--------------------------------------------------------------------------*/
+   #*	This implements Fogg's eq.18.  The pressure returned is in units of		*/
+   #*	millibars (mb).	 The gravity is in units of Earth gravities, the radius */
+   #*	in units of kilometers.													*/
+   #*																			*/
+   #*  JLB: Aparently this assumed that earth pressure = 1000mb. I've added a	*/
+   #*	fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that	*/
+   #*--------------------------------------------------------------------------*/
 
+   long double pressure(volatile_gas_inventory, equat_radius, gravity)
+   long double volatile_gas_inventory, equat_radius, gravity;
+   {
+       equat_radius = KM_EARTH_RADIUS / equat_radius;
+       return(volatile_gas_inventory * gravity * 
+              (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) / 
+              pow2(equat_radius));
+   }
 
-#*--------------------------------------------------------------------------*/
-#*	This implements Fogg's eq.18.  The pressure returned is in units of		*/
-#*	millibars (mb).	 The gravity is in units of Earth gravities, the radius */
-#*	in units of kilometers.													*/
-#*																			*/
-#*  JLB: Aparently this assumed that earth pressure = 1000mb. I've added a	*/
-#*	fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that	*/
-#*--------------------------------------------------------------------------*/
-
-long double pressure(volatile_gas_inventory, equat_radius, gravity)
-long double volatile_gas_inventory, equat_radius, gravity;
-{
-	equat_radius = KM_EARTH_RADIUS / equat_radius;
-	return(volatile_gas_inventory * gravity * 
-			(EARTH_SURF_PRES_IN_MILLIBARS / 1000.) / 
-			pow2(equat_radius));
-}
-
-#*--------------------------------------------------------------------------*/
+   #*--------------------------------------------------------------------------*/
 #*	 This function returns the boiling point of water in an atmosphere of	*/
 #*	 pressure 'surf_pressure', given in millibars.	The boiling point is	*/
 #*	 returned in units of Kelvin.  This is Fogg's eq.21.					*/
