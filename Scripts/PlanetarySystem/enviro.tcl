@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:34 2016
-#  Last Modified : <160415.1601>
+#  Last Modified : <160416.1115>
 #
 #  Description	
 #
@@ -296,10 +296,9 @@ namespace eval ::stargen::enviro {
     #*	Orbital radius is in A.U.(ie: in units of the earth's orbital radius).	*/
     #*--------------------------------------------------------------------------*/
 
-    long double rms_vel(long double molecular_weight, long double exospheric_temp)
-    {
-	return(sqrt((3.0 * MOLAR_GAS_CONST * exospheric_temp) / molecular_weight)
-               * CM_PER_METER);
+    proc rms_vel {molecular_weight exospheric_temp} {
+	return [expr {sqrt((3.0 * $::stargen::MOLAR_GAS_CONST * $exospheric_temp) / $molecular_weight) \
+                * $::stargen::CM_PER_METER}]
     }
     
     
@@ -310,13 +309,11 @@ namespace eval ::stargen::enviro {
     #*	kilometers.																*/
     #*--------------------------------------------------------------------------*/
     
-    long double molecule_limit(mass, equat_radius, exospheric_temp)
-    long double mass, equat_radius, exospheric_temp;
-    {
-	long double esc_velocity = escape_vel(mass,equat_radius);
+    proc molecule_limit {mass equat_radius exospheric_temp} {
+	set esc_velocity [escape_vel $mass $equat_radius]
 	
-	return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
-                (pow2((esc_velocity/ GAS_RETENTION_THRESHOLD) / CM_PER_METER)));
+	return [expr {(3.0 * $::stargen::MOLAR_GAS_CONST * $exospheric_temp) / \
+                (pow2(($esc_velocity/ $::stargen::GAS_RETENTION_THRESHOLD) / $::stargen::CM_PER_METER))}]
         
     }
     
@@ -326,11 +323,9 @@ namespace eval ::stargen::enviro {
     #*	acceleration is returned in units of cm/sec2.							*/
     #*--------------------------------------------------------------------------*/
     
-    long double acceleration(mass, radius)
-    long double mass, radius;
-    {
-	return(GRAV_CONSTANT * (mass * SOLAR_MASS_IN_GRAMS) /
-               pow2(radius * CM_PER_KM));
+    proc acceleration {mass radius} {
+	return [expr {($::stargen::GRAV_CONSTANT * ($mass * $::stargen::SOLAR_MASS_IN_GRAMS) / \
+                       pow2($radius * $::stargen::CM_PER_KM))}]
     }
 
 
@@ -340,315 +335,287 @@ namespace eval ::stargen::enviro {
     #*	units of Earth gravities.												*/
     #*--------------------------------------------------------------------------*/
     
-    long double gravity(acceleration)
-    long double acceleration; 
-    {
-	return(acceleration / EARTH_ACCELERATION);
+    proc gravity {acceleration} {
+	return [expr {($acceleration / $::stargen::EARTH_ACCELERATION)}]
     }
 
     #*--------------------------------------------------------------------------*/
     #*	This implements Fogg's eq.17.  The 'inventory' returned is unitless.	*/
     #*--------------------------------------------------------------------------*/
 
-    long double vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone, 
-                              greenhouse_effect, accreted_gas)
-    long double mass, escape_vel, rms_vel, stellar_mass;
-    int zone, greenhouse_effect, accreted_gas;
-    {
-	long double velocity_ratio, proportion_const, temp1, temp2, earth_units;
+    proc vol_inventory {mass escape_vel rms_vel stellar_mass zone 
+        greenhouse_effect accreted_gas} {
 	
-	velocity_ratio = escape_vel / rms_vel;
-	if (velocity_ratio >= GAS_RETENTION_THRESHOLD)
-	{
-		switch (zone) {
-			case 1:
-				proportion_const = 140000.0;	#* 100 -> 140 JLB */
-				break;
-			case 2:
-				proportion_const = 75000.0;
-				break;
-			case 3:
-				proportion_const = 250.0;
-				break;
-			default:
-				proportion_const = 0.0;
-				printf("Error: orbital zone not initialized correctly!\n");
-				break;
-		}
-		earth_units = mass * SUN_MASS_IN_EARTH_MASSES;
-		temp1 = (proportion_const * earth_units) / stellar_mass;
-		temp2 = about(temp1,0.2);
-		temp2 = temp1;
-		if (greenhouse_effect || accreted_gas)
-			return(temp2);
-		else 
-			return(temp2 / 140.0);	#* 100 -> 140 JLB */
-	}
-	else 
-		return(0.0);
-   }
+	
+	set velocity_ratio [expr {$escape_vel / $rms_vel}]
+	if {$velocity_ratio >= $::stargen::GAS_RETENTION_THRESHOLD} {
+            switch $zone {
+                1 {
+                    set proportion_const 140000.0;	#* 100 -> 140 JLB */
+                }
+                2 {
+                    set proportion_const 75000.0
+                }
+                3 {
+                    set proportion_const 250.0
+                }
+                default {
+                    set proportion_const 0.0
+                    puts "Error: orbital zone not initialized correctly!"
+                }
+            }
+            set earth_units [expr {$mass * $::stargen::SUN_MASS_IN_EARTH_MASSES}]
+            set temp1 [expr {($proportion_const * $earth_units) / $stellar_mass}]
+            set temp2 [expr {about($temp1,0.2)}]
+            set temp2 $temp1
+            if {$greenhouse_effect || $accreted_gas} {
+                return $temp2
+            } else {
+                return [expr {$temp2 / 140.0}];	#* 100 -> 140 JLB */
+            }
+        } else {
+            return 0.0
+        }
+    }
             
             
-   #*--------------------------------------------------------------------------*/
-   #*	This implements Fogg's eq.18.  The pressure returned is in units of		*/
-   #*	millibars (mb).	 The gravity is in units of Earth gravities, the radius */
-   #*	in units of kilometers.													*/
-   #*																			*/
-   #*  JLB: Aparently this assumed that earth pressure = 1000mb. I've added a	*/
-   #*	fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that	*/
-   #*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	This implements Fogg's eq.18.  The pressure returned is in units of		*/
+    #*	millibars (mb).	 The gravity is in units of Earth gravities, the radius */
+    #*	in units of kilometers.													*/
+    #*																			*/
+    #*  JLB: Aparently this assumed that earth pressure = 1000mb. I've added a	*/
+    #*	fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that	*/
+    #*--------------------------------------------------------------------------*/
 
-   long double pressure(volatile_gas_inventory, equat_radius, gravity)
-   long double volatile_gas_inventory, equat_radius, gravity;
-   {
-       equat_radius = KM_EARTH_RADIUS / equat_radius;
-       return(volatile_gas_inventory * gravity * 
-              (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) / 
-              pow2(equat_radius));
-   }
+    proc pressure {volatile_gas_inventory equat_radius gravity} {
+        set equat_radius [expr {$::stargen::KM_EARTH_RADIUS / $equat_radius}]
+        return [expr {$volatile_gas_inventory * $gravity * \
+                ($::stargen::EARTH_SURF_PRES_IN_MILLIBARS / 1000.) / \
+                pow2($equat_radius)}]
+    }
 
-   #*--------------------------------------------------------------------------*/
-#*	 This function returns the boiling point of water in an atmosphere of	*/
-#*	 pressure 'surf_pressure', given in millibars.	The boiling point is	*/
-#*	 returned in units of Kelvin.  This is Fogg's eq.21.					*/
-#*--------------------------------------------------------------------------*/
-
-long double boiling_point(surf_pressure)
-long double surf_pressure; 
-{
-	long double surface_pressure_in_bars; 
+    #*--------------------------------------------------------------------------*/
+    #*	 This function returns the boiling point of water in an atmosphere of	*/
+    #*	 pressure 'surf_pressure', given in millibars.	The boiling point is	*/
+    #*	 returned in units of Kelvin.  This is Fogg's eq.21.					*/
+    #*--------------------------------------------------------------------------*/
+    
+    proc boiling_point {surf_pressure} {
+       
+	set surface_pressure_in_bars [expr {$surf_pressure / $::stargen::MILLIBARS_PER_BAR}]
+	return [expr {(1.0 / ((log($surface_pressure_in_bars) / -5050.5) + \
+                              (1.0 / 373.0) ))}]
 	
-	surface_pressure_in_bars = surf_pressure / MILLIBARS_PER_BAR;
-	return (1.0 / ((log(surface_pressure_in_bars) / -5050.5) + 
-				   (1.0 / 373.0) ));
-	
-}
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 This function is Fogg's eq.22.	 Given the volatile gas inventory and	*/
-#*	 planetary radius of a planet (in Km), this function returns the		*/
-#*	 fraction of the planet covered with water.								*/
-#*	 I have changed the function very slightly:	 the fraction of Earth's	*/
-#*	 surface covered by water is 71%, not 75% as Fogg used.					*/
-#*--------------------------------------------------------------------------*/
-
-long double hydro_fraction(volatile_gas_inventory, planet_radius)
-long double volatile_gas_inventory, planet_radius;
-{
-	long double temp; 
-	
-	temp = (0.71 * volatile_gas_inventory / 1000.0)
-			 * pow2(KM_EARTH_RADIUS / planet_radius);
-	if (temp >= 1.0)
-		return(1.0);
-	else 
-		return(temp);
-}
+    #*--------------------------------------------------------------------------*/
+    #*	 This function is Fogg's eq.22.	 Given the volatile gas inventory and	*/
+    #*	 planetary radius of a planet (in Km), this function returns the		*/
+    #*	 fraction of the planet covered with water.								*/
+    #*	 I have changed the function very slightly:	 the fraction of Earth's	*/
+    #*	 surface covered by water is 71%, not 75% as Fogg used.					*/
+    #*--------------------------------------------------------------------------*/
+    
+    proc hydro_fraction {volatile_gas_inventory planet_radius} {
+        
+        set temp [expr {(0.71 * $volatile_gas_inventory / 1000.0) \
+                  * pow2($::stargen::KM_EARTH_RADIUS / $planet_radius)}]
+        if {temp >= 1.0} {
+            return 1.0
+        } else {
+            return $temp
+        }
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 Given the surface temperature of a planet (in Kelvin), this function	*/
-#*	 returns the fraction of cloud cover available.	 This is Fogg's eq.23.	*/
-#*	 See Hart in "Icarus" (vol 33, pp23 - 39, 1978) for an explanation.		*/
-#*	 This equation is Hart's eq.3.											*/
-#*	 I have modified it slightly using constants and relationships from		*/
-#*	 Glass's book "Introduction to Planetary Geology", p.46.				*/
-#*	 The 'CLOUD_COVERAGE_FACTOR' is the amount of surface area on Earth		*/
-#*	 covered by one Kg. of cloud.											*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	 Given the surface temperature of a planet (in Kelvin), this function	*/
+    #*	 returns the fraction of cloud cover available.	 This is Fogg's eq.23.	*/
+    #*	 See Hart in "Icarus" (vol 33, pp23 - 39, 1978) for an explanation.		*/
+    #*	 This equation is Hart's eq.3.											*/
+    #*	 I have modified it slightly using constants and relationships from		*/
+    #*	 Glass's book "Introduction to Planetary Geology", p.46.				*/
+    #*	 The 'CLOUD_COVERAGE_FACTOR' is the amount of surface area on Earth		*/
+    #*	 covered by one Kg. of cloud.											*/
+    #*--------------------------------------------------------------------------*/
 
-long double cloud_fraction(surf_temp, smallest_MW_retained, equat_radius, hydro_fraction)
-long double surf_temp, smallest_MW_retained, equat_radius,
-	hydro_fraction;
-{
-	long double water_vapor_in_kg, fraction, surf_area, hydro_mass;
-	
-	if (smallest_MW_retained > WATER_VAPOR)
-		return(0.0);
-	else 
-	{
-		surf_area = 4.0 * PI * pow2(equat_radius);
-		hydro_mass = hydro_fraction * surf_area * EARTH_WATER_MASS_PER_AREA;
-		water_vapor_in_kg = (0.00000001 * hydro_mass) * 
-							exp(Q2_36 * (surf_temp - EARTH_AVERAGE_KELVIN));
-		fraction = CLOUD_COVERAGE_FACTOR * water_vapor_in_kg / surf_area;
-		if (fraction >= 1.0)
-			return(1.0);
-		else 
-			return(fraction);
+    proc cloud_fraction {surf_temp smallest_MW_retained equat_radius hydro_fraction} {
+
+	if {$smallest_MW_retained > $::stargen::WATER_VAPOR} {
+            return 0.0
+	} else {
+            set surf_area [expr {4.0 * $::stargen::PI * pow2($equat_radius)}]
+            set hydro_mass [expr {$hydro_fraction * $surf_area * $::stargen::EARTH_WATER_MASS_PER_AREA}]
+            set water_vapor_in_kg [expr {(0.00000001 * hydro_mass) * \
+                                   exp($::stargen::Q2_36 * ($surf_temp - $::stargen::EARTH_AVERAGE_KELVIN))}]
+            set fraction [expr {$::stargen::CLOUD_COVERAGE_FACTOR * $water_vapor_in_kg / $surf_area}]
+            if {$fraction >= 1.0} {
+                return 1.0
+            } else {
+                return $fraction
+            }
 	}
-}
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 Given the surface temperature of a planet (in Kelvin), this function	*/
-#*	 returns the fraction of the planet's surface covered by ice.  This is	*/
-#*	 Fogg's eq.24.	See Hart[24] in Icarus vol.33, p.28 for an explanation. */
-#*	 I have changed a constant from 70 to 90 in order to bring it more in	*/
-#*	 line with the fraction of the Earth's surface covered with ice, which	*/
-#*	 is approximatly .016 (=1.6%).											*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	 Given the surface temperature of a planet (in Kelvin), this function	*/
+    #*	 returns the fraction of the planet's surface covered by ice.  This is	*/
+    #*	 Fogg's eq.24.	See Hart[24] in Icarus vol.33, p.28 for an explanation. */
+    #*	 I have changed a constant from 70 to 90 in order to bring it more in	*/
+    #*	 line with the fraction of the Earth's surface covered with ice, which	*/
+    #*	 is approximatly .016 (=1.6%).											*/
+    #*--------------------------------------------------------------------------*/
 
-long double ice_fraction(hydro_fraction, surf_temp)
-long double hydro_fraction, surf_temp;
-{
-	long double temp; 
+    proc ice_fraction {hydro_fraction surf_temp} {
 	
-	if (surf_temp > 328.0) 
-		surf_temp = 328.0;
-	temp = pow(((328.0 - surf_temp) / 90.0), 5.0);
-	if (temp > (1.5 * hydro_fraction))
-		temp = (1.5 * hydro_fraction);
-	if (temp >= 1.0)
-		return(1.0);
-	else 
-		return(temp);
-}
+	if {$surf_temp > 328.0} {
+            set surf_temp 328.0
+        }
+	set temp [expr {pow(((328.0 - $surf_temp) / 90.0), 5.0)}]
+	if {$temp > (1.5 * $hydro_fraction)} {
+            set temp [expr {(1.5 * $hydro_fraction)}]
+        }
+        if {$temp >= 1.0} {
+            return 1.0
+	} else {
+            return $temp
+        }
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	This is Fogg's eq.19.  The ecosphere radius is given in AU, the orbital */
-#*	radius in AU, and the temperature returned is in Kelvin.				*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	This is Fogg's eq.19.  The ecosphere radius is given in AU, the orbital */
+    #*	radius in AU, and the temperature returned is in Kelvin.				*/
+    #*--------------------------------------------------------------------------*/
 
-long double eff_temp(ecosphere_radius, orb_radius, albedo)
-long double ecosphere_radius, orb_radius, albedo;
-{
-	return(sqrt(ecosphere_radius / orb_radius)
-		  * pow1_4((1.0 - albedo) / (1.0 - EARTH_ALBEDO))
-		  * EARTH_EFFECTIVE_TEMP);
-}
+    proc eff_temp {ecosphere_radius orb_radius albedo} {
+	return [expr {(sqrt($ecosphere_radius / $orb_radius) \
+                       * pow1_4((1.0 - $albedo) / (1.0 - $::stargen::EARTH_ALBEDO)) \
+                       * $::stargen::EARTH_EFFECTIVE_TEMP)}]
+    }
 
 
-long double est_temp(ecosphere_radius, orb_radius, albedo)
-long double ecosphere_radius, orb_radius, albedo;
-{
-	return(sqrt(ecosphere_radius / orb_radius)
-		  * pow1_4((1.0 - albedo) / (1.0 - EARTH_ALBEDO))
-		  * EARTH_AVERAGE_KELVIN);
-}
+    proc est_temp {ecosphere_radius orb_radius albedo} {
+	return [expr{(sqrt($ecosphere_radius / $orb_radius) \
+		  * pow1_4((1.0 - $albedo) / (1.0 - $::stargen::EARTH_ALBEDO)) \
+		  * $::stargen::EARTH_AVERAGE_KELVIN)}]
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#* Old grnhouse:                                                            */
-#*	Note that if the orbital radius of the planet is greater than or equal	*/
-#*	to R_inner, 99% of it's volatiles are assumed to have been deposited in */
-#*	surface reservoirs (otherwise, it suffers from the greenhouse effect).	*/
-#*--------------------------------------------------------------------------*/
-#*	if ((orb_radius < r_greenhouse) && (zone == 1)) */
+    #*--------------------------------------------------------------------------*/
+    #* Old grnhouse:                                                            */
+    #*	Note that if the orbital radius of the planet is greater than or equal	*/
+    #*	to R_inner, 99% of it's volatiles are assumed to have been deposited in */
+    #*	surface reservoirs (otherwise, it suffers from the greenhouse effect).	*/
+    #*--------------------------------------------------------------------------*/
+    #*	if ((orb_radius < r_greenhouse) && (zone == 1)) */
+    
+    #*--------------------------------------------------------------------------*/
+    #*	The new definition is based on the inital surface temperature and what	*/
+    #*	state water is in. If it's too hot, the water will never condense out	*/
+    #*	of the atmosphere, rain down and form an ocean. The albedo used here	*/
+    #*	was chosen so that the boundary is about the same as the old method		*/
+    #*	Neither zone, nor r_greenhouse are used in this version				JLB	*/
+    #*--------------------------------------------------------------------------*/
 
-#*--------------------------------------------------------------------------*/
-#*	The new definition is based on the inital surface temperature and what	*/
-#*	state water is in. If it's too hot, the water will never condense out	*/
-#*	of the atmosphere, rain down and form an ocean. The albedo used here	*/
-#*	was chosen so that the boundary is about the same as the old method		*/
-#*	Neither zone, nor r_greenhouse are used in this version				JLB	*/
-#*--------------------------------------------------------------------------*/
-
-int grnhouse(long double r_ecosphere, long double orb_radius)
-{
-	long double	temp = eff_temp(r_ecosphere, orb_radius, GREENHOUSE_TRIGGER_ALBEDO);
+    proc grnhouse {r_ecosphere orb_radius} {
+	set temp [eff_temp $r_ecosphere $orb_radius $::stargen::GREENHOUSE_TRIGGER_ALBEDO]
 	
-	if (temp > FREEZING_POINT_OF_WATER)
-		return(TRUE);
-	else 
-		return(FALSE);
-}
+	if {$temp > $::stargen::FREEZING_POINT_OF_WATER} {
+            return true
+	} else {
+            return false
+        }
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	This is Fogg's eq.20, and is also Hart's eq.20 in his "Evolution of		*/
-#*	Earth's Atmosphere" article.  The effective temperature given is in		*/
-#*	units of Kelvin, as is the rise in temperature produced by the			*/
-#*	greenhouse effect, which is returned.									*/
-#*	I tuned this by changing a pow(x,.25) to pow(x,.4) to match Venus - JLB	*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	This is Fogg's eq.20, and is also Hart's eq.20 in his "Evolution of		*/
+    #*	Earth's Atmosphere" article.  The effective temperature given is in		*/
+    #*	units of Kelvin, as is the rise in temperature produced by the			*/
+    #*	greenhouse effect, which is returned.									*/
+    #*	I tuned this by changing a pow(x,.25) to pow(x,.4) to match Venus - JLB	*/
+    #*--------------------------------------------------------------------------*/
 
-long double green_rise(optical_depth, effective_temp, surf_pressure)
-long double optical_depth, effective_temp, surf_pressure;
-{
-	long double convection_factor = EARTH_CONVECTION_FACTOR * 
-									pow(surf_pressure / 
-										EARTH_SURF_PRES_IN_MILLIBARS, 0.4);
-	long double rise = (pow1_4(1.0 + 0.75 * optical_depth) - 1.0) * 
-					   effective_temp * convection_factor;
+    proc green_rise {optical_depth effective_temp surf_pressure} {
+	set convection_factor [expr {$::stargen::EARTH_CONVECTION_FACTOR * \
+                               pow($surf_pressure / \
+                                   $::stargen::EARTH_SURF_PRES_IN_MILLIBARS, 0.4)}]
+	set rise [expr {(pow1_4(1.0 + 0.75 * $optical_depth) - 1.0) * \
+                  $effective_temp * $convection_factor}]
 	
-	if (rise < 0.0) rise = 0.0;
+	if {$rise < 0.0} {set rise 0.0}
 	
-	return rise;
-}
+	return $rise;
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 The surface temperature passed in is in units of Kelvin.				*/
-#*	 The cloud adjustment is the fraction of cloud cover obscuring each		*/
-#*	 of the three major components of albedo that lie below the clouds.		*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	 The surface temperature passed in is in units of Kelvin.				*/
+    #*	 The cloud adjustment is the fraction of cloud cover obscuring each		*/
+    #*	 of the three major components of albedo that lie below the clouds.		*/
+    #*--------------------------------------------------------------------------*/
 
-long double planet_albedo(water_fraction, cloud_fraction, ice_fraction, surf_pressure)
-long double water_fraction, cloud_fraction, ice_fraction, surf_pressure;
-{
-	long double rock_fraction, cloud_adjustment, components, cloud_part,
-	rock_part, water_part, ice_part;
+    proc planet_albedo {water_fraction cloud_fraction ice_fraction surf_pressure} {
 	
-	rock_fraction = 1.0 - water_fraction - ice_fraction;
-	components = 0.0;
-	if (water_fraction > 0.0)
-		components = components + 1.0;
-	if (ice_fraction > 0.0)
-		components = components + 1.0;
-	if (rock_fraction > 0.0)
-		components = components + 1.0;
-	
-	cloud_adjustment = cloud_fraction / components;
-	
-	if (rock_fraction >= cloud_adjustment)
-		rock_fraction = rock_fraction - cloud_adjustment;
-	else 
-		rock_fraction = 0.0;
-	
-	if (water_fraction > cloud_adjustment)
-		water_fraction = water_fraction - cloud_adjustment;
-	else 
-		water_fraction = 0.0;
-		
-	if (ice_fraction > cloud_adjustment)
-		ice_fraction = ice_fraction - cloud_adjustment;
-	else 
-		ice_fraction = 0.0;
-		
-	cloud_part = cloud_fraction * CLOUD_ALBEDO;		#* about(...,0.2); */
-	
-	if (surf_pressure == 0.0)
-	{
-		rock_part = rock_fraction * ROCKY_AIRLESS_ALBEDO;	#* about(...,0.3); */
-		ice_part = ice_fraction * AIRLESS_ICE_ALBEDO;		#* about(...,0.4); */
-		water_part = 0;
+	set rock_fraction [expr {1.0 - $water_fraction - $ice_fraction}]
+	set components 0.0
+	if {$water_fraction > 0.0} {
+            set components [expr {$components + 1.0}]
 	}
-	else 
+        if {$ice_fraction > 0.0} {
+            set components [expr {$components + 1.0}]
+        }
+        if {$rock_fraction > 0.0} {
+            set components [expr {$components + 1.0}]
+        }
+	
+	set cloud_adjustment [expr {$cloud_fraction / $components}]
+	
+	if {$rock_fraction >= $cloud_adjustment} {
+            set rock_fraction [expr {$rock_fraction - $cloud_adjustment}]
+	} else {
+            set rock_fraction 0.0
+	}
+	if {$water_fraction > $cloud_adjustment} {
+            set water_fraction [expr {$water_fraction - $cloud_adjustment}]
+	} else {
+            set water_fraction 0.0
+        }
+	if {$ice_fraction > $cloud_adjustment} {
+            set ice_fraction [expr {$ice_fraction - $cloud_adjustment}]
+	} else {
+            set ice_fraction 0.0
+        }
+	set cloud_part [expr {$cloud_fraction * $::stargen::CLOUD_ALBEDO}];		#* about(...,0.2); */
+	
+	if {$surf_pressure == 0.0} {
 	{
-		rock_part = rock_fraction * ROCKY_ALBEDO;	#* about(...,0.1); */
-		water_part = water_fraction * WATER_ALBEDO;	#* about(...,0.2); */
-		ice_part = ice_fraction * ICE_ALBEDO;		#* about(...,0.1); */
+            set rock_part [expr {$rock_fraction * $::stargen::ROCKY_AIRLESS_ALBEDO}];	#* about(...,0.3); */
+            set ice_part [expr {$ice_fraction * $::stargen::AIRLESS_ICE_ALBEDO}];		#* about(...,0.4); */
+            set water_part 0
+	} else {
+            set rock_part [expr {$rock_fraction * $::stargen::ROCKY_ALBEDO}];	#* about(...,0.1); */
+            set water_part [expr {$water_fraction * $::stargen::WATER_ALBEDO}];	#* about(...,0.2); */
+            set ice_part [expr {$ice_fraction * $::stargen::ICE_ALBEDO}];		#* about(...,0.1); */
 	}
 
-	return(cloud_part + rock_part + water_part + ice_part);
-}
+	return [expr {($cloud_part + $rock_part + $water_part + $ice_part)}]
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 This function returns the dimensionless quantity of optical depth,		*/
-#*	 which is useful in determining the amount of greenhouse effect on a	*/
-#*	 planet.																*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	 This function returns the dimensionless quantity of optical depth,		*/
+    #*	 which is useful in determining the amount of greenhouse effect on a	*/
+    #*	 planet.																*/
+    #*--------------------------------------------------------------------------*/
 
-long double opacity(molecular_weight, surf_pressure)
-long double molecular_weight, surf_pressure;
-{
-	long double optical_depth; 
+    proc opacity {molecular_weight surf_pressure} {
 	
-	optical_depth = 0.0;
+	set optical_depth 0.0
 	if ((molecular_weight >= 0.0) && (molecular_weight < 10.0))
 		optical_depth = optical_depth + 3.0;
 	if ((molecular_weight >= 10.0) && (molecular_weight < 20.0))
@@ -676,40 +643,40 @@ long double molecular_weight, surf_pressure;
 						optical_depth = optical_depth * 1.5;
 
 	return(optical_depth);
-}
+    }
 
 
-#*
- *	calculates the number of years it takes for 1/e of a gas to escape
- *	from a planet's atmosphere. 
- *	Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)
- */
-long double gas_life(long double molecular_weight, 
+    #*
+    #*	calculates the number of years it takes for 1/e of a gas to escape
+    #*	from a planet's atmosphere. 
+    #*	Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)
+    #*
+    long double gas_life(long double molecular_weight, 
 					 planet_pointer planet)
-{
+    {
 	long double v = rms_vel(molecular_weight, planet->exospheric_temp);
 	long double g = planet->surf_grav * EARTH_ACCELERATION;
 	long double r = (planet->radius * CM_PER_KM);
 	long double t = (pow3(v) / (2.0 * pow2(g) * r)) * exp((3.0 * g * r) / pow2(v));
 	long double years = t / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR);
 	
-//	long double ve = planet->esc_velocity;
-//	long double k = 2;
-//	long double t2 = ((k * pow3(v) * r) / pow4(ve)) * exp((3.0 * pow2(ve)) / (2.0 * pow2(v)));
-//	long double years2 = t2 / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR);
+        #//	long double ve = planet->esc_velocity;
+        #//	long double k = 2;
+        #//	long double t2 = ((k * pow3(v) * r) / pow4(ve)) * exp((3.0 * pow2(ve)) / (2.0 * pow2(v)));
+        #//	long double years2 = t2 / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR);
 		
-//	if (flag_verbose & 0x0040)
-//		fprintf (stderr, "gas_life: %LGs, V ratio: %Lf\n", 
-//				years, ve / v);
+        #//	if (flag_verbose & 0x0040)
+        #//		fprintf (stderr, "gas_life: %LGs, V ratio: %Lf\n", 
+        #//				years, ve / v);
 
 	if (years > 2.0E10)
 		years = INCREDIBLY_LARGE_NUMBER;
 		
 	return years;
-}
+    }
 
-long double min_molec_weight (planet_pointer planet)
-{
+    long double min_molec_weight (planet_pointer planet)
+    {
 	long double mass    = planet->mass;
 	long double radius  = planet->radius;
 	long double temp    = planet->exospheric_temp;
@@ -760,29 +727,29 @@ long double min_molec_weight (planet_pointer planet)
 	life = gas_life(guess_2, planet);
 
 	return (guess_2);
-}
+    }
 
 
-#*--------------------------------------------------------------------------*/
-#*	 The temperature calculated is in degrees Kelvin.						*/
-#*	 Quantities already known which are used in these calculations:			*/
-#*		 planet->molec_weight												*/
-#*		 planet->surf_pressure												*/
-#*		 R_ecosphere														*/
-#*		 planet->a															*/
-#*		 planet->volatile_gas_inventory										*/
-#*		 planet->radius														*/
-#*		 planet->boil_point													*/
-#*--------------------------------------------------------------------------*/
+    #*--------------------------------------------------------------------------*/
+    #*	 The temperature calculated is in degrees Kelvin.						*/
+    #*	 Quantities already known which are used in these calculations:			*/
+    #*		 planet->molec_weight												*/
+    #*		 planet->surf_pressure												*/
+    #*		 R_ecosphere														*/
+    #*		 planet->a															*/
+    #*		 planet->volatile_gas_inventory										*/
+    #*		 planet->radius														*/
+    #*		 planet->boil_point													*/
+    #*--------------------------------------------------------------------------*/
 
-void calculate_surface_temp(planet_pointer 	planet,
+    void calculate_surface_temp(planet_pointer 	planet,
 							int				first, 
 							long double		last_water,
 							long double 	last_clouds,
 							long double 	last_ice,
 							long double 	last_temp,
 							long double 	last_albedo)
-{
+    {
 	long double effective_temp;
 	long double water_raw;
 	long double clouds_raw;
@@ -1059,5 +1026,6 @@ void set_temp_range(planet_pointer planet)
           inspired_partial_pressure breathability NONE BREATHABLE \
           UNBREATHABLE POISONOUS breathability_phrase lim soft set_temp_range
 }
+
 
 
