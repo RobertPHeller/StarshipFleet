@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160416.1403>
+#  Last Modified : <160417.1616>
 #
 #  Description	
 #
@@ -307,7 +307,7 @@ namespace eval planetarysystem {
             set i  [expr {asin(rand()*.125-0.0625)}]
             set omega_pericenter [expr {asin(rand()*.25-0.125)}]
             set omega_node [expr {asin(rand()*.125-0.0625)}]
-            set M  [expr {asin(rand()*2.0-1.0)}]
+            set M  [expr {acos(rand()*2.0-1.0)*2.0}]
             set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
             
             install orbit using Orbit %AUTO% \
@@ -405,15 +405,19 @@ namespace eval planetarysystem {
             } else {
                 set cmdline "$STARGEN -s$options(-seed) -m$options(-stellarmass) -p/tmp -H -M -t -n20"
             }
-            #puts stderr "*** $type create $self: stellarmass = $stellarmass"
+            puts stderr "*** $type create $self: options(-stellarmass) = $options(-stellarmass)"
             set genout [open "|$cmdline" r]
-            regexp {seed=([[:digit:]]+)$} [gets $genout] => StargenSeed
-            set options(-seed) $StargenSeed
-            #puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
-            set line [gets $genout];# SYSTEM  CHARACTERISTICS
-            #puts stderr "*** $type create $self: $line"
             set line [gets $genout]
-            #puts stderr "*** $type create $self: $line"
+            set StargenSeed 0
+            if {[regexp {seed=([[:digit:]]+)$} $line => StargenSeed] < 0} {
+                error "Format error: $line, expecting seed="
+            }
+            set options(-seed) $StargenSeed
+            puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
+            set line [gets $genout];# SYSTEM  CHARACTERISTICS
+            puts stderr "*** $type create $self: $line"
+            set line [gets $genout]
+            puts stderr "*** $type create $self: $line"
             if {[regexp {^Stellar mass:[[:space:]]+([[:digit:].]+)[[:space:]]+solar masses} $line => sm] < 1} {
                 set sm 0
                 puts stderr "Input error (Stellar mass): $line"

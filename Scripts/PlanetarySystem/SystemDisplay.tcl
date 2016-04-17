@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160416.1434>
+#  Last Modified : <160417.1645>
 #
 #  Description	
 #
@@ -98,7 +98,7 @@ namespace eval planetarysystem {
             }
             set color [format {#%02x%02x%02x} $red $green $blue]
             set suntag $sun
-            $canvas create oval -5 -5 5 5 -fill $color -outline {} -tag $suntag
+            $canvas create oval -4 -4 4 4 -fill $color -outline {} -tag $suntag
             $canvas bind $suntag <3> [mymethod _sunMenu %X %Y]
             set nplanets [$system GetPlanetCount]
             for {set i 1} {$i <= $nplanets} {incr i} {
@@ -153,10 +153,34 @@ namespace eval planetarysystem {
                       [expr {$centery + $size}] -fill $color -outline {} \
                       -tag $p
                 $canvas bind $p <3> [mymethod _planetMenu $i %X %Y]
+                if {$i < 2} {$self draw_orbit $p $color}
             }
             $canvas configure -scrollregion [list -750 -750 750 750]
             $self _addtools
         }
+        method draw_orbit {planet {color white}} {
+            set oe [OrbitWithEpoch copy [$planet GetOrbit]]
+            set period [$oe Period]
+            puts stderr "*** $self draw_orbit ($planet): period = $period"
+            set incr [expr {$period / double(100)}]
+            puts stderr "*** $self draw_orbit ($planet): incr = $incr"
+            set ocoords [list]
+            for {set p 0} {$p <= ($period + $incr)} {set p [expr {$p + $incr}]} {
+                puts stderr "*** $self draw_orbit ($planet): p = $p"
+                if {$p > $period} {
+                    set pp $period
+                } else {
+                    set pp $p
+                }                
+                puts stderr "*** $self draw_orbit ($planet): pp = $pp"
+                if {[$oe RelativePosVelAtTime pos vel $pp]} {
+                    set x [expr {[$pos GetX] * $scalex}]
+                    set y [expr {[$pos GetY] * $scaley}]
+                    lappend ocoords $x $y
+                }
+            }
+            $canvas create polygon $ocoords -fill {} -outline $color -tag ${planet}_orbit
+        }               
         method _addtools {} {
             $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
             $tools add ttk::button zoom1 -text "Zoom 1.0" -command [mymethod _zoom1]

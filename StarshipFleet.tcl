@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160408.1422>
+#  Last Modified : <160417.1521>
 #
 #  Description	
 #
@@ -1381,3 +1381,6 @@ proc print {v} {
 set pd [planetarysystem::PlanetaryDisplay .pd]
 
 pack $pd -expand yes -fill both
+bind all <q> exit
+bind all <Q> exit
+

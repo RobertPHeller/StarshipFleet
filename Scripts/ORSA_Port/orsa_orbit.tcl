@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <160408.1426>
+#  Last Modified : <160417.1638>
 #
 #  Description	
 #
@@ -74,11 +74,11 @@ namespace eval orsa {
             if {$e < 0.8} {
                 set sm [expr {sin($M)}]
                 set cm [expr {cos($M)}]
-                if {($M + $e) < $epsilon} {
-                    set x 0.0
-                } else {
-                    set x [expr {$M + $e**$sm*( 1.0 + $e*( $cm + $e*( 1.0 -1.5*$sm*$sm)))}]
-                }
+                #if {$e < $epsilon} {
+                #    set x $M
+                #} else {
+                set x [expr {$M + $e**$sm*( 1.0 + $e*( $cm + $e*( 1.0 -1.5*$sm*$sm)))}]
+                #}
                 set sx 0.0
                 set cx 0.0
                 set E $x
@@ -91,7 +91,7 @@ namespace eval orsa {
                 set fppp 0.0
                 set dx 0.0
                 set count 0
-                set max_count  128
+                set max_count  512
                 do {
                     set sx   [expr {sin($x)}]
                     set cx   [expr {cos($x)}]
@@ -136,7 +136,7 @@ namespace eval orsa {
                 set fppp 0.0
                 set dx 0.0
                 set count 0
-                set max_count  128
+                set max_count  512
                 do {
                     set sa [expr {sin($x+$m)}]
                     set ca [expr {cos($x+$m)}]
@@ -175,6 +175,15 @@ namespace eval orsa {
                 return -1.0
             } else {
                 return 1.0
+            }
+        }
+        typemethod validate {o} {
+            if {[catch {$o info type} otype]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$otype ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
             }
         }
         method RelativePosVel {relative_positionName relative_velocityName} {
@@ -250,7 +259,10 @@ namespace eval orsa {
                 #} while ( (fabs((cape-tmp)/cape) > 1.0e-15) && (count < 100) );
                 #*/
                 
-                set cape [$self GetE]
+                if {[catch {$self GetE} cape]} {
+                    return false
+                }
+                #set cape [$self GetE]
       
                 #// cerr << "tmp: " << tmp << "  cape: " << cape << "  fabs(cape - tmp)" << fabs(cape - tmp) << endl;
       
@@ -349,7 +361,7 @@ namespace eval orsa {
             
             $relative_position = [[$d1 * $xfac1] + [$d2 * $xfac2]]
             $relative_velocity = [[$d1 * $vfac1] + [$d2 * $vfac2]]
-            
+            return true
         }
         method {Compute Body} {b ref_b} {
             orsa::Body validate $b
@@ -546,6 +558,75 @@ namespace eval orsa {
                   -mu $mu
         }
     }
-    namespace export Orbit 
+    snit::type OrbitWithEpoch {
+        component orbit
+        delegate option * to orbit
+        delegate method * to orbit
+        option -epoch -type {snit::integer -min 0} -default 0
+        constructor {args} {
+            install orbit using Orbit %AUTO%
+            $self configurelist $args
+        }
+        method {Compute Vector} {relative_position relative_velocity mu epoch_in} {
+            $self configure -epoch $epoch_in
+            $orbit Compute Vector $relative_position $relative_velocity $mu
+        }
+        method {Compute Vector} {relative_position relative_velocity mu epoch_in} {
+            $self configure -epoch $epoch_in
+            $orbit Compute Vector $relative_position $relative_velocity $mu
+        }
+        method {Compute Body} {b ref_b epoch_in} {
+            $self configure -epoch $epoch_in
+            $orbit Compute Body $b $ref_b
+        }
+        typemethod validate {o} {
+            if {[catch {$o info type} otype]} {
+                error [format "%s is not a %s" $o $type]
+            } elseif {$otype ne $type} {
+                error [format "%s is not a %s" $o $type]
+            } else {
+                return $o
+            }
+        }
+        typemethod copy {o {name %AUTO%}} {
+            if {[catch {$o info type} ot]} {
+                error [format "%s is not a %s or %s" $o $type [$orbit info type]]
+            } elseif {$ot eq "::orsa::Orbit"} {
+                set epoch 0
+            } elseif {$ot eq $type} {
+                set epoch [$o cget -epoch]
+            }
+            return [$type create $name \
+                    -a [$o cget -a] \
+                    -e [$o cget -e] \
+                    -i [$o cget -i] \
+                    -omega_node [$o cget -omega_node] \
+                    -omega_pericenter [$o cget -omega_pericenter] \
+                    -m_ [$o cget -m_] \
+                    -mu [$o cget -mu] \
+                    -epoch $epoch]
+        }
+        method RelativePosVelAtTime {relative_positionName relative_velocityName epoch_in} {
+            upvar $relative_positionName relative_position
+            upvar $relative_velocityName relative_velocity
+            set o [$type copy $self]
+            puts stderr "*** $self RelativePosVelAtTime: epoch_in = $epoch_in"
+            puts stderr "*** $self RelativePosVelAtTime: base M = [$o cget -m_]"
+            set M [expr {[$o cget -m_] + $::orsa::twopi*double($epoch_in - [$self cget -epoch])/double([$self Period])}]
+            puts stderr "*** $self RelativePosVelAtTime: M = $M"
+            set M [expr {fmod(10*$::orsa::twopi+fmod($M,$::orsa::twopi),$::orsa::twopi)}]
+            puts stderr "*** $self RelativePosVelAtTime: fmod'd M = $M"
+            $o configure -m_ $M
+            if {[$o RelativePosVel relative_position relative_velocity]} {
+                puts stderr [format "*** %s RelativePosVelAtTime: relative_position is {%12.6lg, %12.6lg, %12.6lg}" \
+                             $self [$relative_position GetX] \
+                             [$relative_position GetY] [$relative_position GetZ]]
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+    namespace export Orbit OrbitWithEpoch
 }
 
