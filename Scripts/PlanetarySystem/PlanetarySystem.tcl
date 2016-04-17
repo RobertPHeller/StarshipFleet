@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160417.1616>
+#  Last Modified : <160417.1659>
 #
 #  Description	
 #
@@ -307,20 +307,24 @@ namespace eval planetarysystem {
             set i  [expr {asin(rand()*.125-0.0625)}]
             set omega_pericenter [expr {asin(rand()*.25-0.125)}]
             set omega_node [expr {asin(rand()*.125-0.0625)}]
-            set M  [expr {acos(rand()*2.0-1.0)*2.0}]
             set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
             
-            install orbit using Orbit %AUTO% \
-                  -a $a \
-                  -e $e \
-                  -i $i \
-                  -omega_pericenter $omega_pericenter \
-                  -omega_node $omega_node \
-                  -m_ $M \
-                  -mu $mu
-            $orbit RelativePosVel pos vel
+            set haveGoodM false
+            while {!$haveGoodM} {
+                set M  [expr {acos(rand()*2.0-1.0)*2.0}]
+                install orbit using Orbit %AUTO% \
+                      -a $a \
+                      -e $e \
+                      -i $i \
+                      -omega_pericenter $omega_pericenter \
+                      -omega_node $omega_node \
+                      -m_ $M \
+                      -mu $mu
+                set haveGoodM [$orbit RelativePosVel pos vel]
+            }
             $body SetPosition $pos
             $body SetVelocity $vel
+            
 
             #puts stderr [format {*** %s create %s: pos = [%20.15g %20.15g %20.15g]} \
             #             $type $self [$pos GetX] [$pos GetY] [$pos GetZ]]
