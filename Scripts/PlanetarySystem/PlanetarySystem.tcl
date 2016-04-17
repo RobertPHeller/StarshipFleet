@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160408.2146>
+#  Last Modified : <160416.1403>
 #
 #  Description	
 #
@@ -556,6 +556,7 @@ namespace eval planetarysystem {
                     if {$psm < 20} {
                         set planets($i,ptype) SubGasGiant
                     }
+                }
                 set planetname [planetarysystem::Planet namegenerator $starname]
                 puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
                 set planets($i,planet) [planetarysystem::Planet $planetname \

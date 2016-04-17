@@ -9,7 +9,7 @@ noinst_SCRIPTS = StarshipFleet.kit
 ORSA_PortScripts = Scripts/ORSA_Port/pkgIndex.tcl \
 		   Scripts/ORSA_Port/orsa_body.tcl \
 		   Scripts/ORSA_Port/orsa_common.tcl \
-		   Scripts/ORSA_Port/orsa_coord.tcl \        
+		   Scripts/ORSA_Port/orsa_coord.tcl \
                    Scripts/ORSA_Port/orsa_body.tcl \
                    Scripts/ORSA_Port/orsa_units.tcl \
                    Scripts/ORSA_Port/orsa_orbit.tcl \

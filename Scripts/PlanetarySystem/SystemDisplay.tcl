@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160408.2037>
+#  Last Modified : <160416.1434>
 #
 #  Description	
 #
@@ -59,6 +59,7 @@ namespace eval planetarysystem {
         variable scalex
         variable scaley
         variable zoomfactor 1.0
+        variable zoomfactor_fmt [format "Zoom: %7.4f" 1.0]
         variable sunmenu
         variable planetmenus -array {}
         
@@ -134,9 +135,18 @@ namespace eval planetarysystem {
                     }
                     GasGiant {
                         set color orange
+                        set size 5
+                    }
+                    SubGasGiant {
+                        set color blue
+                        set size 4
+                    }
+                    SubSubGasGiant {
+                        set color brown
                         set size 3
                     }
                 }
+                #puts "*** $type create $self: ptype [$p cget -ptype], color = $color, size = $size"
                 $canvas create oval [expr {$centerx - $size}] \
                       [expr {$centery - $size}] \
                       [expr {$centerx + $size}] \
@@ -144,8 +154,44 @@ namespace eval planetarysystem {
                       -tag $p
                 $canvas bind $p <3> [mymethod _planetMenu $i %X %Y]
             }
-            $canvas configure -scrollregion [list -550 -550 550 550]
+            $canvas configure -scrollregion [list -750 -750 750 750]
+            $self _addtools
         }
+        method _addtools {} {
+            $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
+            $tools add ttk::button zoom1 -text "Zoom 1.0" -command [mymethod _zoom1]
+            $tools add ttk::button zoomout -text "Zoom Out" -command [mymethod _zoomout]
+            $tools add ttk::label  currentzoom -textvariable [myvar zoomfactor_fmt]
+        }
+        method _zoomin {} {
+            if {$zoomfactor < 16.0} {
+                $self _DoZoom 2.0
+            }
+        }
+        method _zoom1 {} {
+            if {$zoomfactor != 1.0} {
+                $self _DoZoom [expr {1.0 / $zoomfactor}]
+            }
+        }
+        method _zoomout {} {
+            if {$zoomfactor > .0625} {
+                $self _DoZoom .5
+            }
+        }
+        method _DoZoom {zoom} {
+            set scalex [expr {$scalex * $zoom}]
+            set scaley [expr {$scaley * $zoom}]
+            $canvas scale all 0.0 0.0 $zoom $zoom
+            set osr [$canvas cget -scrollregion]
+            foreach v $osr {
+                lappend nsr [expr {$v * $zoom}]
+            }
+            $canvas configure -scrollregion $nsr
+            set zoomfactor [expr {$zoomfactor * $zoom}]
+            set zoomfactor_fmt [format "Zoom: %7.4f" $zoomfactor]
+            
+        }
+        
         method _sunMenu {X Y} {
             if {[info exists sunmenu] && [winfo exists $sunmenu]} {
                 $sunmenu post $X $Y
