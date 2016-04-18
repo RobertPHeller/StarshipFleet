@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160417.1659>
+#  Last Modified : <160418.1456>
 #
 #  Description	
 #
@@ -53,6 +53,41 @@ namespace eval planetarysystem {
     snit::enum planet_type -values {Unknown Rock Venusian Terrestrial 
         GasGiant Martian Water Ice SubGasGiant SubSubGasGiant Asteroids
         1Face}
+    snit::type filename {
+        typemethod validate {o} {
+            return $o
+        }
+        option -isdirectory -default false -type snit::boolean -readonly yes
+        option -exists      -default false -type snit::boolean -readonly yes
+        option -readable    -default false -type snit::boolean -readonly yes
+        option -writable    -default false -type snit::boolean -readonly yes
+        constructor {args} {
+            $self configurelist $args
+        }
+        method validate {o} {
+            if {[$self cget -exists]} {
+                if {![file exists $o]} {
+                    error "$o does not exist"
+                }
+            }
+            if {[$self cget -isdirectory]} {
+                if {![file isdirectory $o]} {
+                    error "$o is not a directory"
+                }
+            }
+            if {[$self cget -readable]} {
+                if {![file readable $o]} {
+                    error "$o is not readable"
+                }
+            }
+            if {[$self cget -writable]} {
+                if {![file writable $o]} {
+                    error "$o is not writable"
+                }
+            }
+            return $o
+        }
+    }
     
     snit::type NameGenerator {
         pragma -hastypeinfo false -hastypedestroy false -hasinstances false
@@ -236,6 +271,11 @@ namespace eval planetarysystem {
         # @arg -period Length of year in days.
         # @arg -sun The sun.
         # @arg -ptype The type of planet.
+        # @arg -inclination The inclination
+        # @arg -pericenter The pericenter
+        # @arg -node The node
+        # @arg -mu The mu
+        # @arg -m_ The M
         # @par
         
         component body
@@ -243,7 +283,7 @@ namespace eval planetarysystem {
         delegate method * to body
         component orbit
         ## The orbit of this planet
-        #delegate option * to orbit
+        delegate option * to orbit
         option -mass -default 0 -readonly yes -type {snit::double -min 0}
         option -distance -default 0 -readonly yes -type {snit::double -min 0}
         option -radius -default 0 -readonly yes -type {snit::double -min 0}
@@ -286,10 +326,35 @@ namespace eval planetarysystem {
             # @arg -period Length of year in days.
             # @arg -ptype The type of planet.
             # @arg -sun The sun.
+            # @arg -inclination The inclination
+            # @arg -pericenter The pericenter
+            # @arg -node The node
+            # @arg -mu The mu
+            # @arg -m_ The M
             # @par
             
             if {[lsearch $args -sun] < 0} {
                 error "The -sun option is required!"
+            }
+            set needorbit true
+            ## Need: orbital parameters.
+            if {[lsearch -exact $args -a] > 0 &&
+                [lsearch -exact $args -e] > 0 &&
+                [lsearch -exact $args -i] > 0 &&
+                [lsearch -exact $args -omega_pericenter] > 0 &&
+                [lsearch -exact $args -omega_node] > 0 &&
+                [lsearch -exact $args -m_] > 0 &&
+                [lsearch -exact $args -mu] > 0} {
+                install orbit using Orbit %AUTO% \
+                      -a [from args -a] \
+                      -e [from args -e] \
+                      -i [from args -i] \
+                      -omega_pericenter [from args -omega_pericenter] \
+                      -omega_node [from args -omega_node] \
+                      -m_ [from args -m_] \
+                      -mu [from args -mu]
+                $orbit RelativePosVel pos vel
+                set needorbit false
             }
             $self configurelist $args
             ## Body options
@@ -297,31 +362,33 @@ namespace eval planetarysystem {
             set r [$orsa::units FromUnits_length_unit $options(-radius) KM 1]
             install body using Body %AUTO% $self $m $r
             
-            ## Orbit options
-            set d [$orsa::units FromUnits_length_unit $options(-distance) AU 1]
-            set p [$orsa::units FromUnits_time_unit $options(-period) DAY 1]
-            
-            ## Need: orbital parameters.
-            set a  $d
-            set e  $options(-eccentricity)
-            set i  [expr {asin(rand()*.125-0.0625)}]
-            set omega_pericenter [expr {asin(rand()*.25-0.125)}]
-            set omega_node [expr {asin(rand()*.125-0.0625)}]
-            set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
-            
-            set haveGoodM false
-            while {!$haveGoodM} {
-                set M  [expr {acos(rand()*2.0-1.0)*2.0}]
-                install orbit using Orbit %AUTO% \
-                      -a $a \
-                      -e $e \
-                      -i $i \
-                      -omega_pericenter $omega_pericenter \
-                      -omega_node $omega_node \
-                      -m_ $M \
-                      -mu $mu
-                set haveGoodM [$orbit RelativePosVel pos vel]
+            if {$needorbit} {
+                ## Orbit options
+                set d [$orsa::units FromUnits_length_unit $options(-distance) AU 1]
+                set p [$orsa::units FromUnits_time_unit $options(-period) DAY 1]
+                
+                set a  $d
+                set e  $options(-eccentricity)
+                set i  [expr {asin(rand()*.125-0.0625)}]
+                set omega_pericenter [expr {asin(rand()*.25-0.125)}]
+                set omega_node [expr {asin(rand()*.125-0.0625)}]
+                set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
+                
+                set haveGoodM false
+                while {!$haveGoodM} {
+                    set M  [expr {acos(rand()*2.0-1.0)*2.0}]
+                    install orbit using Orbit %AUTO% \
+                          -a $a \
+                          -e $e \
+                          -i $i \
+                          -omega_pericenter $omega_pericenter \
+                          -omega_node $omega_node \
+                          -m_ $M \
+                          -mu $mu
+                    set haveGoodM [$orbit RelativePosVel pos vel]
+                }
             }
+            
             $body SetPosition $pos
             $body SetVelocity $vel
             
@@ -377,6 +444,8 @@ namespace eval planetarysystem {
         # Options:
         # @arg -seed STARGEN Seed to use.
         # @arg -stellarmass The Stellar mass.
+        # @arg -generate A boolean flag to select generation of a system.
+        # @arg -filename The file asociated with this system.
         # @par
         
         variable sun {}
@@ -391,6 +460,8 @@ namespace eval planetarysystem {
         ## StarGen executable path.
         option -seed -default 0 -type snit::integer
         option -stellarmass -default 0.0 -type {snit::double -min 0.0}
+        option -generate -default true -type snit::boolean -readonly yes
+        option -filename -default PlanetarySystem.system -type ::planetarysystem::filename
         constructor {args} {
             ## @publicsection Construct a planetary system.
             #
@@ -398,9 +469,19 @@ namespace eval planetarysystem {
             # @param ... Options:
             # @arg -seed STARGEN Seed to use.
             # @arg -stellarmass The Stellar mass.
+            # @arg -generate A boolean flag to select generation of a system.
+            # @arg -filename The file asociated with this system.
             # @par
             
+            puts stderr "*** $type create $self $args"
             $self configurelist $args
+            if {[$self cget -generate]} {
+                $self _generate
+            } else {
+                $self load [$self cget -filename]
+            }
+        }
+        method _generate {} {
             if {$options(-stellarmass) == 0.0} {
                 set $options(-stellarmass) [expr {.8+(rand()*.4)}]
             }
@@ -412,6 +493,7 @@ namespace eval planetarysystem {
             puts stderr "*** $type create $self: options(-stellarmass) = $options(-stellarmass)"
             set genout [open "|$cmdline" r]
             set line [gets $genout]
+            puts stderr "*** $type create $self: line = \{$line\}"
             set StargenSeed 0
             if {[regexp {seed=([[:digit:]]+)$} $line => StargenSeed] < 0} {
                 error "Format error: $line, expecting seed="
@@ -600,7 +682,7 @@ namespace eval planetarysystem {
             set MaxY {}
             set MinZ {}
             set MaxZ {}
-            for {set i 1} {$i < $nplanets} {incr i} {
+            for {set i 1} {$i <= $nplanets} {incr i} {
                 set ppos [$planets($i,planet) position]
                 if {$MinX eq "" || [$ppos GetX] < $MinX} {
                     set MinX [$ppos GetX]
@@ -621,7 +703,81 @@ namespace eval planetarysystem {
                     set MaxZ [$ppos GetZ]
                 }
             }
-            return [list $MinX $MaxX $MinY $MaxY $MinZ $MaxZ]
+            if {$MinX eq ""} {
+                return [list 0 0 0 0 0 0]
+            } else {
+                return [list $MinX $MaxX $MinY $MaxY $MinZ $MaxZ]
+            }
+        }
+        method save {filename} {
+            if {[catch {open $filename w} ofp]} {
+                error [format "Could not open %s for writing because: %s" $filename $ofp]
+            }
+            foreach o [array names options] {
+                puts $ofp [list $o $options($o)]
+            }
+            set sunout [list sun $sun]
+            set sunopts [$sun configure]
+            foreach orec $sunopts {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                lappend sunout $o $ov
+            }
+            puts $ofp $sunout
+            puts $ofp [list nplanets $nplanets]
+            for {set i 1} {$i <= $nplanets} {incr i} {
+                set pslots [array names planets $i,*]
+                puts stderr "*** $self save: pslots = $pslots"
+                foreach ps $pslots {
+                    puts stderr "*** $self save: ps = $ps"
+                    if {$ps eq "$i,planet"} {continue}
+                    puts $ofp [list planets($ps) $planets($ps)]
+                }
+                set planetout [list planets($i,planet) $planets($i,planet)]
+                foreach orec [$planets($i,planet) configure] {
+                    set o [lindex $orec 0]
+                    set ov [lindex $orec 4]
+                    lappend planetout $o $ov
+                }
+                puts $ofp $planetout
+            }
+            close $ofp
+            $self configure -filename $filename
+        }
+        method load {filename} {
+            if {[catch {open $filename r} ifp]} {
+                error [format "Could not open %s for reading because: %s" $filename $ifp]
+            }
+            while {[gets $ifp line] >= 0} {
+                if {[regexp {^sun } $line] > 0} {break}
+                foreach {o v} [split $line] {break}
+                set options($o) $v
+            }
+            set sunlist [split $line]
+            set starname [lindex $sunlist 1]
+            set sunopts  [lrange $sunlist 2 end]
+            set sun [eval [list planetarysystem::Sun $starname] $sunopts]
+            set nplanets [lindex [split [gets $ifp]] 1]
+            for {set i 1} {$i <= $nplanets} {incr i} {
+                set line [gets $ifp]
+                if {[regexp {^planets\(([[:digit:]]+),(.+)\) } $line => ip field] < 1} {
+                    error "Syntax error: $line"
+                }
+                if {$i != $ip} {
+                    error "Syntax error: $line"
+                }
+                set planetlist [split $line]
+                if {$field ne "planet"} {
+                    set planets($i,$field) [lindex $planetlist 1]
+                } else {
+                    set planetname [lindex $planetlist 1]
+                    set planetopts  [lrange $planetlist 2 end]
+                    set planets($i,planet) \
+                          [eval [list planetarysystem::Planet $planetname] $planetopts]
+                }
+            }
+            close $ifp
+            $self configure -filename $filename
         }
         method _updater {} {
             ## @privatesection Update everything.

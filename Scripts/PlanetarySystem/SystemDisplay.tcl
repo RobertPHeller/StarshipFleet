@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160417.1645>
+#  Last Modified : <160418.1439>
 #
 #  Description	
 #
@@ -64,9 +64,12 @@ namespace eval planetarysystem {
         variable planetmenus -array {}
         
         constructor {args} {
+            puts stderr "*** $type create $self $args"
             install system using PlanetarySystem %AUTO% \
                   -seed [from args -seed 0] \
-                  -stellarmass [from args -stellarmass 0.0]
+                  -stellarmass [from args -stellarmass 0.0] \
+                  -generate [from args -generate yes] \
+                  -filename [from args -filename PlanetarySystem.system]
             install scrollw using ScrolledWindow $win.scrollw \
                   -scrollbar both -auto both
             pack $scrollw -expand yes -fill both
@@ -80,8 +83,8 @@ namespace eval planetarysystem {
             foreach {MinX MaxX MinY MaxY MinZ MaxZ} $extents {break}
             set maxXabs [expr {max(abs($MinX),abs($MaxX))}]
             set maxYabs [expr {max(abs($MinY),abs($MaxY))}]
-            set scalex [expr {500.0 / double($maxXabs)}]
-            set scaley [expr {500.0 / double($maxYabs)}]
+            set scalex [expr {2000.0 / double($maxXabs)}]
+            set scaley [expr {2000.0 / double($maxYabs)}]
             set sun [$system GetSun]
             set lum [$sun cget -luminosity]
             set smass [$sun cget -mass]
@@ -153,18 +156,27 @@ namespace eval planetarysystem {
                       [expr {$centery + $size}] -fill $color -outline {} \
                       -tag $p
                 $canvas bind $p <3> [mymethod _planetMenu $i %X %Y]
-                if {$i < 2} {$self draw_orbit $p $color}
+                if {$i < 5} {$self draw_orbit $p $color}
             }
-            $canvas configure -scrollregion [list -750 -750 750 750]
+            $canvas configure -scrollregion [list -2500 -2500 2500 2500]
             $self _addtools
         }
         method draw_orbit {planet {color white}} {
             set oe [OrbitWithEpoch copy [$planet GetOrbit]]
+            #set maxdelta [expr {((2*[$oe cget -a]*$::orsa::pi) / 10.0)*3}]
             set period [$oe Period]
             puts stderr "*** $self draw_orbit ($planet): period = $period"
-            set incr [expr {$period / double(100)}]
-            puts stderr "*** $self draw_orbit ($planet): incr = $incr"
+            set incr [expr {$period / double(1000)}]
+            set pdays [$planet cget -period]
+            set ppowdays [expr {int(log10($pdays))}]
+            set incr [$::orsa::units FromUnits_time_unit 1 DAY $ppowdays]
+            set steps [expr {$period / $incr}]
+            set maxdelta [expr {((2*[$oe cget -a]*$::orsa::pi) / $steps)*1.5}]
+            set maxdelta 9.9999E37
+            puts stderr "*** $self draw_orbit ($planet) pdays = $pdays, ppowdays = $ppowdays, period = $period, maxdelta = $maxdelta, incr = $incr"
             set ocoords [list]
+            set prevpos [$planet position]
+            puts stderr "*** $self draw_orbit: prevpos is $prevpos"
             for {set p 0} {$p <= ($period + $incr)} {set p [expr {$p + $incr}]} {
                 puts stderr "*** $self draw_orbit ($planet): p = $p"
                 if {$p > $period} {
@@ -173,14 +185,26 @@ namespace eval planetarysystem {
                     set pp $p
                 }                
                 puts stderr "*** $self draw_orbit ($planet): pp = $pp"
+                set pos [Vector %AUTO% 0 0 0]
+                set vel [Vector %AUTO% 0 0 0]
                 if {[$oe RelativePosVelAtTime pos vel $pp]} {
-                    set x [expr {[$pos GetX] * $scalex}]
-                    set y [expr {[$pos GetY] * $scaley}]
-                    lappend ocoords $x $y
+                    puts stderr "*** $self draw_orbit: pos is $pos"
+                    puts stderr [format "*** $self draw_orbit pos = {%12.7lg, %12.7lg, %12.7lg}" [$pos GetX] [$pos GetY] [$pos GetZ]]
+                    puts stderr [format "*** $self draw_orbit prevpos = {%12.7lg, %12.7lg, %12.7lg}" [$prevpos GetX] [$prevpos GetY] [$prevpos GetZ]]
+                    set dp [$prevpos - $pos]
+                    puts stderr [format "*** $self draw_orbit dp = {%12.7lg, %12.7lg, %12.7lg}" [$dp GetX] [$dp GetY] [$dp GetZ]]
+                    set delta [$dp Length]
+                    puts stderr "*** $self draw_orbit: delta = $delta, maxdelta = $maxdelta"
+                    if {$delta < $maxdelta} {
+                        set x [expr {[$pos GetX] * $scalex}]
+                        set y [expr {[$pos GetY] * $scaley}]
+                        lappend ocoords $x $y
+                        set prevpos $pos
+                    }
                 }
             }
             $canvas create polygon $ocoords -fill {} -outline $color -tag ${planet}_orbit
-        }               
+        }
         method _addtools {} {
             $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
             $tools add ttk::button zoom1 -text "Zoom 1.0" -command [mymethod _zoom1]

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160417.1521>
+#  Last Modified : <160418.1434>
 #
 #  Description	
 #
@@ -1378,7 +1378,13 @@ proc print {v} {
 }
 
 
-set pd [planetarysystem::PlanetaryDisplay .pd]
+if {[file exists "test.system"]} {
+    set pd [planetarysystem::PlanetaryDisplay .pd -generate no -filename "test.system"]
+} else {
+    set pd [planetarysystem::PlanetaryDisplay .pd -generate yes]
+    $pd save "test.system"
+}
+    
 
 pack $pd -expand yes -fill both
 bind all <q> exit
