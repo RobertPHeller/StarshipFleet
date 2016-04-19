@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <160417.1638>
+#  Last Modified : <160419.1039>
 #
 #  Description	
 #
@@ -49,7 +49,8 @@ namespace import control::*
 
 namespace eval orsa {
     snit::type Orbit {
-        typevariable epsilon 2.22044604925031e-16
+        #typevariable epsilon 1e-323
+        typevariable epsilon 1e-17
         option -a -default 0.0 -type snit::double
         option -e -default 0.0 -type snit::double
         option -i -default 0.0 -type snit::double
@@ -74,11 +75,7 @@ namespace eval orsa {
             if {$e < 0.8} {
                 set sm [expr {sin($M)}]
                 set cm [expr {cos($M)}]
-                #if {$e < $epsilon} {
-                #    set x $M
-                #} else {
-                set x [expr {$M + $e**$sm*( 1.0 + $e*( $cm + $e*( 1.0 -1.5*$sm*$sm)))}]
-                #}
+                set x [expr {$M + $e*$sm*( 1.0 + $e*( $cm + $e*( 1.0 -1.5*$sm*$sm)))}]
                 set sx 0.0
                 set cx 0.0
                 set E $x
@@ -91,7 +88,7 @@ namespace eval orsa {
                 set fppp 0.0
                 set dx 0.0
                 set count 0
-                set max_count  512
+                set max_count  128
                 do {
                     set sx   [expr {sin($x)}]
                     set cx   [expr {cos($x)}]
@@ -114,9 +111,9 @@ namespace eval orsa {
                     incr count
                     # update x, ready for the next iteration
                     set x $E
-                } while {(abs($E-$old_E) > 10*(abs($E)+abs($M))*$epsilon) && ($count < $max_count)}
+                } while {(abs($E-$old_E) > (400*(abs($E)+abs($M))*$epsilon)) && ($count < $max_count)}
                 if {$count >= $max_count} {
-                    puts stderr [format "Orbit::GetE(): max count reached, e = %g    E = %g fabs(E-old_E) = %g   10*(fabs(E)+fabs(M))*std::numeric_limits<double>::epsilon() = %g" $e $E [expr {abs($E-$old_E)}] [expr {10*(abs($E)+abs($M))*$epsilon}]]
+                    puts stderr [format "Orbit::GetE(): max count reached, e = %g    E = %g fabs(E-old_E) = %g   400*(fabs(E)+fabs(M))*std::numeric_limits<double>::epsilon() = %g" $e $E [expr {abs($E-$old_E)}] [expr {400*(abs($E)+abs($M))*$epsilon}]]
                 }
             } else {
                 set m [expr {fmod(10*$orsa::twopi+fmod($M,$orsa::twopi),$orsa::twopi)}]
@@ -136,7 +133,7 @@ namespace eval orsa {
                 set fppp 0.0
                 set dx 0.0
                 set count 0
-                set max_count  512
+                set max_count  128
                 do {
                     set sa [expr {sin($x+$m)}]
                     set ca [expr {cos($x+$m)}]
@@ -157,7 +154,7 @@ namespace eval orsa {
                     set E [expr {$x + $m}]
                     incr count;
                     
-                } while {(abs($E-$old_E) > 10*(abs($E)+abs($M)+$orsa::twopi)*$epsilon) && ($count < $max_count)}
+                } while {(abs($E-$old_E) > (10*(abs($E)+abs($M)+$orsa::twopi)*$epsilon)) && ($count < $max_count)}
                 if {$iflag} {
                     set E [expr {$orsa::twopi - $old_E}]
                 }
@@ -259,10 +256,7 @@ namespace eval orsa {
                 #} while ( (fabs((cape-tmp)/cape) > 1.0e-15) && (count < 100) );
                 #*/
                 
-                if {[catch {$self GetE} cape]} {
-                    return false
-                }
-                #set cape [$self GetE]
+                set cape [$self GetE]
       
                 #// cerr << "tmp: " << tmp << "  cape: " << cape << "  fabs(cape - tmp)" << fabs(cape - tmp) << endl;
       
@@ -361,7 +355,6 @@ namespace eval orsa {
             
             $relative_position = [[$d1 * $xfac1] + [$d2 * $xfac2]]
             $relative_velocity = [[$d1 * $vfac1] + [$d2 * $vfac2]]
-            return true
         }
         method {Compute Body} {b ref_b} {
             orsa::Body validate $b
@@ -610,21 +603,14 @@ namespace eval orsa {
             upvar $relative_positionName relative_position
             upvar $relative_velocityName relative_velocity
             set o [$type copy $self]
-            puts stderr "*** $self RelativePosVelAtTime: epoch_in = $epoch_in"
-            puts stderr "*** $self RelativePosVelAtTime: base M = [$o cget -m_]"
+            #puts stderr "*** $self RelativePosVelAtTime: epoch_in = $epoch_in"
+            #puts stderr "*** $self RelativePosVelAtTime: base M = [$o cget -m_]"
             set M [expr {[$o cget -m_] + $::orsa::twopi*double($epoch_in - [$self cget -epoch])/double([$self Period])}]
-            puts stderr "*** $self RelativePosVelAtTime: M = $M"
+            #puts stderr "*** $self RelativePosVelAtTime: M = $M"
             set M [expr {fmod(10*$::orsa::twopi+fmod($M,$::orsa::twopi),$::orsa::twopi)}]
-            puts stderr "*** $self RelativePosVelAtTime: fmod'd M = $M"
+            #puts stderr "*** $self RelativePosVelAtTime: fmod'd M = $M"
             $o configure -m_ $M
-            if {[$o RelativePosVel relative_position relative_velocity]} {
-                puts stderr [format "*** %s RelativePosVelAtTime: relative_position is {%12.6lg, %12.6lg, %12.6lg}" \
-                             $self [$relative_position GetX] \
-                             [$relative_position GetY] [$relative_position GetZ]]
-                return true
-            } else {
-                return false
-            }
+            $o RelativePosVel relative_position relative_velocity
         }
     }
     namespace export Orbit OrbitWithEpoch
