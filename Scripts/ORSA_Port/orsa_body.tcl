@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 20:44:55 2016
-#  Last Modified : <160405.2019>
+#  Last Modified : <160419.1209>
 #
 #  Description	
 #
@@ -321,7 +321,7 @@ namespace eval orsa {
             $type validate $b
             set b_bc [$b info vars bc]
             #puts stderr "*** $self =: bc = \{$bc\}, b_bc = \{$b_bc\}"
-            if {[set $b_bc] != $bc} {
+            if {[set $b_bc] ne $bc} {
                 $bc RemoveUser
                 if {[$bc Users] == 0} {
                     $bc destroy
