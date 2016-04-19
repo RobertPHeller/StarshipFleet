@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160418.1456>
+#  Last Modified : <160419.0956>
 #
 #  Description	
 #
@@ -758,21 +758,17 @@ namespace eval planetarysystem {
             set sunopts  [lrange $sunlist 2 end]
             set sun [eval [list planetarysystem::Sun $starname] $sunopts]
             set nplanets [lindex [split [gets $ifp]] 1]
-            for {set i 1} {$i <= $nplanets} {incr i} {
-                set line [gets $ifp]
+            while {[gets $ifp line] > 0} {
                 if {[regexp {^planets\(([[:digit:]]+),(.+)\) } $line => ip field] < 1} {
-                    error "Syntax error: $line"
-                }
-                if {$i != $ip} {
-                    error "Syntax error: $line"
+                    error "Syntax error (match failed): $line"
                 }
                 set planetlist [split $line]
                 if {$field ne "planet"} {
-                    set planets($i,$field) [lindex $planetlist 1]
+                    set planets($ip,$field) [lindex $planetlist 1]
                 } else {
                     set planetname [lindex $planetlist 1]
                     set planetopts  [lrange $planetlist 2 end]
-                    set planets($i,planet) \
+                    set planets($ip,planet) \
                           [eval [list planetarysystem::Planet $planetname] $planetopts]
                 }
             }

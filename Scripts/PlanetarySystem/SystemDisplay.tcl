@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160418.1439>
+#  Last Modified : <160419.1010>
 #
 #  Description	
 #
@@ -64,7 +64,7 @@ namespace eval planetarysystem {
         variable planetmenus -array {}
         
         constructor {args} {
-            puts stderr "*** $type create $self $args"
+            #puts stderr "*** $type create $self $args"
             install system using PlanetarySystem %AUTO% \
                   -seed [from args -seed 0] \
                   -stellarmass [from args -stellarmass 0.0] \
@@ -156,7 +156,7 @@ namespace eval planetarysystem {
                       [expr {$centery + $size}] -fill $color -outline {} \
                       -tag $p
                 $canvas bind $p <3> [mymethod _planetMenu $i %X %Y]
-                if {$i < 5} {$self draw_orbit $p $color}
+                if {$i < 100} {$self draw_orbit $p $color}
             }
             $canvas configure -scrollregion [list -2500 -2500 2500 2500]
             $self _addtools
@@ -165,45 +165,51 @@ namespace eval planetarysystem {
             set oe [OrbitWithEpoch copy [$planet GetOrbit]]
             #set maxdelta [expr {((2*[$oe cget -a]*$::orsa::pi) / 10.0)*3}]
             set period [$oe Period]
-            puts stderr "*** $self draw_orbit ($planet): period = $period"
-            set incr [expr {$period / double(1000)}]
-            set pdays [$planet cget -period]
-            set ppowdays [expr {int(log10($pdays))}]
-            set incr [$::orsa::units FromUnits_time_unit 1 DAY $ppowdays]
-            set steps [expr {$period / $incr}]
-            set maxdelta [expr {((2*[$oe cget -a]*$::orsa::pi) / $steps)*1.5}]
-            set maxdelta 9.9999E37
-            puts stderr "*** $self draw_orbit ($planet) pdays = $pdays, ppowdays = $ppowdays, period = $period, maxdelta = $maxdelta, incr = $incr"
+            #puts stderr "*** $self draw_orbit ($planet): period = $period"
+            set incr [expr {$period / double(100)}]
             set ocoords [list]
-            set prevpos [$planet position]
-            puts stderr "*** $self draw_orbit: prevpos is $prevpos"
+            #set prevpos [$planet position]
+            #puts stderr "*** $self draw_orbit: prevpos is $prevpos"
+            #set mindelta {}
+            #set maxdelta {}
+            #set deltasum 0.0
+            #set numbdeltas 0
             for {set p 0} {$p <= ($period + $incr)} {set p [expr {$p + $incr}]} {
-                puts stderr "*** $self draw_orbit ($planet): p = $p"
+                #puts stderr "*** $self draw_orbit ($planet): p = $p"
                 if {$p > $period} {
                     set pp $period
                 } else {
                     set pp $p
                 }                
-                puts stderr "*** $self draw_orbit ($planet): pp = $pp"
+                #puts stderr "*** $self draw_orbit ($planet): pp = $pp"
                 set pos [Vector %AUTO% 0 0 0]
                 set vel [Vector %AUTO% 0 0 0]
-                if {[$oe RelativePosVelAtTime pos vel $pp]} {
-                    puts stderr "*** $self draw_orbit: pos is $pos"
-                    puts stderr [format "*** $self draw_orbit pos = {%12.7lg, %12.7lg, %12.7lg}" [$pos GetX] [$pos GetY] [$pos GetZ]]
-                    puts stderr [format "*** $self draw_orbit prevpos = {%12.7lg, %12.7lg, %12.7lg}" [$prevpos GetX] [$prevpos GetY] [$prevpos GetZ]]
-                    set dp [$prevpos - $pos]
-                    puts stderr [format "*** $self draw_orbit dp = {%12.7lg, %12.7lg, %12.7lg}" [$dp GetX] [$dp GetY] [$dp GetZ]]
-                    set delta [$dp Length]
-                    puts stderr "*** $self draw_orbit: delta = $delta, maxdelta = $maxdelta"
-                    if {$delta < $maxdelta} {
-                        set x [expr {[$pos GetX] * $scalex}]
-                        set y [expr {[$pos GetY] * $scaley}]
-                        lappend ocoords $x $y
-                        set prevpos $pos
-                    }
-                }
+                $oe RelativePosVelAtTime pos vel $pp
+                #puts stderr "*** $self draw_orbit: pos is $pos"
+                #puts stderr [format "*** $self draw_orbit pos = {%12.7lg, %12.7lg, %12.7lg}" [$pos GetX] [$pos GetY] [$pos GetZ]]
+                #puts stderr [format "*** $self draw_orbit prevpos = {%12.7lg, %12.7lg, %12.7lg}" [$prevpos GetX] [$prevpos GetY] [$prevpos GetZ]]
+                #set dp [$prevpos - $pos]
+                #puts stderr [format "*** $self draw_orbit dp = {%12.7lg, %12.7lg, %12.7lg}" [$dp GetX] [$dp GetY] [$dp GetZ]]
+                #set delta [$dp Length]                
+                #puts stderr "*** $self draw_orbit: delta = $delta, maxdelta = $maxdelta"
+                #if {$p == 0} {
+                #    set mindelta $delta
+                #    set maxdelta $delta
+                #} else {
+                #    if {$delta < $mindelta} {set mindelta $delta}
+                #    if {$delta > $maxdelta} {set maxdelta $delta}
+                #}
+                #set deltasum [expr {$deltasum + $delta}]
+                #incr numbdeltas
+                set x [expr {[$pos GetX] * $scalex}]
+                set y [expr {[$pos GetY] * $scaley}]
+                lappend ocoords $x $y
+                #set prevpos $pos
             }
+            #set avedelta [expr {$deltasum / double($numbdeltas)}]
+            #puts stderr [format "*** $self draw_orbit: mindelta = %g, maxdelta = %g, avedelta = %g, numdeltas = %d" $mindelta $maxdelta $avedelta $numbdeltas]
             $canvas create polygon $ocoords -fill {} -outline $color -tag ${planet}_orbit
+            $canvas lower ${planet}_orbit [$system GetSun]
         }
         method _addtools {} {
             $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
