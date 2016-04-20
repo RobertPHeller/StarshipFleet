@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160419.1528>
+#  Last Modified : <160420.1714>
 #
 #  Description	
 #
@@ -1377,12 +1377,13 @@ proc print {v} {
     puts "[format {X: %10.5g, Y: %10.5g, Z: %10.5g} [$v GetX] [$v GetY] [$v GetZ]]"
 }
 
-
-set pd [planetarysystem::PlanetaryDisplay .pd -generate yes]
-#$pd save "test.system"
-    
-
+##set system [planetarysystem::PlanetarySystem %AUTO% -generate no -filename test.system]
+#
+#
+set pd [planetarysystem::PlanetaryDisplay .pd -generate  no -filename test.system]
 pack $pd -expand yes -fill both
 bind all <q> exit
 bind all <Q> exit
+#$pd save test.system
+#exit
 

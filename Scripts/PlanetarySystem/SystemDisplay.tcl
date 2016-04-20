@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160419.2029>
+#  Last Modified : <160420.1559>
 #
 #  Description	
 #
@@ -94,28 +94,17 @@ namespace eval planetarysystem {
             set sun [$system GetSun]
             set lum [$sun cget -luminosity]
             set smass [$sun cget -mass]
-            set yellow [expr {int(($smass * 128))}]
-            set green $yellow
-            set red $yellow
-            set blue 0
-            if {$lum < 1} {
-                set green [expr {int($yellow * $lum)}]
-                set red $yellow
-            } elseif {$lum > 1} {
-                set blue [expr {int(($lum - 1) * 64)}]
-                if {$blue > 255} {set blue 255}
-            }
-            set color [format {#%02x%02x%02x} $red $green $blue]
+            set color [$sun SunColor]
             set suntag $sun
-            $canvas create oval -4 -4 4 4 -fill $color -outline {} -tag $suntag
-            $canvas create text 4 4 -anchor nw \
+            $canvas create oval -6 -6 6 6 -fill $color -outline {} -tag $suntag
+            $canvas create text 6 6 -anchor nw \
                   -text [namespace tail $sun] \
                   -font $labelfont \
                   -tag sunlabel -fill $color
             $canvas bind $suntag <3> [mymethod _sunMenu %X %Y]
             set nplanets [$system GetPlanetCount]
             for {set i 1} {$i <= $nplanets} {incr i} {
-                set p [$system GetPlanet $i planet]
+                set p [$system GetPlanet $i]
                 set pos [$p position]
                 set centerx [expr {[$pos GetX] * $scalex}]
                 set centery [expr {[$pos GetY] * $scaley}]
@@ -282,6 +271,8 @@ namespace eval planetarysystem {
                       -command [mymethod _togglesunlabel]
                 $sunmenu add command -label {Detailed Info} \
                       -command [mymethod _detailedSunInfo]
+                $sunmenu add command -label {Printable Report} \
+                      -command "[$system GetSun] ReportPDF"
                 $sunmenu post $X $Y
             }
         }
@@ -304,6 +295,24 @@ namespace eval planetarysystem {
                             [$sun cget -luminosity]]
         }
         method _detailedSunInfo {} {
+            set sun [$system GetSun]
+            set sunopts [list]
+            foreach orec [$sun configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                if {$o eq "-mass"} {continue}
+                lappend sunopts $o $ov
+            }
+            ObjectDetailDisplay $win.detailedSunInfo%AUTO% \
+                  -disksize 60 \
+                  -diskcolor [$canvas itemcget $sun -fill] \
+                  -name [namespace tail $sun] \
+                  -mass [$sun cget -mass] \
+                  -munits "Sun Masses" \
+                  -position [$sun position] \
+                  -velocity [$sun velocity] \
+                  -parent $win \
+                  -optlist $sunopts
         }
             
         method _planetMenu {iplanet X Y} {
@@ -326,12 +335,14 @@ namespace eval planetarysystem {
                       -command [mymethod _toggleplanetorbit $iplanet]
                 $planetmenus($iplanet) add command -label {Detailed Info} \
                       -command [mymethod _detailedPlanetInfo $iplanet]
+                $planetmenus($iplanet) add command -label {Printable Report} \
+                      -command "[$system GetPlanet $iplanet] ReportPDF"
                 $planetmenus($iplanet) post $X $Y
             }
         }
         method _planetInfo {iplanet} {
             set sun [$system GetSun]
-            set planet [$system GetPlanet $iplanet planet]
+            set planet [$system GetPlanet $iplanet]
             tk_messageBox -type ok \
                   -message [format {%s %d: %s, mass %f, ptype %s, period %f} \
                             [namespace tail $sun] $iplanet \
@@ -341,7 +352,7 @@ namespace eval planetarysystem {
                             [$planet cget -period]]
         }
         method _toggleplanetlabel {iplanet} {
-            set p [$system GetPlanet $iplanet planet]
+            set p [$system GetPlanet $iplanet]
             switch $planetlabels($iplanet) {
                 off {
                     $canvas itemconfigure ${p}_label -state hidden
@@ -352,7 +363,7 @@ namespace eval planetarysystem {
             }
         }
         method _toggleplanetorbit {iplanet} {
-            set p [$system GetPlanet $iplanet planet]
+            set p [$system GetPlanet $iplanet]
             switch $planetorbits($iplanet) {
                 off {
                     $canvas itemconfigure ${p}_orbit -state hidden
@@ -363,10 +374,68 @@ namespace eval planetarysystem {
             }
         }
         method _detailedPlanetInfo {iplanet} {
+            set p [$system GetPlanet $iplanet]
+            set popts [list]
+            foreach orec [$p configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                if {$o eq "-mass"} {continue}
+                lappend popts $o $ov
+            }
+            set size 10
+            switch [$p cget -ptype] {
+                Rock {
+                    set color grey
+                    set size 10
+                }
+                Venusian {
+                    set color white
+                    set size 10
+                }
+                Terrestrial {
+                    set color green
+                    set size 10
+                }
+                Martian {
+                    set color red
+                    set size 10
+                }
+                Water {
+                    set color blue
+                    set size 10
+                }
+                Ice {
+                    set color lightblue
+                    set size 10
+                }
+                GasGiant {
+                    set color orange
+                    set size 50
+                }
+                SubGasGiant {
+                    set color blue
+                    set size 40
+                }
+                SubSubGasGiant {
+                    set color brown
+                    set size 30
+                }
+            }
+            ObjectDetailDisplay $win.detailedPlanetInfo${iplanet}%AUTO% \
+                  -disksize $size -diskcolor $color \
+                  -name [format {%s %d: %s} [namespace tail [$p cget -sun]] $iplanet \
+                         [namespace tail $p]] \
+                  -mass [$p cget -mass] \
+                  -munits "Earth Masses" \
+                  -position [$p position] \
+                  -velocity [$p velocity] \
+                  -parent $win \
+                  -optlist $popts
+                  
         }
     }
     
     
     
-    namespace export PlanetaryDisplay
+    namespace export PlanetaryDisplay 
 }

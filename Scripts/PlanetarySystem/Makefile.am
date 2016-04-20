@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:50:37 2016
-#  Last Modified : <160411.1424>
+#  Last Modified : <160420.1307>
 #
 #  Description	
 #
@@ -43,5 +43,6 @@
 ##############################################################################
 
 
-EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl structs.tcl const.tcl \
+EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl ObjectDetail.tcl \
+		SystemDisplay.tcl structs.tcl const.tcl \
 		stargen.tcl main.tcl accrete.tcl enviro.tcl utils.tcl 

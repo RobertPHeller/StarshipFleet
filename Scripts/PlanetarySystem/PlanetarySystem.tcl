@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160419.1529>
+#  Last Modified : <160420.1714>
 #
 #  Description	
 #
@@ -44,6 +44,7 @@ package require snit
 package require orsa
 package require control
 namespace import control::*
+package require pdf4tcl
 
 namespace eval planetarysystem {
     variable PLANETARYSYSTEM_DIR [file dirname [info script]]
@@ -244,6 +245,63 @@ namespace eval planetarysystem {
                      [namespace exists ::$name]}
             return ::$name
         }
+        method SunColor {} {
+            set lum [$self cget -luminosity]
+            set smass [$self cget -mass]
+            set yellow [expr {int(($smass * 128))}]
+            set green $yellow
+            set red $yellow
+            set blue 0
+            if {$lum < 1} {
+                set green [expr {int($yellow * $lum)}]
+                set red $yellow
+            } elseif {$lum > 1} {
+                set blue [expr {int(($lum - 1) * 64)}]
+                if {$blue > 255} {set blue 255}
+            }
+            set color [format {#%02x%02x%02x} $red $green $blue]
+            return $color
+        }
+        method ReportPDF {{filename {}}} {
+            if {"$filename" eq ""} {
+                set filename [tk_getSaveFile -defaultextension .pdf \
+                              -filetypes { {{PDF Files} {.pdf} }} \
+                              -initialdir [pwd] \
+                              -initialfile "[namespace tail $self].pdf" \
+                              -parent . \
+                              -title "File to save report to"]
+            }
+            if {"$filename" eq ""} {return}
+            set pdfobject [::pdf4tcl::new %AUTO% -file $filename \
+                           -paper "letter"]
+            $self PDFPage $pdfobject
+            $pdfobject finish
+            $pdfobject destroy
+        }
+        method PDFPage {pdfobject} {
+            $pdfobject startPage -margin {36p 36p 72p 72p}
+            $pdfobject setFillColor #000000
+            $pdfobject rectangle 0 0 200p 200p -filled yes
+            $pdfobject setFillColor [$self SunColor]
+            $pdfobject oval 100p 100p 60p 60p -filled yes
+            $pdfobject setFillColor #000000
+            $pdfobject setTextPosition 250p 48p
+            $pdfobject setFont 48p Times-Roman
+            $pdfobject text [namespace tail $self]
+            $pdfobject newLine
+            $pdfobject setFont 24p Times-Roman
+            $pdfobject text [format {Mass: %g Sun Masses} [$self cget -mass]]
+            $pdfobject newLine
+            $pdfobject setTextPosition 0 250p
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                if {$o eq "-mass"} {continue}
+                $pdfobject text [format {%s: %s} $o $ov]
+                $pdfobject newLine
+            }
+            $pdfobject endPage
+        }
         typemethod validate {object} {
             ## @publicsection Validate object as a PlantarySystem object.
             #
@@ -259,6 +317,7 @@ namespace eval planetarysystem {
             }
         }
     }
+    snit::listtype PlanetList -type ::planetarysystem::Planet
     snit::type Planet {
         ## @brief A planet.
         # A PlanetarySystem has one or more planets, in orbit about its sun.
@@ -271,12 +330,29 @@ namespace eval planetarysystem {
         # @arg -period Length of year in days.
         # @arg -sun The sun.
         # @arg -ptype The type of planet.
-        # @arg -inclination The inclination
-        # @arg -pericenter The pericenter
-        # @arg -node The node
-        # @arg -mu The mu
-        # @arg -m_ The M
+        # @arg -refbody The reference body.  This is the same as the sun,
+        # if this is a planet.  If this is a moon, it is the body of the
+        # planet this moon orbits.
+        # @arg -gasgiant Flag indicating whether this is a gas giant.
+        # @arg -gravity Surface gravity.
+        # @arg -pressure Surface pressure.
+        # @arg -greenhouse Flag indicating whether this is a runaway 
+        # greenhouse planet.
+        # @arg -temperature Surface temperature.
+        # @arg -density Planetary density.
+        # @arg -escapevelocity Escape velocity.
+        # @arg -molweightretained Molecular weight retained.
+        # @arg -acceleration Surface acceleration.
+        # @arg -tilt Axial tilt.
+        # @arg -albedo Planetary albedo.
+        # @arg -day Length of day.
+        # @arg -waterboils Boiling point of water.
+        # @arg -hydrosphere Hydrosphere percentage.
+        # @arg -cloudcover Cloud cover percentage.
+        # @arg -icecover Ice cover percentage.
+        # @arg -moons The moons of this planet.
         # @par
+        # Plus all of the options of ::orsa::Orbit.
         
         component body
         ## @privatesection The orsa body for this planet.
@@ -291,6 +367,61 @@ namespace eval planetarysystem {
         option -period -default 0 -readonly yes -type {snit::double -min 0}
         option -ptype -default Unknown -type planetarysystem::planet_type
         option -sun -type planetarysystem::Sun -readonly yes
+        option -refbody -type ::orsa::Body -readonly yes
+        option -gasgiant -default false -readonly yes -type snit::boolean
+        option -gravity -default 0 -readonly yes -type {snit::double -min 0}
+        option -pressure -default 0 -readonly yes -type {snit::double -min 0}
+        option -greenhouse -default false -readonly yes -type snit::boolean
+        option -temperature -default 0 -readonly yes -type snit::double
+        option -density -default 0 -readonly yes -type {snit::double -min 0}
+        option -escapevelocity -default 0 -readonly yes -type {snit::double -min 0}
+        option -molweightretained -default 0 -readonly yes -type {snit::double -min 0}
+        option -acceleration -default 0 -readonly yes -type {snit::double -min 0}
+        option -tilt -default 0 -readonly yes -type snit::double
+        option -albedo -default 0 -readonly yes -type {snit::double -min 0}
+        option -day -default 0 -readonly yes -type {snit::double -min 0}
+        option -waterboils -default 0 -readonly yes -type snit::double
+        option -hydrosphere -default 0 -readonly yes -type {snit::double -min 0 -max 100}
+        option -cloudcover -default 0 -readonly yes -type {snit::double -min 0 -max 100}
+        option -icecover -default 0 -readonly yes -type {snit::double -min 0 -max 100}
+        option -moons -default {} -readonly yes \
+              -type planetarysystem::PlanetList \
+              -cgetmethod _getMoons -configuremethod _setMoons
+        variable moons [list]
+        ## List of moons
+        method _checkmoon {m} {
+            $type validate $m
+            if {[$m cget -sun] ne [$self cget -sun]} {
+                error [format "%s is not in the same solar system as %s!" $m $self]
+            }
+            if {[$m cget -refbody] ne $self} {
+                error [format "%s is not one of %s's moons!" $m $self]
+            }
+            return $m
+        }
+        method _getMoons {o} {return $moons}
+        method _setMoons {o v} {
+            foreach m $v {
+                $self _checkmoon $m
+            }
+            set moons $v
+        }
+        method {moon add} {mname args} {
+            from args -sun
+            from args -refbody
+            set m [eval [list $type create ${self}::$mname \
+                         -sun [$self cget -sun] \
+                         -refbody $body] $args]
+            lappend moons $m
+        }
+        method {moon count} {} {return [llength $moons]}
+        method {moon get} {i} {
+            if {$i < 1 || $i > [llength $moons]} {
+                error [format "Moon index (%d) is out of range: 1..%d" $i [llength $moons]]
+            }
+            return [lindex $moons [expr {$i - 1}]]
+        }
+        
         typevariable planetname_corpus
         ## Planet name corpus.
         typeconstructor {
@@ -326,15 +457,38 @@ namespace eval planetarysystem {
             # @arg -period Length of year in days.
             # @arg -ptype The type of planet.
             # @arg -sun The sun.
-            # @arg -inclination The inclination
-            # @arg -pericenter The pericenter
-            # @arg -node The node
-            # @arg -mu The mu
-            # @arg -m_ The M
+            # @arg -refbody The reference body.  This is the same as the sun,
+            # if this is a planet.  If this is a moon, it is the body of the
+            # planet this moon orbits.
+            # @arg -gasgiant Flag indicating whether this is a gas giant.
+            # @arg -gravity Surface gravity.
+            # @arg -pressure Surface pressure.
+            # @arg -greenhouse Flag indicating whether this is a runaway 
+            # greenhouse planet.
+            # @arg -temperature Surface temperature.
+            # @arg -density Planetary density.
+            # @arg -escapevelocity Escape velocity.
+            # @arg -molweightretained Molecular weight retained.
+            # @arg -acceleration Surface acceleration.
+            # @arg -tilt Axial tilt.
+            # @arg -albedo Planetary albedo.
+            # @arg -day Length of day.
+            # @arg -waterboils Boiling point of water.
+            # @arg -hydrosphere Hydrosphere percentage.
+            # @arg -cloudcover Cloud cover percentage.
+            # @arg -icecover Ice cover percentage.
+            # @arg -moons The list of moons.
             # @par
+            # Plus all of the options of ::orsa::Orbit.
             
             if {[lsearch $args -sun] < 0} {
                 error "The -sun option is required!"
+            } else {
+                set options(-sun) [from args -sun]
+                planetarysystem::Sun validate $options(-sun)
+            }
+            if {[lsearch $args -refbody] < 0} {
+                set options(-refbody) [$options(-sun) GetBody]
             }
             set needorbit true
             ## Need: orbital parameters.
@@ -401,6 +555,89 @@ namespace eval planetarysystem {
         }
         method GetBody {} {return $body}
         method GetOrbit {} {return $orbit}
+        method PlanetColor {} {
+            set color #000000
+            switch [$self cget -ptype] {
+                Rock {
+                    set color #808080
+                }
+                Venusian {
+                    set color #FFFFFF
+                }
+                Terrestrial {
+                    set color #00FF00
+                }
+                Martian {
+                    set color #FF0000
+                }
+                Water {
+                    set color #0000FF
+                }
+                Water {
+                    set color [format {#%02X%02X%02X} 173 216 230]
+                }
+                GasGiant {
+                    set color [format {#%02X%02X%02X} 255 165   0]
+                }
+                SubGasGiant {
+                    set color #0000FF
+                }
+                SubSubGasGiant {
+                    set color [format {#%02X%02X%02X} 165  42  42]
+                }
+            }
+            return $color
+        }
+        method PDFPage {pdfobject} {
+            set pageheight [expr {[lindex [::pdf4tcl::getPaperSize \
+                                           [$pdfobject cget -paper]] \
+                                           1] - (72+72)}]
+            $pdfobject startPage -margin {36p 36p 72p 72p}
+            $pdfobject setFillColor #000000
+            $pdfobject rectangle 0 0 200p 200p -filled yes
+            $pdfobject setFillColor [$self PlanetColor]
+            $pdfobject oval 100p 100p 60p 60p -filled yes
+            $pdfobject setFillColor #000000
+            $pdfobject setTextPosition 250p 48p
+            $pdfobject setFont 48p Times-Roman
+            $pdfobject text [namespace tail $self]
+            $pdfobject newLine
+            $pdfobject setFont 24p Times-Roman
+            $pdfobject text [format {Mass: %g Earth Masses} [$self cget -mass]]
+            $pdfobject newLine
+            $pdfobject setTextPosition 0p 250p
+            set y [expr {int($pageheight - 250)}]
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                if {$o eq "-mass"} {continue}
+                $pdfobject text [format {%s: %s} $o $ov]
+                $pdfobject newLine
+                incr y -24
+                if {$y < 24} {
+                    $pdfobject startPage -margin {36p 36p 72p 72p}
+                    $pdfobject setTextPosition 0 24p
+                    set y [expr {int($pageheight - 24)}]
+                }
+            }
+            $pdfobject endPage
+        }
+        method ReportPDF {{filename {}}} {
+            if {"$filename" eq ""} {
+                set filename [tk_getSaveFile -defaultextension .pdf \
+                              -filetypes { {{PDF Files} {.pdf} }} \
+                              -initialdir [pwd] \
+                              -initialfile "[namespace tail $self].pdf" \
+                              -parent . \
+                              -title "File to save report to"]
+            }
+            if {"$filename" eq ""} {return}
+            set pdfobject [::pdf4tcl::new %AUTO% -file $filename \
+                           -paper "letter"]
+            $self PDFPage $pdfobject
+            $pdfobject finish
+            $pdfobject destroy
+        }
         method update {} {
             set pos [$body position]
             set vel [$pody velocity]
@@ -450,10 +687,8 @@ namespace eval planetarysystem {
         
         variable sun {}
         ## @privatesection The sun.
-        variable planets -array {}
+        variable planetlist [list]
         ## The planets and their moons.
-        variable nplanets 0
-        ## The number of nplanets.
         variable objects [list]
         ## Other objects
         typevariable STARGEN /home/heller/Deepwoods/StarshipFleet/assets/StarGenSource/stargen
@@ -551,17 +786,26 @@ namespace eval planetarysystem {
             }
             #puts stderr "*** $type create $self: nplanets = $nplanets"
             for {set i 1} {$i <= $nplanets} {incr i} {
-                #puts stderr "*** $type create $self: $i $planet_table($i,dist) $planet_table($i,mass) $planet_table($i,char)"
+                #puts stderr "*** $type create $self: $i $planets($i,dist) $planets($i,mass) $planets($i,char)"
                 while {[gets $genout line] == 0} {
                     #puts stderr $line
                     #skip blank lines
                 }
                 set checkreg [format {^Planet %d} $i]
+                #puts stderr "*** $type create $self: line is '$line'"
                 if {[regexp $checkreg $line] < 1} {
                     error "Opps: Planet n check failed at line \{$line\}"
                 } else {
                     if {[regexp {\*gas giant\*} $line] > 0} {
                         set planets($i,gasgiant) yes
+                        set planets($i,gravity)  INF
+                        set planets($i,pressure) INF
+                        set planets($i,greenhouse) no
+                        set planets($i,temperature) INF
+                        set planets($i,waterboils) INF
+                        set planets($i,hydrosphere) 0
+                        set planets($i,cloudcover) 100
+                        set planets($i,icecover) 0
                     } else {
                         set planets($i,gasgiant) no
                         if {$planets($i,ptype) eq "GasGiant"} {
@@ -571,8 +815,11 @@ namespace eval planetarysystem {
                     }
                 }
                 while {[gets $genout line] > 0} {
+                    #puts stderr "*** $type create $self: line is '$line'"
                     if {[regexp {^Planet is} $line] > 0} {
                         set line [gets $genout];# skip "Planet is <mumble>" line
+                    } elseif {[regexp {^Planet's rotation is in a resonant} $line] > 0} {
+                        set line [gets $genout];# skip "Planet's rotation is in a resonant <mumble>" line
                     }
                     if {[regexp {^[[:space:]]*Distance from primary star:[[:space:]]+([[:digit:].]+)[[:space:]]+AU} \
                          $line => distance] > 0} {
@@ -641,9 +888,7 @@ namespace eval planetarysystem {
                     }
                 }
                 if {$planets($i,gasgiant)} {
-                    set u [orsa::Units %AUTO% SECOND KM MSUN]
-                    set psm [$u FromUnits_mass_unit $planets($i,mass) MEARTH]
-                    if {$psm < 20} {
+                    if {$planets($i,mass) < 20} {
                         set planets($i,ptype) SubGasGiant
                     }
                 }
@@ -656,8 +901,26 @@ namespace eval planetarysystem {
                                         -eccentricity $planets($i,eccentricity) \
                                         -period   $planets($i,year) \
                                         -ptype    $planets($i,ptype) \
-                                        -sun      $sun]
+                                        -sun      $sun \
+                                        -gasgiant $planets($i,gasgiant) \
+                                        -gravity  $planets($i,gravity) \
+                                        -pressure  $planets($i,pressure) \
+                                        -greenhouse  $planets($i,greenhouse) \
+                                        -temperature  $planets($i,temperature) \
+                                        -density  $planets($i,density) \
+                                        -escapevelocity  $planets($i,escapevelocity) \
+                                        -molweightretained  $planets($i,molweightretained) \
+                                        -acceleration  $planets($i,acceleration) \
+                                        -tilt  $planets($i,tilt) \
+                                        -albedo  $planets($i,albedo) \
+                                        -day  $planets($i,day) \
+                                        -waterboils  $planets($i,waterboils) \
+                                        -hydrosphere  $planets($i,hydrosphere) \
+                                        -cloudcover  $planets($i,cloudcover) \
+                                        -icecover  $planets($i,icecover)]
                 $self add $planets($i,planet)
+                lappend planetlist $planets($i,planet)
+
             }
         }
         method add {object} {
@@ -667,14 +930,15 @@ namespace eval planetarysystem {
             lappend objects $object
         }
         method GetSun {} {return $sun}
-        method GetPlanet {i field} {
-            if {$i < 1 || $i > $nplanets} {
+        method GetPlanet {i} {
+            set nplanets [$self GetPlanetCount]
+            if {$i < 1 || $i > $nplanets } {
                 error [format {Planet index (%d) is out of range (1..%d)} \
                        $i $nplanets]
             }
-            return $planets($i,$field)
+            return [lindex $planetlist [expr {$i - 1}]]
         }
-        method GetPlanetCount {} {return $nplanets}
+        method GetPlanetCount {} {return [llength $planetlist]}
         method PlanetExtents {} {
             set MinX {}
             set MaxX {}
@@ -682,8 +946,8 @@ namespace eval planetarysystem {
             set MaxY {}
             set MinZ {}
             set MaxZ {}
-            for {set i 1} {$i <= $nplanets} {incr i} {
-                set ppos [$planets($i,planet) position]
+            foreach p $planetlist {
+                set ppos [$p position]
                 if {$MinX eq "" || [$ppos GetX] < $MinX} {
                     set MinX [$ppos GetX]
                 }
@@ -709,6 +973,25 @@ namespace eval planetarysystem {
                 return [list $MinX $MaxX $MinY $MaxY $MinZ $MaxZ]
             }
         }
+        method ReportPDF {{filename {}}} {
+            if {"$filename" eq ""} {
+                set filename [tk_getSaveFile -defaultextension .pdf \
+                              -filetypes { {{PDF Files} {.pdf} }} \
+                              -initialdir [pwd] \
+                              -initialfile "[namespace tail $self].pdf" \
+                              -parent . \
+                              -title "File to save report to"]
+            }
+            if {"$filename" eq ""} {return}
+            set pdfobject [::pdf4tcl::new %AUTO% -file $filename \
+                           -paper "letter"]
+            $sun PDFPage $pdfobject
+            foreach p $planetlist {
+                $p PDFPage $pdfobject
+            }
+            $pdfobject finish
+            $pdfobject destroy
+        }
         method save {filename} {
             if {[catch {open $filename w} ofp]} {
                 error [format "Could not open %s for writing because: %s" $filename $ofp]
@@ -716,30 +999,42 @@ namespace eval planetarysystem {
             foreach o [array names options] {
                 puts $ofp [list $o $options($o)]
             }
-            set sunout [list sun $sun]
+            puts $ofp "\{set sun \[[$sun info type] $sun \\"
             set sunopts [$sun configure]
             foreach orec $sunopts {
                 set o [lindex $orec 0]
                 set ov [lindex $orec 4]
-                lappend sunout $o $ov
+                puts $ofp "\t[list $o $ov] \\"
             }
-            puts $ofp $sunout
-            puts $ofp [list nplanets $nplanets]
-            for {set i 1} {$i <= $nplanets} {incr i} {
-                set pslots [array names planets $i,*]
-                #puts stderr "*** $self save: pslots = $pslots"
-                foreach ps $pslots {
-                    #puts stderr "*** $self save: ps = $ps"
-                    if {$ps eq "$i,planet"} {continue}
-                    puts $ofp [list planets($ps) $planets($ps)]
-                }
-                set planetout [list planets($i,planet) $planets($i,planet)]
-                foreach orec [$planets($i,planet) configure] {
+            puts $ofp "\]\}"
+            foreach planet $planetlist {
+                puts $ofp "\{lappend planetlist \[[$planet info type] $planet \\"
+                set moons {}
+                foreach orec [$planet configure] {
                     set o [lindex $orec 0]
                     set ov [lindex $orec 4]
-                    lappend planetout $o $ov
+                    if {$o eq "-moons"} {
+                        set moons $ov
+                    } else {
+                        puts $ofp "\t[list $o $ov] \\"
+                    }
                 }
-                puts $ofp $planetout
+                puts $ofp "\]\}"
+                if {[llength $moons] > 0} {
+                    foreach m $moons {
+                        puts $ofp "\{$planet moon add $m \\"
+                        foreach orec [$m configure] {
+                            set o [lindex $orec 0]
+                            set ov [lindex $orec 4]
+                            if {$o ne "-moons" && 
+                                $o ne "-refbody" && 
+                                $o ne "-sun"} {
+                                puts $ofp "\t[list $o $ov] \\"
+                            }
+                        }
+                        puts $ofp "\}"
+                    }
+                }
             }
             close $ofp
             $self configure -filename $filename
@@ -749,28 +1044,28 @@ namespace eval planetarysystem {
                 error [format "Could not open %s for reading because: %s" $filename $ifp]
             }
             while {[gets $ifp line] >= 0} {
-                if {[regexp {^sun } $line] > 0} {break}
+                if {[regexp {^-} $line] < 1} {break}
                 foreach {o v} [split $line] {break}
                 set options($o) $v
             }
-            set sunlist [split $line]
-            set starname [lindex $sunlist 1]
-            set sunopts  [lrange $sunlist 2 end]
-            set sun [eval [list planetarysystem::Sun $starname] $sunopts]
-            set nplanets [lindex [split [gets $ifp]] 1]
-            while {[gets $ifp line] > 0} {
-                if {[regexp {^planets\(([[:digit:]]+),(.+)\) } $line => ip field] < 1} {
-                    error "Syntax error (match failed): $line"
+            set buffer $line
+            while {![info complete $buffer]} {
+                if {[gets $ifp line] < 0} {break}
+                append buffer "\n$line"
+            }
+            #puts stderr "*** $self load: $buffer"
+            #puts stderr "*** $self load: llength of buffer is [llength $buffer]"
+            eval [lindex $buffer 0]
+            #puts stderr "*** $self load: sun is $sun"
+            while {![eof $ifp]} {
+                set buffer [gets $ifp]
+                while {![info complete $buffer]} {
+                    if {[gets $ifp line] < 0} {break}
+                    append buffer "\n$line"
                 }
-                set planetlist [split $line]
-                if {$field ne "planet"} {
-                    set planets($ip,$field) [lindex $planetlist 1]
-                } else {
-                    set planetname [lindex $planetlist 1]
-                    set planetopts  [lrange $planetlist 2 end]
-                    set planets($ip,planet) \
-                          [eval [list planetarysystem::Planet $planetname] $planetopts]
-                }
+                #puts stderr "*** $self load: [lindex $buffer 0]"
+                eval [lindex $buffer 0]
+                #puts stderr "*** $self load: planetlist is $planetlist"
             }
             close $ifp
             $self configure -filename $filename
@@ -812,10 +1107,11 @@ namespace eval planetarysystem {
         }
     }        
 
-    namespace export Sun Planet PlanetarySystem
+    namespace export Sun Planet PlanetList PlanetarySystem
 }
 
 source [file join $planetarysystem::PLANETARYSYSTEM_DIR  SystemDisplay.tcl]
+source [file join $planetarysystem::PLANETARYSYSTEM_DIR  ObjectDetail.tcl]
 
 namespace import planetarysystem::*
 

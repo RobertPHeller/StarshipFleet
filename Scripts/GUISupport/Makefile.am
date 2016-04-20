@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:04:01 2016
-#  Last Modified : <160408.1317>
+#  Last Modified : <160420.1137>
 #
 #  Description	
 #
@@ -43,4 +43,12 @@
 ##############################################################################
 
 
-EXTRA_DIST = snitscrollw.tcl snitbuttonbox.tcl
+EXTRA_DIST = DynamicHelp.tcl IconsAndImages.tcl mainwindow.tcl \
+	     snitbuttonbox.tcl snitdialog.tcl snitHTMLHelp.tcl \
+	     snitLFs.tcl snitlistbox.tcl snitmainframe.tcl \
+	     snitpagesmanager.tcl snitrotext.tcl snitscrollableframe.tcl \
+	     snitscrollw.tcl snitStdMenuBar.tcl snittree.tcl openfold.png \
+	     palette.png unknown.xpm gray50.xbm info.xbm questhead.xbm \
+	     close.gif DeepwoodsBanner.gif new.gif open.gif print.gif \
+	     save.gif 
+
