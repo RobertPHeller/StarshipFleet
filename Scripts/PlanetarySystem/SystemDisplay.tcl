@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160419.1010>
+#  Last Modified : <160419.2029>
 #
 #  Description	
 #
@@ -61,6 +61,10 @@ namespace eval planetarysystem {
         variable zoomfactor 1.0
         variable zoomfactor_fmt [format "Zoom: %7.4f" 1.0]
         variable sunmenu
+        variable sunlabel on
+        variable planetlabels -array {}
+        variable planetorbits -array {}
+        variable labelfont
         variable planetmenus -array {}
         
         constructor {args} {
@@ -80,6 +84,8 @@ namespace eval planetarysystem {
                   -orient horizontal
             pack $tools -fill x
             set extents [$system PlanetExtents]
+            set labelfont [font create -size [expr {int($zoomfactor * -10)}] \
+                           -family Courier]
             foreach {MinX MaxX MinY MaxY MinZ MaxZ} $extents {break}
             set maxXabs [expr {max(abs($MinX),abs($MaxX))}]
             set maxYabs [expr {max(abs($MinY),abs($MaxY))}]
@@ -102,6 +108,10 @@ namespace eval planetarysystem {
             set color [format {#%02x%02x%02x} $red $green $blue]
             set suntag $sun
             $canvas create oval -4 -4 4 4 -fill $color -outline {} -tag $suntag
+            $canvas create text 4 4 -anchor nw \
+                  -text [namespace tail $sun] \
+                  -font $labelfont \
+                  -tag sunlabel -fill $color
             $canvas bind $suntag <3> [mymethod _sunMenu %X %Y]
             set nplanets [$system GetPlanetCount]
             for {set i 1} {$i <= $nplanets} {incr i} {
@@ -155,10 +165,21 @@ namespace eval planetarysystem {
                       [expr {$centerx + $size}] \
                       [expr {$centery + $size}] -fill $color -outline {} \
                       -tag $p
+                $canvas create text [expr {$centerx + $size}] \
+                      [expr {$centery + $size}] -fill $color \
+                      -anchor nw -text [namespace tail $p] \
+                      -font $labelfont -tag ${p}_label
+                set planetlabels($i) on
                 $canvas bind $p <3> [mymethod _planetMenu $i %X %Y]
-                if {$i < 100} {$self draw_orbit $p $color}
+                $self draw_orbit $p $color
+                set planetorbits($i) on
             }
-            $canvas configure -scrollregion [list -2500 -2500 2500 2500]
+            set bbox [$canvas bbox all]
+            set sr [list]
+            foreach b $bbox {
+                lappend sr [expr {$b * 1.25}]
+            }
+            $canvas configure -scrollregion $sr
             $self _addtools
         }
         method draw_orbit {planet {color white}} {
@@ -208,7 +229,8 @@ namespace eval planetarysystem {
             }
             #set avedelta [expr {$deltasum / double($numbdeltas)}]
             #puts stderr [format "*** $self draw_orbit: mindelta = %g, maxdelta = %g, avedelta = %g, numdeltas = %d" $mindelta $maxdelta $avedelta $numbdeltas]
-            $canvas create polygon $ocoords -fill {} -outline $color -tag ${planet}_orbit
+            $canvas create polygon $ocoords -fill {} -outline $color \
+                  -tag ${planet}_orbit
             $canvas lower ${planet}_orbit [$system GetSun]
         }
         method _addtools {} {
@@ -242,17 +264,35 @@ namespace eval planetarysystem {
             }
             $canvas configure -scrollregion $nsr
             set zoomfactor [expr {$zoomfactor * $zoom}]
+            font configure $labelfont -size [expr {int($zoomfactor * -10)}]
             set zoomfactor_fmt [format "Zoom: %7.4f" $zoomfactor]
             
         }
-        
         method _sunMenu {X Y} {
             if {[info exists sunmenu] && [winfo exists $sunmenu]} {
                 $sunmenu post $X $Y
             } else {
                 set sunmenu [menu $win.sunmenu -tearoff 0]
-                $sunmenu add command -label Info -command [mymethod _sunInfo]
+                $sunmenu add command -label {Brief Info} \
+                      -command [mymethod _sunInfo]
+                $sunmenu add checkbutton -label {Enable Label} \
+                      -variable [myvar sunlabel] \
+                      -indicatoron yes \
+                      -offvalue off -onvalue on \
+                      -command [mymethod _togglesunlabel]
+                $sunmenu add command -label {Detailed Info} \
+                      -command [mymethod _detailedSunInfo]
                 $sunmenu post $X $Y
+            }
+        }
+        method _togglesunlabel {} {
+            switch $sunlabel {
+                off {
+                    $canvas itemconfigure sunlabel -state hidden
+                }
+                on {
+                    $canvas itemconfigure sunlabel -state normal
+                }
             }
         }
         method _sunInfo {} {
@@ -263,14 +303,29 @@ namespace eval planetarysystem {
                             [$sun cget -mass] \
                             [$sun cget -luminosity]]
         }
+        method _detailedSunInfo {} {
+        }
+            
         method _planetMenu {iplanet X Y} {
             if {[info exists planetmenus($iplanet)] && 
                 [winfo exists $planetmenus($iplanet)]} {
                 $planetmenus($iplanet) post $X $Y
             } else {
                 set planetmenus($iplanet) [menu $win.planetmenu$iplanet -tearoff 0]
-                $planetmenus($iplanet) add command -label Info \
+                $planetmenus($iplanet) add command -label {Brief Info} \
                       -command [mymethod _planetInfo $iplanet]
+                $planetmenus($iplanet) add checkbutton -label {Enable Label} \
+                      -variable [myvar planetlabels($iplanet)] \
+                      -indicatoron yes \
+                      -offvalue off -onvalue on \
+                      -command [mymethod _toggleplanetlabel $iplanet]
+                $planetmenus($iplanet) add checkbutton -label {Enable Orbit} \
+                      -variable [myvar planetorbits($iplanet)] \
+                      -indicatoron yes \
+                      -offvalue off -onvalue on \
+                      -command [mymethod _toggleplanetorbit $iplanet]
+                $planetmenus($iplanet) add command -label {Detailed Info} \
+                      -command [mymethod _detailedPlanetInfo $iplanet]
                 $planetmenus($iplanet) post $X $Y
             }
         }
@@ -284,6 +339,30 @@ namespace eval planetarysystem {
                             [$planet cget -mass] \
                             [$planet cget -ptype] \
                             [$planet cget -period]]
+        }
+        method _toggleplanetlabel {iplanet} {
+            set p [$system GetPlanet $iplanet planet]
+            switch $planetlabels($iplanet) {
+                off {
+                    $canvas itemconfigure ${p}_label -state hidden
+                }
+                on {
+                    $canvas itemconfigure ${p}_label -state normal
+                }
+            }
+        }
+        method _toggleplanetorbit {iplanet} {
+            set p [$system GetPlanet $iplanet planet]
+            switch $planetorbits($iplanet) {
+                off {
+                    $canvas itemconfigure ${p}_orbit -state hidden
+                }
+                on {
+                    $canvas itemconfigure ${p}_orbit -state normal
+                }
+            }
+        }
+        method _detailedPlanetInfo {iplanet} {
         }
     }
     

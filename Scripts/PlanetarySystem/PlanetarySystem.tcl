@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160419.0956>
+#  Last Modified : <160419.1529>
 #
 #  Description	
 #
@@ -473,7 +473,7 @@ namespace eval planetarysystem {
             # @arg -filename The file asociated with this system.
             # @par
             
-            puts stderr "*** $type create $self $args"
+            #puts stderr "*** $type create $self $args"
             $self configurelist $args
             if {[$self cget -generate]} {
                 $self _generate
@@ -490,20 +490,20 @@ namespace eval planetarysystem {
             } else {
                 set cmdline "$STARGEN -s$options(-seed) -m$options(-stellarmass) -p/tmp -H -M -t -n20"
             }
-            puts stderr "*** $type create $self: options(-stellarmass) = $options(-stellarmass)"
+            #puts stderr "*** $type create $self: options(-stellarmass) = $options(-stellarmass)"
             set genout [open "|$cmdline" r]
             set line [gets $genout]
-            puts stderr "*** $type create $self: line = \{$line\}"
+            #puts stderr "*** $type create $self: line = \{$line\}"
             set StargenSeed 0
             if {[regexp {seed=([[:digit:]]+)$} $line => StargenSeed] < 0} {
                 error "Format error: $line, expecting seed="
             }
             set options(-seed) $StargenSeed
-            puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
+            #puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
             set line [gets $genout];# SYSTEM  CHARACTERISTICS
-            puts stderr "*** $type create $self: $line"
+            #puts stderr "*** $type create $self: $line"
             set line [gets $genout]
-            puts stderr "*** $type create $self: $line"
+            #puts stderr "*** $type create $self: $line"
             if {[regexp {^Stellar mass:[[:space:]]+([[:digit:].]+)[[:space:]]+solar masses} $line => sm] < 1} {
                 set sm 0
                 puts stderr "Input error (Stellar mass): $line"
@@ -531,7 +531,7 @@ namespace eval planetarysystem {
             set sun [planetarysystem::Sun $starname -mass $sm -luminosity $sl -age $sa -habitable $hr]
             
             #puts stderr "*** $type create $self: starname = $starname, sm = $sm, sl = $sl, sa = $sa, hr = $hr"
-            puts stderr "*** $type create $self: sun = $sun"
+            #puts stderr "*** $type create $self: sun = $sun"
             gets $genout;# 
             gets $genout;# Planets present at:
             set nplanets 0
@@ -648,7 +648,7 @@ namespace eval planetarysystem {
                     }
                 }
                 set planetname [planetarysystem::Planet namegenerator $starname]
-                puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
+                #puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
                 set planets($i,planet) [planetarysystem::Planet $planetname \
                                         -mass     $planets($i,mass) \
                                         -distance $planets($i,distance) \
@@ -727,9 +727,9 @@ namespace eval planetarysystem {
             puts $ofp [list nplanets $nplanets]
             for {set i 1} {$i <= $nplanets} {incr i} {
                 set pslots [array names planets $i,*]
-                puts stderr "*** $self save: pslots = $pslots"
+                #puts stderr "*** $self save: pslots = $pslots"
                 foreach ps $pslots {
-                    puts stderr "*** $self save: ps = $ps"
+                    #puts stderr "*** $self save: ps = $ps"
                     if {$ps eq "$i,planet"} {continue}
                     puts $ofp [list planets($ps) $planets($ps)]
                 }
