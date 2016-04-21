@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160420.1714>
+#  Last Modified : <160421.1023>
 #
 #  Description	
 #
@@ -1083,6 +1083,8 @@ namespace eval starships {
         delegate method misslesavailable to misslelaunchers as available
         delegate method reloadspaceavailable to misslelaunchers as reloadspace
         delegate method launchersavailable to misslelaunchers
+        component sensors
+        ## @brief The starship's sensor suite        
         component lasers
         ## @brief The starship's lasers.
         # These are short range ship to ship weapons.
@@ -1098,7 +1100,7 @@ namespace eval starships {
         ## @brief The ship's marine complement.
         # The marine is usually a small group meant to be used as boarding
         # parties and SAR.  A troop carrier would have a much larger 
-        # complement intrended for planetary occupation.
+        # complement intended for planetary occupation.
         component position 
         ## Current position.
         option -start -type starships::Coordinates -readonly yes
@@ -1380,10 +1382,9 @@ proc print {v} {
 ##set system [planetarysystem::PlanetarySystem %AUTO% -generate no -filename test.system]
 #
 #
-set pd [planetarysystem::PlanetaryDisplay .pd -generate  no -filename test.system]
-pack $pd -expand yes -fill both
-bind all <q> exit
-bind all <Q> exit
+set maindisp [planetarysystem::MainScreen .main -generate  no \
+              -filename test.system]
+pack $maindisp -fill both -expand yes
 #$pd save test.system
 #exit
 

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160420.1714>
+#  Last Modified : <160421.0932>
 #
 #  Description	
 #
@@ -1112,6 +1112,7 @@ namespace eval planetarysystem {
 
 source [file join $planetarysystem::PLANETARYSYSTEM_DIR  SystemDisplay.tcl]
 source [file join $planetarysystem::PLANETARYSYSTEM_DIR  ObjectDetail.tcl]
+source [file join $planetarysystem::PLANETARYSYSTEM_DIR  MainDisplay.tcl]
 
 namespace import planetarysystem::*
 

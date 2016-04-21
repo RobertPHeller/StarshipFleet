@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:04:01 2016
-#  Last Modified : <160420.1137>
+#  Last Modified : <160421.1002>
 #
 #  Description	
 #
@@ -50,5 +50,5 @@ EXTRA_DIST = DynamicHelp.tcl IconsAndImages.tcl mainwindow.tcl \
 	     snitscrollw.tcl snitStdMenuBar.tcl snittree.tcl openfold.png \
 	     palette.png unknown.xpm gray50.xbm info.xbm questhead.xbm \
 	     close.gif DeepwoodsBanner.gif new.gif open.gif print.gif \
-	     save.gif 
+	     save.gif gettext.tcl
 

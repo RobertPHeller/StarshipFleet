@@ -18,7 +18,8 @@ ORSA_PortScripts = Scripts/ORSA_Port/pkgIndex.tcl \
 PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
 		 	 Scripts/PlanetarySystem/PlanetarySystem.tcl \
 		 	 Scripts/PlanetarySystem/SystemDisplay.tcl \
-		 	 Scripts/PlanetarySystem/ObjectDetail.tcl
+		 	 Scripts/PlanetarySystem/ObjectDetail.tcl \
+		 	 Scripts/PlanetarySystem/MainDisplay.tcl
 		 	 
 GUISupportScripts = Scripts/GUISupport/close.gif \
 		    Scripts/GUISupport/DeepwoodsBanner.gif \
@@ -46,7 +47,8 @@ GUISupportScripts = Scripts/GUISupport/close.gif \
 		    Scripts/GUISupport/snitscrollableframe.tcl \
 		    Scripts/GUISupport/snitscrollw.tcl \
 		    Scripts/GUISupport/snitStdMenuBar.tcl \
-		    Scripts/GUISupport/snittree.tcl
+		    Scripts/GUISupport/snittree.tcl \
+		    Scripts/GUISupport/gettext.tcl
 
 
 StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \

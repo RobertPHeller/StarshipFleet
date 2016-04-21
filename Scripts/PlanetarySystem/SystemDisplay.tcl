@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160420.1559>
+#  Last Modified : <160421.1102>
 #
 #  Description	
 #
@@ -170,6 +170,7 @@ namespace eval planetarysystem {
             }
             $canvas configure -scrollregion $sr
             $self _addtools
+            $self seecenter $sun
         }
         method draw_orbit {planet {color white}} {
             set oe [OrbitWithEpoch copy [$planet GetOrbit]]
@@ -221,6 +222,39 @@ namespace eval planetarysystem {
             $canvas create polygon $ocoords -fill {} -outline $color \
                   -tag ${planet}_orbit
             $canvas lower ${planet}_orbit [$system GetSun]
+        }
+        method see {tag} {
+            #puts stderr "*** $self see $tag"
+            foreach {x1 y1 x2 y2} [$canvas bbox $tag] {break}
+            #puts stderr "*** $self see: x1 = $x1, y1 = $y1"
+            foreach {left top right bottom} [$canvas cget -scrollregion] {break}
+            set sr_width [expr {$right - $left}]
+            set sr_height [expr {$bottom - $top}]
+            #puts stderr "*** $self see: sr_width = $sr_width, sr_height = $sr_height"
+            set leftfract [expr {double($x1-$left) / double($sr_width)}]
+            #puts stderr "*** $self see: leftfract = $leftfract"
+            set topfract [expr {double($y1-$top) / double($sr_height)}]
+            #puts stderr "*** $self see: topfract = $topfract"
+            $canvas xview moveto $leftfract
+            $canvas yview moveto $topfract
+        }
+        method seecenter {tag} {
+            #puts stderr "*** $self seecenter $tag"
+            foreach {x1 y1 x2 y2} [$canvas bbox $tag] {break}
+            #puts stderr "*** $self seecenter: x1 = $x1, y1 = $y1"
+            foreach {left top right bottom} [$canvas cget -scrollregion] {break}
+            set sr_width [expr {$right - $left}]
+            set sr_height [expr {$bottom - $top}]
+            #puts stderr "*** $self seecenter: sr_width = $sr_width, sr_height = $sr_height"
+            update idle
+            set vwidth [winfo reqwidth $canvas]
+            set vheight [winfo reqheight $canvas]
+            set leftfract [expr {double(($x1-$left)-($vwidth/2.0)) / double($sr_width)}]
+            #puts stderr "*** $self seecenter: leftfract = $leftfract"
+            set topfract [expr {double(($y1-$top)-($vheight/2.0)) / double($sr_height)}]
+            #puts stderr "*** $self seecenter: topfract = $topfract"
+            $canvas xview moveto $leftfract
+            $canvas yview moveto $topfract
         }
         method _addtools {} {
             $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
