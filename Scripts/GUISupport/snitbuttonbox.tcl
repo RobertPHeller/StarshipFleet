@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 20 10:03:07 2013
-#  Last Modified : <160223.1555>
+#  Last Modified : <160421.1257>
 #
 #  Description	
 #
@@ -86,6 +86,16 @@ snit::widget ButtonBox {
             $buttons($name) configure -default active
         }
         return $buttons($name)
+    }
+    method delete {name} {
+        pack forget $buttons($name)
+        destroy $buttons($name)
+        unset buttons($name)
+    }
+    method deleteall {} {
+        foreach b [array names buttons] {
+            $self delete $b
+        }
     }
     method itemconfigure {name args} {
         if {[winfo exists $win.$name]} {

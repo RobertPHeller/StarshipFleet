@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160421.1102>
+#  Last Modified : <160421.1449>
 #
 #  Description	
 #
@@ -54,7 +54,34 @@ namespace eval planetarysystem {
         component canvas
         component tools
         component system
-        delegate method * to system
+        delegate method * to system except {load destroy _generate}
+        typemethod new {name args} {
+            return [$type create $name -generate yes \
+                    -seed [from args -seed 0] \
+                    -stellarmass [from args -stellarmass 0.0]]
+        }
+        method renew {args} {
+            $system destroy
+            install system using PlanetarySystem %AUTO% -generate yes \
+                  -seed [from args -seed 0] \
+                  -stellarmass [from args -stellarmass 0.0]
+            $self _init
+        }
+        typemethod open {name args} {
+            return [$type create $name -generate no \
+                    -filename [from args -filename PlanetarySystem.system]]
+        }
+        method reopen {args} {
+            $system destroy
+            unset system
+            $self _cleartools
+            install system using PlanetarySystem %AUTO% -generate no \
+                  -filename [from args -filename PlanetarySystem.system]
+            $self _init
+        }
+        method _print {} {
+            return [$system ReportPDF]
+        }
         delegate option * to system
         variable scalex
         variable scaley
@@ -83,6 +110,10 @@ namespace eval planetarysystem {
             install tools using ButtonBox $win.tools \
                   -orient horizontal
             pack $tools -fill x
+            $self _init
+        }
+        method _init {} {
+            $canvas delete all
             set extents [$system PlanetExtents]
             set labelfont [font create -size [expr {int($zoomfactor * -10)}] \
                            -family Courier]
@@ -246,9 +277,9 @@ namespace eval planetarysystem {
             set sr_width [expr {$right - $left}]
             set sr_height [expr {$bottom - $top}]
             #puts stderr "*** $self seecenter: sr_width = $sr_width, sr_height = $sr_height"
-            update idle
-            set vwidth [winfo reqwidth $canvas]
-            set vheight [winfo reqheight $canvas]
+            #update idle
+            set vwidth [winfo width $canvas]
+            set vheight [winfo height $canvas]
             set leftfract [expr {double(($x1-$left)-($vwidth/2.0)) / double($sr_width)}]
             #puts stderr "*** $self seecenter: leftfract = $leftfract"
             set topfract [expr {double(($y1-$top)-($vheight/2.0)) / double($sr_height)}]
@@ -256,11 +287,37 @@ namespace eval planetarysystem {
             $canvas xview moveto $leftfract
             $canvas yview moveto $topfract
         }
+        method _suncenter {} {
+            $self seecenter [$system GetSun]
+        }
+        method _planetcenter {iplanet} {
+            set planet [$system GetPlanet $iplanet]
+            foreach {x1 y1 x2 y2} [$canvas bbox $planet] {break}
+            set size [expr {$x2 -  $x1}]
+            while {$size < 5 && $zoomfactor < 16.0} {
+                $self _zoomin
+                foreach {x1 y1 x2 y2} [$canvas bbox $planet] {break}
+                set size [expr {$x2 -  $x1}]
+            }
+            $self seecenter $planet
+        }
         method _addtools {} {
+            $tools add ttk::label  currentzoom -textvariable [myvar zoomfactor_fmt]
             $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
             $tools add ttk::button zoom1 -text "Zoom 1.0" -command [mymethod _zoom1]
             $tools add ttk::button zoomout -text "Zoom Out" -command [mymethod _zoomout]
-            $tools add ttk::label  currentzoom -textvariable [myvar zoomfactor_fmt]
+            $tools add ttk::button suncenter -text "Sun Center" -command [mymethod _suncenter]
+            set mbname [$tools add ttk::menubutton planetcenter -text "Planet Center"]
+            set menu [menu $mbname.m -tearoff no]
+            $mbname configure -menu $menu
+            for {set i 1} {$i <= [$system GetPlanetCount]} {incr i} {
+                $menu add command \
+                      -label [namespace tail [$system GetPlanet $i]] \
+                      -command [mymethod _planetcenter $i]
+            }
+        }
+        method _cleartools {} {
+            $tools deleteall
         }
         method _zoomin {} {
             if {$zoomfactor < 16.0} {

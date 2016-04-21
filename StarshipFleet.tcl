@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160421.1023>
+#  Last Modified : <160421.1403>
 #
 #  Description	
 #
@@ -1382,8 +1382,7 @@ proc print {v} {
 ##set system [planetarysystem::PlanetarySystem %AUTO% -generate no -filename test.system]
 #
 #
-set maindisp [planetarysystem::MainScreen .main -generate  no \
-              -filename test.system]
+set maindisp [planetarysystem::MainScreen .main -generate yes]
 pack $maindisp -fill both -expand yes
 #$pd save test.system
 #exit

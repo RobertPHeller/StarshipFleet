@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <160421.1034>
+#  Last Modified : <160421.1451>
 #
 #  Description	
 #
@@ -52,11 +52,11 @@ namespace eval planetarysystem {
               -readonly yes \
               -default {
             "&File" {file:menu} {file} 0 {
-	        {command "&New"     {file:new} ""     {Ctrl n}}
-	        {command "&Open..." {file:open} "" {Ctrl o}}
-	        {command "&Save"    {file:save} "" {Ctrl s}}
-		{command "Save &As..." {file:saveas} "" {Ctrl a}}
-		{command "&Print..." {file:print} "" {Ctrl p}}
+	        {command "&New"     {file:new} ""     {Ctrl n} -command "[mymethod _new]"}
+	        {command "&Open..." {file:open} "" {Ctrl o} -command "[mymethod _open]"}
+	        {command "&Save"    {file:save} "" {Ctrl s} -command "[mymethod _save]"}
+		{command "Save &As..." {file:saveas} "" {Ctrl a} -command "[mymethod _saveas]"}
+		{command "&Print..." {file:print} "" {Ctrl p} -command "[mymethod _print]"}
 	        {command "E&xit" {file:exit} "Exit the application" {Ctrl q} -command "[mymethod _exit]"}
 	    }
 	    "&Edit" {edit:menu} {edit} 0 {
@@ -147,6 +147,40 @@ namespace eval planetarysystem {
         }
         method _exit {} {
             exit
+        }
+        method _new {} {
+            # (-seed & -stellarmass ?)
+            $systemdisplay renew
+        }
+        method _open {} {
+            set filename [tk_getOpenFile -defaultextension .system \
+                          -filetypes { {{System Files} .system} } \
+                          -initialdir [pwd] \
+                          -initialfile PlanetarySystem.system \
+                          -parent [winfo toplevel $win] \
+                          -title "System File to load"]
+            if {$filename eq ""} {return}
+            $systemdisplay reopen -filename $filename
+        }
+        method _save {} {
+            $self _saveas [$systemdisplay cget -filename]
+        }
+        method _saveas {{filename {}}} {
+            if {$filename eq ""} {
+                set filename [tk_getSaveFile -defaultextension .system \
+                          -filetypes { {{System Files} .system} } \
+                          -initialdir [pwd] \
+                          -initialfile [$systemdisplay cget -filename] \
+                          -parent [winfo toplevel $win] \
+                              -title "System File to load"]
+                }
+            if {$filename eq ""} {return}
+            $systemdisplay save $filename
+        }
+        method _print {} {
+            set pdffile [$systemdisplay _print]
+            tk_messageBox -type ok -icon info \
+                  -message [format "Output saved in %s" $pdffile]
         }
     }
     

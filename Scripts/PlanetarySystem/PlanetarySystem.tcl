@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160421.0932>
+#  Last Modified : <160421.1441>
 #
 #  Description	
 #
@@ -141,6 +141,7 @@ namespace eval planetarysystem {
     }
     
     snit::type Sun {
+        pragma -canreplace true
         ## @brief A sun.
         # The ``sun'' is the center of the PlanetarySystem, located at position
         # {0,0,0} with a velicity of {0,0,0}.
@@ -236,8 +237,26 @@ namespace eval planetarysystem {
             $self configurelist $args
             set m [$orsa::units FromUnits_mass_unit $options(-mass) MSUN 1]
             install body using Body %AUTO% $self $m [Vector %AUTO% 0 0 0] [Vector %AUTO% 0 0 0]
+            #puts stderr "*** $type create $self: body is $body"
+            #puts stderr "*** $type create $self: body is a [$body info type]"
         }
-        method GetBody {} {return $body}
+        destructor {
+            return
+            set l [info level]
+            while {$l >= 0} {
+                puts stderr "*** $self destroy: $l: [info level $l]"
+                incr l -1
+            }
+            puts stderr "*** $self destroy: body is $body"
+            puts stderr "*** $self destroy: body is a [$body info type]"
+            catch {$body destroy}
+            set body {}
+        }
+        method GetBody {} {
+            #puts stderr "*** $self GetBody: body is $body"
+            #catch {puts stderr "*** $self GetBody: body is a [$body info type]"}
+            return $body
+        }
         typemethod namegenerator {} {
             do {
                 set name [string totitle [planetarysystem::NameGenerator rword 2 $starname_corpus]]
@@ -277,6 +296,7 @@ namespace eval planetarysystem {
             $self PDFPage $pdfobject
             $pdfobject finish
             $pdfobject destroy
+            return $filename
         }
         method PDFPage {pdfobject} {
             $pdfobject startPage -margin {36p 36p 72p 72p}
@@ -319,6 +339,7 @@ namespace eval planetarysystem {
     }
     snit::listtype PlanetList -type ::planetarysystem::Planet
     snit::type Planet {
+        pragma -canreplace true
         ## @brief A planet.
         # A PlanetarySystem has one or more planets, in orbit about its sun.
         #
@@ -481,15 +502,18 @@ namespace eval planetarysystem {
             # @par
             # Plus all of the options of ::orsa::Orbit.
             
+            #puts stderr "*** $type create $self $args"
             if {[lsearch $args -sun] < 0} {
                 error "The -sun option is required!"
             } else {
                 set options(-sun) [from args -sun]
                 planetarysystem::Sun validate $options(-sun)
             }
+            #puts stderr "*** $type create $self: -sun passed and validated"
             if {[lsearch $args -refbody] < 0} {
                 set options(-refbody) [$options(-sun) GetBody]
             }
+            #puts stderr "*** $type create $self: -refbody processed: $options(-refbody)"
             set needorbit true
             ## Need: orbital parameters.
             if {[lsearch -exact $args -a] > 0 &&
@@ -510,11 +534,18 @@ namespace eval planetarysystem {
                 $orbit RelativePosVel pos vel
                 set needorbit false
             }
+            #if {!$needorbit} {
+            #    puts stderr "*** $type create $self: orbit options processed, orbit is $orbit"
+            #} else {
+            #    puts stderr "*** $type create $self: need to generate orbit..."
+            #}
             $self configurelist $args
+            #puts stderr "*** $type create $self: options processed"
             ## Body options
             set m [$orsa::units FromUnits_mass_unit $options(-mass) MEARTH 1]
             set r [$orsa::units FromUnits_length_unit $options(-radius) KM 1]
             install body using Body %AUTO% $self $m $r
+            #puts stderr "*** $type create $self: body installed: $body"
             
             if {$needorbit} {
                 ## Orbit options
@@ -541,6 +572,7 @@ namespace eval planetarysystem {
                           -mu $mu
                     set haveGoodM [$orbit RelativePosVel pos vel]
                 }
+                #puts stderr "*** $type create $self: orbit generated, orbit is $orbit"
             }
             
             $body SetPosition $pos
@@ -552,6 +584,16 @@ namespace eval planetarysystem {
             #puts stderr [format {*** %s create %s: vel = [%20.15g %20.15g %20.15g]} \
             #             $type $self [$vel GetX] [$vel GetY] [$vel GetZ]]
             
+        }
+        destructor {
+            return
+            puts stderr "*** $self destroy: body = $body, a [$body info type]"
+            puts stderr "*** $self destroy: orbit = $orbit a [$orbit info type]"
+            catch {$body destroy}
+            catch {$orbit destroy}
+            foreach m $moons {
+                $m destroy
+            }
         }
         method GetBody {} {return $body}
         method GetOrbit {} {return $orbit}
@@ -637,6 +679,7 @@ namespace eval planetarysystem {
             $self PDFPage $pdfobject
             $pdfobject finish
             $pdfobject destroy
+            return $filename
         }
         method update {} {
             set pos [$body position]
@@ -710,10 +753,14 @@ namespace eval planetarysystem {
             
             #puts stderr "*** $type create $self $args"
             $self configurelist $args
+            #puts stderr "*** $type create $self: options processed."
             if {[$self cget -generate]} {
                 $self _generate
+                #puts stderr "*** $type create $self: _generate completed"
             } else {
+                #puts stderr "*** $type create $self: about to load [$self cget -filename]"
                 $self load [$self cget -filename]
+                #puts stderr "*** $type create $self: load completed"
             }
         }
         method _generate {} {
@@ -991,6 +1038,7 @@ namespace eval planetarysystem {
             }
             $pdfobject finish
             $pdfobject destroy
+            return $filename
         }
         method save {filename} {
             if {[catch {open $filename w} ofp]} {
@@ -1070,11 +1118,38 @@ namespace eval planetarysystem {
             close $ifp
             $self configure -filename $filename
         }
+        typemethod new {name args} {
+            return [$type create $name -generate yes \
+                    -seed [from args -seed 0] \
+                    -stellarmass [from args -stellarmass 0.0]]
+        }
+        typemethod open {name args} {
+            return [$type create $name -generate no \
+                    -filename [from args -filename PlanetarySystem.system]]
+        }
+        destructor {
+            return
+            puts stderr "*** $self destroy"
+            set l [info level]
+            while {$l >= 0} {
+                puts stderr "*** $self destroy: $l: [info level $l]"
+                incr l -1
+            }
+            foreach p $planetlist {
+                puts stderr "*** $self destroy: $p"
+                $p destroy
+            }
+            set planetlist {}
+            puts stderr "*** $self destroy: $sun"
+            $sun destroy
+            namespace delete $sun
+            set sun {}
+        }
         method _updater {} {
             ## @privatesection Update everything.
             
-            foreach p [array names planets] {
-                $planets($p) update
+            foreach p $planetlist {
+                $p update
             }
             foreach o $objects {
                 $o update
