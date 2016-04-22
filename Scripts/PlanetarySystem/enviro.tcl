@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:34 2016
-#  Last Modified : <160416.1115>
+#  Last Modified : <160422.1543>
 #
 #  Description	
 #
@@ -616,33 +616,44 @@ namespace eval ::stargen::enviro {
     proc opacity {molecular_weight surf_pressure} {
 	
 	set optical_depth 0.0
-	if ((molecular_weight >= 0.0) && (molecular_weight < 10.0))
-		optical_depth = optical_depth + 3.0;
-	if ((molecular_weight >= 10.0) && (molecular_weight < 20.0))
-		optical_depth = optical_depth + 2.34;
-	if ((molecular_weight >= 20.0) && (molecular_weight < 30.0))
-		optical_depth = optical_depth + 1.0;
-	if ((molecular_weight >= 30.0) && (molecular_weight < 45.0))
-		optical_depth = optical_depth + 0.15;
-	if ((molecular_weight >= 45.0) && (molecular_weight < 100.0))
-		optical_depth = optical_depth + 0.05;
+	if {($molecular_weight >= 0.0) && ($molecular_weight < 10.0)} {
+            set optical_depth [expr {$optical_depth + 3.0}]
+        }
+	if {($molecular_weight >= 10.0) && ($molecular_weight < 20.0)} {
+            set optical_depth [expr {$optical_depth + 2.34}]
+        }
+	if {($molecular_weight >= 20.0) && ($molecular_weight < 30.0)} {
+            set optical_depth [expr {$optical_depth + 1.0}]
+        }
+	if {($molecular_weight >= 30.0) && ($molecular_weight < 45.0)} {
+            set optical_depth [expr {$optical_depth + 0.15}]
+        }
+	if {($molecular_weight >= 45.0) && ($molecular_weight < 100.0)} {
+            set optical_depth [expr {$optical_depth + 0.05}]
+        }
 
-	if (surf_pressure >= (70.0 * EARTH_SURF_PRES_IN_MILLIBARS))
-		optical_depth = optical_depth * 8.333;
-	else 
-		if (surf_pressure >= (50.0 * EARTH_SURF_PRES_IN_MILLIBARS))
-			optical_depth = optical_depth * 6.666;
-		else 
-			if (surf_pressure >= (30.0 * EARTH_SURF_PRES_IN_MILLIBARS))
-				optical_depth = optical_depth * 3.333;
-			else 
-				if (surf_pressure >= (10.0 * EARTH_SURF_PRES_IN_MILLIBARS))
-					optical_depth = optical_depth * 2.0;
-				else 
-					if (surf_pressure >= (5.0 * EARTH_SURF_PRES_IN_MILLIBARS))
-						optical_depth = optical_depth * 1.5;
+	if {$surf_pressure >= (70.0 * $::stargen::EARTH_SURF_PRES_IN_MILLIBARS)} {
+            set optical_depth [expr {$optical_depth * 8.333}]
+        } else {
+            if {$surf_pressure >= (50.0 * $::stargen::EARTH_SURF_PRES_IN_MILLIBARS)} {
+                set optical_depth [expr {$optical_depth * 6.666}]
+            } else { 
+                if {$surf_pressure >= (30.0 * $::stargen::EARTH_SURF_PRES_IN_MILLIBARS)} {
+                    set optical_depth [expr {optical_depth * 3.333}]
+                } else {
+                    if {$surf_pressure >= (10.0 * $::stargen::EARTH_SURF_PRES_IN_MILLIBARS)} {
+                        set optical_depth [expr {$optical_depth * 2.0}]
+                    } else {
+                        if {$surf_pressure >= (5.0 * $::stargen::EARTH_SURF_PRES_IN_MILLIBARS)} {
+                            set optical_depth [expr {$optical_depth * 1.5}]
+                        }
+                    }
+                }
+            }
+        }
+        
 
-	return(optical_depth);
+	return $optical_depth
     }
 
 
@@ -651,14 +662,13 @@ namespace eval ::stargen::enviro {
     #*	from a planet's atmosphere. 
     #*	Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)
     #*
-    long double gas_life(long double molecular_weight, 
-					 planet_pointer planet)
-    {
-	long double v = rms_vel(molecular_weight, planet->exospheric_temp);
-	long double g = planet->surf_grav * EARTH_ACCELERATION;
-	long double r = (planet->radius * CM_PER_KM);
-	long double t = (pow3(v) / (2.0 * pow2(g) * r)) * exp((3.0 * g * r) / pow2(v));
-	long double years = t / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR);
+    proc gas_life {molecular_weight planet} {
+	
+        set v [rms_vel $molecular_weight [$planet cget -exospheric_temp]]
+	set g [expr {[$planet cget -surf_grav] * $::stargen::EARTH_ACCELERATION}]
+	set r [expr {[$planet cget -radius] * $::stargen::CM_PER_KM}]
+	set t [expr {(pow3($v) / (2.0 * pow2($g) * $r)) * exp((3.0 * $g * $r) / pow2($v))}]
+	set years [expr {$t / ($::stargen::SECONDS_PER_HOUR * 24.0 * $::stargen::DAYS_IN_A_YEAR)}]
 	
         #//	long double ve = planet->esc_velocity;
         #//	long double k = 2;
@@ -669,64 +679,58 @@ namespace eval ::stargen::enviro {
         #//		fprintf (stderr, "gas_life: %LGs, V ratio: %Lf\n", 
         #//				years, ve / v);
 
-	if (years > 2.0E10)
-		years = INCREDIBLY_LARGE_NUMBER;
+	if {$years > 2.0E10} {
+            set years $::stargen::INCREDIBLY_LARGE_NUMBER
+        }
 		
-	return years;
+	return $years
     }
 
-    long double min_molec_weight (planet_pointer planet)
-    {
-	long double mass    = planet->mass;
-	long double radius  = planet->radius;
-	long double temp    = planet->exospheric_temp;
-	long double target  = 5.0E9;
+    proc  min_molec_weight {planet} {
+	set mass [$planet cget -mass]
+	set radius [$planet cget -radius]
+	set temp [$planet cget -exospheric_temp]
+	set target 5.0E9
 	
-	long double guess_1 = molecule_limit (mass, radius, temp);
-	long double	guess_2 = guess_1;
+	set guess_1 [molecule_limit $mass $radius $temp]
+	set guess_2 $guess_1
 	
-	long double life = gas_life(guess_1, planet);
+	set life [gas_life $guess_1 $planet]
 	
-	int	loops = 0;
+	set loops 0
 	
-	if (NULL != planet->sun)
-	{
-		target = planet->sun->age;
+	if {[cget $planet cget -sun] ne {}} {
+		set target [[$planet cget -sun] cget -age]
 	}
 
-	if (life > target)
-	{
-		while ((life > target) && (loops++ < 25))
-		{
-			guess_1 = guess_1 / 2.0;
-			life 	= gas_life(guess_1, planet);
-		}
-	}
-	else
-	{
-		while ((life < target) && (loops++ < 25))
-		{
-			guess_2 = guess_2 * 2.0;
-			life 	= gas_life(guess_2, planet);
-		}
+	if {$life > $target} {
+            while {($life > $target) && ([incr loops] <= 25)} {
+                set guess_1 [expr {$guess_1 / 2.0}]
+                set life [gas_life $guess_1 $planet]
+            }
+	} else {
+            while {($life < $target) && ([incr loops] <= 25)} {
+                set guess_2 [expr {$guess_2 * 2.0}]
+                set life [gas_life $guess_2 $planet]
+            }
 	}
 
-	loops = 0;
+	set loops 0
 
-	while (((guess_2 - guess_1) > 0.1) && (loops++ < 25))
-	{
-		long double guess_3 = (guess_1 + guess_2) / 2.0;
-		life			 	= gas_life(guess_3, planet);
+	while {(($guess_2 - $guess_1) > 0.1) && ([incr loops] <= 25)} {
+            set guess_3 [expr {($guess_1 + $guess_2) / 2.0}]
+            set life [gas_life $guess_3 $planet]
 
-		if (life < target)
-			guess_1 = guess_3;
-		else
-			guess_2 = guess_3;
+            if {$life < $target} {
+                set guess_1 $guess_3
+            } else {
+                set guess_2 $guess_3
+            }
 	}
 	
-	life = gas_life(guess_2, planet);
+	set life [gas_life $guess_2 $planet]
 
-	return (guess_2);
+	return $guess_2
     }
 
 
@@ -742,61 +746,63 @@ namespace eval ::stargen::enviro {
     #*		 planet->boil_point													*/
     #*--------------------------------------------------------------------------*/
 
-    void calculate_surface_temp(planet_pointer 	planet,
-							int				first, 
-							long double		last_water,
-							long double 	last_clouds,
-							long double 	last_ice,
-							long double 	last_temp,
-							long double 	last_albedo)
-    {
-	long double effective_temp;
-	long double water_raw;
-	long double clouds_raw;
-	long double greenhouse_temp;
-	int			boil_off = FALSE;
+    proc calculate_surface_temp {planet first last_water last_clouds last_ice
+        last_temp last_albedo} {
+	#long double effective_temp;
+	#long double water_raw;
+	#long double clouds_raw;
+	#long double greenhouse_temp;
+	#int			boil_off = FALSE;
 
-	if (first)
-	{
-		planet->albedo = EARTH_ALBEDO;
+	if {$first} {
+            $planet configure -albedo $::stargen::EARTH_ALBEDO
 	
-		effective_temp 		= eff_temp(planet->sun->r_ecosphere, planet->a, planet->albedo);
-		greenhouse_temp     = green_rise(opacity(planet->molec_weight, 
-												 planet->surf_pressure), 
-										 effective_temp, 
-										 planet->surf_pressure);
-		planet->surf_temp   = effective_temp + greenhouse_temp;
+            set effective_temp [eff_temp \
+                                [[$planet cget -sun] cget -r_ecosphere] \
+                                [$planet cget -a] \
+                                [$planet cget -albedo]]
+            set greenhouse_temp [green_rise \
+                                 [opacity \
+                                  [$planet cget -molec_weight] \
+                                  [$planet cget -surf_pressure]] \ 
+                                 $effective_temp \
+                                 [$planet cget -surf_pressure]]
+            $planet configure -surf_temp [expr {$effective_temp + $greenhouse_temp}]
 
-		set_temp_range(planet);
+            set_temp_range $planet
 	}
 	
-	if (planet->greenhouse_effect
-	 && planet->max_temp < planet->boil_point)
-	{
-		if (flag_verbose & 0x0010)
-			fprintf (stderr, "Deluge: %s %d max (%Lf) < boil (%Lf)\n",
-					planet->sun->name,
-					planet->planet_no,
-					planet->max_temp,
-					planet->boil_point);
-
-		planet->greenhouse_effect = 0;
+	if {[$planet cget -greenhouse_effect] 
+            && [$planet cget -max_temp] < [$planet cget -boil_point]} {
+            if {($flag_verbose & 0x0010) != 0} {
+                puts stderr [format "Deluge: %s %d max (%Lf) < boil (%Lf)"
+                             [[$planet cget -sun] cget -name] \
+                             [$planet cget -planet_no] \
+                             [$planet cget -max_temp] \
+                             [$planet cget -boil_point]]
+            }
+            $planet configure -greenhouse_effect no
 		
-		planet->volatile_gas_inventory 	= vol_inventory(planet->mass,
-													    planet->esc_velocity,
-													    planet->rms_velocity,
-													    planet->sun->mass,
-													    planet->orbit_zone,
-													    planet->greenhouse_effect,
-													    (planet->gas_mass
-													     / planet->mass) > 0.000001);
-		planet->surf_pressure 			= pressure(planet->volatile_gas_inventory,
-												   planet->radius,
-												   planet->surf_grav);
+            $planet configure -volatile_gas_inventory [vol_inventory \
+                                                       [$planet cget -mass] \
+                                                       [$planet cget -esc_velocity] \
+                                                       [$planet cget -rms_velocity] \
+                                                       [[$planet cget -sun] cget -mass] \
+                                                       [$planet cget -orbit_zone] \
+                                                       [$planet cget -greenhouse_effect] \
+                                                       [expr {([$planet cget -gas_mass] / [$planet cget -mass]) > 0.000001}]]
+            $planet configure -surf_pressure \
+                    [pressure \
+                     [$planet cget -volatile_gas_inventory] \
+                     [$planet cget -radius] \
+                     [$planet cget -surf_grav]]
 
-		planet->boil_point 			= boiling_point(planet->surf_pressure);
-	}	
-
+            $planet configure -boil_point \
+                    [boiling_point [$planet cget -surf_pressure]]
+        }	
+        
+        ### HERE
+        
 	water_raw     			=
 	planet->hydrosphere		= hydro_fraction(planet->volatile_gas_inventory, 
 											 planet->radius);
