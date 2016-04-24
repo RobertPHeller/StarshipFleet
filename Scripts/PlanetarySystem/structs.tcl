@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160414.1157>
+#  Last Modified : <160424.1050>
 #
 #  Description	
 #
@@ -160,6 +160,14 @@ namespace eval stargen {
 	option -ice_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -sun -type ::stargen::SunOrNull
 	option -atmosphere -type ::stargen::GasList
+        option -gases -readonly yes -configuremethod _noset \
+              -cgetmethod _gascount
+        method _noset {o v} {
+            error [format "%s cannot be set" $o]
+        }
+        method _gascount {o} {
+            return [llength [$self cget -atmosphere]]
+        }
 	option -ptype -type ::stargen::Planet_Type -default tUnknown;# Type code
 	# Zeros end here
         option -minor_moons -type snit::integer -default 0
