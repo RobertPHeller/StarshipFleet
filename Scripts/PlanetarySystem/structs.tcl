@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160424.1050>
+#  Last Modified : <160426.0908>
 #
 #  Description	
 #
@@ -63,8 +63,39 @@ namespace eval stargen {
             $self configurelist $args
         }
     }
-    snit::listtype GasList -type ::stargen::Gas
-    snit::listtype PlanetList -type ::stargen::Planets_Record
+    snit::type GasList {
+        pragma -hastypeinfo no -hastypedestroy no -hasinstances no
+        typemethod validate {o} {
+            foreach g $o {
+                ::stargen::Gas validate $g
+            }
+        }
+        typemethod copy {other} {
+            $type validate $other
+            set result [list]
+            foreach g $other {
+                lappend result [::stargen::Gas copy %AUTO% $g]
+            }
+            return $result
+        }
+    }
+    
+    snit::type PlanetList {
+        pragma -hastypeinfo no -hastypedestroy no -hasinstances no
+        typemethod validate {o} {
+            foreach p $o {
+                ::stargen::Planets_Record validate $p
+            }
+        }
+        typemethod copy {other {copy_all yes}} {
+            $type validate $other
+            set result [list]
+            foreach p $other {
+                lappend result [::stargen::Planets_Record copy %AUTO% $p $copy_all]
+            }
+            return $result
+        }
+    }
     snit::type Sun {
         option -luminosity -default 0.0 -type {snit::double -min 0.0}
         option -mass -default 0.0 -type {snit::double -min 0.0}
@@ -200,6 +231,69 @@ namespace eval stargen {
             ::stargen::Planets_Record validate $moon
             set moons [linsert $moons 0 $moon]
         }
+        typemethod copy {name other {copy_all yes}} {
+            $type validate $other
+            if {$copy_all} {
+                return[$type create $name \
+                       -planet_no [$other cget -planet_no] \
+                       -a [$other cget -a] \
+                       -e [$other cget -e] \
+                       -axial_tilt [$other cget -axial_tilt] \
+                       -mass [$other cget -mass] \
+                       -gas_giant [$other cget -gas_giant] \
+                       -dust_mass [$other cget -dust_mass] \
+                       -gas_mass [$other cget -gas_mass] \
+                       -moon_a [$other cget -moon_a] \
+                       -moon_e [$other cget -moon_e] \
+                       -core_radius [$other cget -core_radius] \
+                       -radius [$other cget -radius] \
+                       -orbit_zone [$other cget -orbit_zone] \
+                       -density [$other cget -density] \
+                       -orb_period [$other cget -orb_period] \
+                       -day [$other cget -day] \
+                       -resonant_period [$other cget -resonant_period] \
+                       -esc_velocity [$other cget -esc_velocity] \
+                       -surf_accel [$other cget -surf_accel] \
+                       -surf_grav [$other cget -surf_grav] \
+                       -rms_velocity [$other cget -rms_velocity] \
+                       -molec_weight [$other cget -molec_weight] \
+                       -volatile_gas_inventory [$other cget -volatile_gas_inventory] \
+                       -surf_pressure [$other cget -surf_pressure] \
+                       -greenhouse_effect [$other cget -greenhouse_effect] \
+                       -boil_point [$other cget -boil_point] \
+                       -albedo [$other cget -albedo] \
+                       -exospheric_temp [$other cget -exospheric_temp] \
+                       -estimated_temp [$other cget -estimated_temp] \
+                       -estimated_terr_temp [$other cget -estimated_terr_temp] \
+                       -surf_temp [$other cget -surf_temp] \
+                       -greenhs_rise [$other cget -greenhs_rise] \
+                       -high_temp [$other cget -high_temp] \
+                       -low_temp [$other cget -low_temp] \
+                       -max_temp [$other cget -max_temp] \
+                       -min_temp [$other cget -min_temp] \
+                       -hydrosphere [$other cget -hydrosphere] \
+                       -cloud_cover [$other cget -cloud_cover] \
+                       -ice_cover [$other cget -ice_cover] \
+                       -sun [$other cget -sun] \
+                       -atmosphere [::stargen::GasList copy [$other cget -atmosphere]] \
+                       -ptype [$other cget -ptype] \
+                       -minor_moons [$other cget -minor_moons] \
+                       -moons [::stargen::PlanetList copy [$other cget -moons] $copy_all]]
+            } else {
+                return[$type create $name \
+                       -planet_no [$other cget -planet_no] \
+                       -a [$other cget -a] \
+                       -e [$other cget -e] \
+                       -axial_tilt [$other cget -axial_tilt] \
+                       -mass [$other cget -mass] \
+                       -gas_giant [$other cget -gas_giant] \
+                       -dust_mass [$other cget -dust_mass] \
+                       -gas_mass [$other cget -gas_mass] \
+                       -minor_moons [$other cget -minor_moons] \
+                       -moons [::stargen::PlanetList copy [$other cget -moons] $copy_all]]
+            }
+       }
+
     }
     snit::listtype Dustlist -type ::stargen::Dust_Record
     snit::type Dust_Record {

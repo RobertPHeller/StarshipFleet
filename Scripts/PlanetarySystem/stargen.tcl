@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160425.1643>
+#  Last Modified : <160426.1413>
 #
 #  Description	
 #
@@ -171,7 +171,7 @@ namespace eval stargen {
           -minor_moons 0 -moons {}
     #puts stderr "triton: [triton configure]"
     #planets charon   ={1,19571/KM_PER_AU,0.000, 0   , EM(2.54e-4),FALSE,EM(2.54e-4), 0, ZEROES,0,NULL, NULL};
-    Planets_Record charon -planet_no 1 -a [expr {19571/$KM_PER_AU}] -e 0.000 -axial_tilt  0   \
+    Planets_Record charon -planet_no 1 -a [expr {19571/$::stargen::KM_PER_AU}] -e 0.000 -axial_tilt  0   \
               -mass [EM 2.54e-4] -gas_giant false -dust_mass [EM 2.54e-4] -gas_mass 0\
               -minor_moons 0 -moons {}
     #puts stderr "charon: [charon configure]"
@@ -677,36 +677,13 @@ namespace eval stargen {
     
     namespace export dust_density_coeff flag_verbose
     
-    variable total_earthlike 0
-    variable total_habitable 0
-    
-    variable	min_breathable_terrestrial_g 1000.0
-    variable	min_breathable_g 1000.0
-    variable	max_breathable_terrestrial_g 0.0
-    variable	max_breathable_g 0.0
-    variable	min_breathable_temp 1000.0
-    variable	max_breathable_temp 0.0
-    variable	min_breathable_p 100000.0
-    variable	max_breathable_p 0.0
-    variable	min_breathable_terrestrial_l 1000.0
-    variable	min_breathable_l 1000.0
-    variable	max_breathable_terrestrial_l 0.0
-    variable	max_breathable_l 0.0
-    
-    namespace export total_earthlike total_habitable \
-          min_breathable_terrestrial_g min_breathable_g \
-          max_breathable_terrestrial_g max_breathable_g \
-          min_breathable_terrestrial_l min_breathable_l \
-          max_breathable_terrestrial_l max_breathable_l \
-          min_breathable_temp max_breathable_temp min_breathable_p \
-          max_breathable_p
     
     snit::type System {
         component sun
         delegate option * to sun
         delegate method * to sun
         typevariable flag_seed 0
-        variable innermost_planet {}
+        variable planets {}
         typevariable dust_density_coeff 
         typeconstructor {
             set dust_density_coeff $::stargen::DUST_DENSITY_COEFF
@@ -720,6 +697,21 @@ namespace eval stargen {
         
         variable type_counts [list]
         variable type_count 0
+        variable total_earthlike 0
+        variable total_habitable 0
+    
+        variable	min_breathable_terrestrial_g 1000.0
+        variable	min_breathable_g 1000.0
+        variable	max_breathable_terrestrial_g 0.0
+        variable	max_breathable_g 0.0
+        variable	min_breathable_temp 1000.0
+        variable	max_breathable_temp 0.0
+        variable	min_breathable_p 100000.0
+        variable	max_breathable_p 0.0
+        variable	min_breathable_terrestrial_l 1000.0
+        variable	min_breathable_l 1000.0
+        variable	max_breathable_terrestrial_l 0.0
+        variable	max_breathable_l 0.0
         
         typemethod clone {sun} {
             puts stderr "*** $type clone $sun"
@@ -774,7 +766,7 @@ namespace eval stargen {
             $sun configure -life [expr {1.0E10 * ([$sun cget -mass] / [$sun cget -luminosity])}]
             
             if {$use_seed_system} {
-                set innermost_planet $seed_system
+                set planets [::stargen::PlanetList copy $seed_system no]
                 $sun configure -age 5.0E9
             } else {
                 set min_age 1.0E9
@@ -782,7 +774,7 @@ namespace eval stargen {
                 if {[$sun cget -life] < $max_age} {
                     set max_age [$sun cget -life]
                 }
-                set innermost_planet [dist_planetary_masses \
+                set planets [dist_planetary_masses \
                                       [$sun cget -mass] \
                                       [$sun cget -luminosity] \
                                       0.0 $outer_dust_limit \
@@ -792,7 +784,7 @@ namespace eval stargen {
                                       $do_moons]
                 $sun configure -age [random_number $min_age $max_age]
             }
-            generate_planets $sun [expr {!$use_seed_system}] $flag_char \
+            $self generate_planets [expr {!$use_seed_system}] $flag_char \
                   $sys_no $system_name $do_gases $do_moons
         }
         method post_generate {only_habitable only_multi_habitable 
@@ -931,13 +923,623 @@ namespace eval stargen {
             }
             
         }
-        method generate_planet {planet planet_no random_tilt do_gases do_moons 
-            is_moon} {
-            puts stderr "*** $self generate_planet $planet $planet_no $random_tilt $do_gases $do_moons $is_moon"
+        method generate_planet {planet planet_no random_tilt planet_id 
+            do_gases do_moons is_moon} {
+            puts stderr "*** $self generate_planet $planet $planet_no $random_tilt $planet_id $do_gases $do_moons $is_moon"
+            $planet configure -atmosphere {}
+            $planet configure -surf_temp  0
+            $planet configure -high_temp  0
+            $planet configure -low_temp	  0
+            $planet configure -max_temp	  0
+            $planet configure -min_temp	  0
+            $planet configure -greenhs_rise 0
+            $planet configure -planet_no $planet_no
+            $planet configure -sun	 $sun
+            $planet configure -resonant_period  false
+            
+            $planet configure -orbit_zone [orb_zone \
+                                           [$sun cget -luminosity] \
+                                           [$planet cget -a]]
+            
+            $planet configure -orb_period [period \
+                                           [$planet cget -a] \
+                                           [$planet cget -mass] \
+                                           [$sun cget -mass]]
+            if {$random_tilt} {
+                $planet configure -axial_tilt [inclination [$planet cget -a]]
+            }
+            $planet configure -exospheric_temp [expr {$::stargen::EARTH_EXOSPHERE_TEMP / pow2([$planet cget -a] / [$sun cget -r_ecosphere])}]
+            $planet configure -rms_velocity    [rms_vel \
+                                                $::stargen::MOL_NITROGEN \
+                                                [$planet cget -exospheric_temp]]
+            $planet configure -core_radius     [kothari_radius \
+                                                [$planet cget -dust_mass] \
+                                                false \
+                                                [$planet cget -orbit_zone]]
+            
+            #// Calculate the radius as a gas giant, to verify it will retain gas.
+            #// Then if mass > Earth, it's at least 5% gas and retains He, it's
+            #// some flavor of gas giant.
+            
+            $planet configure -density 	    [empirical_density \
+                                             [$planet cget -mass] \
+                                             [$planet cget -a] \
+                                             [$sun cget -r_ecosphere] \
+                                             true]
+            $planet configure -radius 	    [volume_radius \
+                                             [$planet cget -mass] \
+                                             [$planet cget -density]]
+            
+            $planet configure -surf_accel   [acceleration \
+                                             [$planet cget -mass] \
+                                             [$planet cget -radius]]
+            $planet configure -surf_grav    [gravity [$planet cget -surf_accel]]
+            
+            $planet configure -molec_weight [min_molec_weight $planet]
+            
+            if {(([$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES) > 1.0)
+                && (([$planet cget -gas_mass] / [$planet cget -mass])        > 0.05)
+                && ([min_molec_weight $planet]				  <= 4.0)} {
+                if {([$planet cget -gas_mass] / [$planet cget -mass]) < 0.20} {
+                    $planet configure -type  tSubSubGasGiant
+                } elseif {([$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES) < 20.0} {
+                    $planet configure -type  tSubGasGiant
+                } else {
+                    $planet configure -type  tGasGiant
+                }
+            } else { #// If not, it's rocky.
+                $planet configure -radius    [kothari_radius \
+                                              [$planet cget -mass] \
+                                              false \
+                                              [$planet cget -orbit_zone]]
+                $planet configure -density   [volume_density \
+                                              [$planet cget -mass] \
+                                              [$planet cget -radius]]
+                
+                $planet configure -surf_accel [acceleration \
+                                               [$planet cget -mass] \
+                                               [$planet cget -radius]]
+                $planet configure -surf_grav [gravity \
+                              [$planet cget -surf_accel]]
+                
+                if {([$planet cget -gas_mass] / [$planet cget -mass]) > 0.000001} {
+                    set h2_mass [expr {[$planet cget -gas_mass] * 0.85}]
+                    set he_mass [expr {([$planet cget -gas_mass] - $h2_mass) * 0.999}]
+                    
+                    set h2_loss 0.0
+                    set he_loss 0.0
+                    
+                    
+                    set h2_life [gas_life $::stargen::MOL_HYDROGEN $planet]
+                    set he_life [gas_life $::stargen::HELIUM $planet]
+                    
+                    if {$h2_life < [$sun cget -age]} {
+                        set h2_loss [expr {((1.0 - (1.0 / exp([$sun cget -age] / $h2_life))) * $h2_mass)}]
+                        
+                        $planet configure -gas_mass [expr {[$planet cget -gas_mass] - $h2_loss}]
+                        $planet configure -mass     [expr {[$planet cget -mass] - $h2_loss}]
+                        
+                        $planet configure -surf_accel [acceleration \
+                                                       [$planet cget -mass] \
+                                                       [$planet cget -radius]]
+                        $planet configure -surf_grav  [gravity \
+                                                       [$planet cget -surf_accel]]
+                    }
+                    
+                    if {$he_life < [$sun cget -age]} {
+                        set he_loss [expr {((1.0 - (1.0 / exp([$sun cget -age] / $he_life))) * $he_mass)}]
+                        
+                        $planet configure -gas_mass [expr {[$planet cget -gas_mass] - $he_loss}]
+                        $planet configure -mass     [expr {[$planet cget -mass]- $he_loss}]
+                        
+                        $planet configure -surf_accel [acceleration \
+                                                       [$planet cget -mass] \
+                                                       [$planet cget -radius]]
+                        $planet configure -surf_grav  [gravity \
+                                                       [$planet cget -surf_accel]]
+                    }
+                    
+                    if {(($h2_loss + $he_loss) > .000001) && 
+                        ($::stargen::flag_verbose & 0x0080) != 0} {
+                        puts stderr [format \
+                                     "%s\tLosing gas: H2: %5.3lf EM, He: %5.3lf EM" \
+                                     $planet_id \
+                                     [expr {$h2_loss * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                     [expr {$he_loss * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+                    }
+                }
+            }
+            $planet configure -day [day_length $planet];#	/* Modifies planet->resonant_period *
+            $planet configure -esc_velocity [escape_vel \
+                                             [$planet cget -mass] \
+                                             [$planet cget -radius]]
+            
+            if {([$planet cget -ptype eq "tGasGiant")
+                || ([$planet cget -ptype eq "tSubGasGiant") 
+                || ([$planet cget -ptype eq "tSubSubGasGiant")} {
+                $planet configure -greenhouse_effect 	  false
+                $planet configure -volatile_gas_inventory $::stargen::INCREDIBLY_LARGE_NUMBER
+                $planet configure -surf_pressure 	  $::stargen::INCREDIBLY_LARGE_NUMBER
+                
+                $planet configure -boil_point 		  $::stargen::INCREDIBLY_LARGE_NUMBER
+                
+                $planet configure -surf_temp		  $::stargen::INCREDIBLY_LARGE_NUMBER
+                $planet configure -greenhs_rise 	  0
+                $planet configure -albedo 		  [about $::stargen::GAS_GIANT_ALBEDO 0.1]
+                $planet configure -hydrosphere 		  1.0
+                $planet configure -cloud_cover	 	  1.0
+                $planet configure -ice_cover	 	  0.0
+                $planet configure -surf_grav		  [gravity \
+                                                           [$planet cget -surf_accel]]
+                $planet configure -molec_weight		  [min_molec_weight $planet]
+                $planet configure -surf_grav 		  $::stargen::INCREDIBLY_LARGE_NUMBER
+                $planet configure -estimated_temp	  [est_temp \
+                                                           [$sun cget -r_ecosphere] \
+                                                           [$planet cget -a] \
+                                                           [$planet cget -albedo]]
+                $planet configure -estimated_terr_temp	  [est_temp \
+                                                           [$sun cget -r_ecosphere] \
+                                                           [$planet cget -a] \
+                                                           $::stargen::EARTH_ALBEDO]
+                
+                set temp [$planet cget -estimated_terr_temp]
+                    
+                if {($temp >= $::stargen::FREEZING_POINT_OF_WATER)
+                    && ($temp <= $::stargen::EARTH_AVERAGE_KELVIN + 10.)
+                    && ([$sun cget -age] > 2.0E9)} {
+                    incr habitable_jovians++
+                        
+                    if {($::stargen::flag_verbose & 0x8000) != 0} {
+                        puts stderr [format \
+                                     "%s\t%s (%4.2lfEM %5.3lf By)%s with earth-like temperature (%.1lf C, %.1lf F, %+.1lf C Earth)." \
+                                     $planet_id \
+                                     [expr {[$planet cget -ptype] eq "tGasGiant" ? "Jovian" :
+                                             [$planet cget -ptype] eq "tSubGasGiant" ? "Sub-Jovian" :
+                                              [$planet cget -ptype] eq "tSubSubGasGiant" ? "Gas Dwarf" :
+                                               "Big"}] \
+                                     [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                     [expr {[$sun cget -age] /1.0E9}] \
+                                     [expr {[llength [$planet cget -moons]] == 0 ? "" : " WITH MOON"}] \
+                                     [expr {$temp - $::stargen::FREEZING_POINT_OF_WATER}] \
+                                     [expr {32 + (($temp - $::stargen::FREEZING_POINT_OF_WATER) * 1.8)}] \
+                                     [expr {$temp - $::stargen::EARTH_AVERAGE_KELVIN}]]
+                    }
+                }
+            } else {
+                $planet configure -estimated_temp	[est_temp \
+                                                         [$sun cget -r_ecosphere] \
+                                                         [$planet cget -a] \
+                                                         $::stargen::EARTH_ALBEDO]
+                $planet configure -estimated_terr_temp	[est_temp \
+                                                         [$sun cget -r_ecosphere] \
+                                                         [$planet cget -a] \
+                                                         $::stargen::EARTH_ALBEDO]
+                
+                $planet configure -surf_grav 		[gravity \
+                                                         [$planet cget -surf_accel]]
+                $planet configure -molec_weight		[min_molec_weight \
+                                                         $planet]
+                
+                $planet configure -greenhouse_effect 	[grnhouse \
+                                                         [$sun cget -r_ecosphere] \
+                                                         [$planet cget -a]]
+                $planet configure -volatile_gas_inventory [vol_inventory \
+                                                           [$planet cget -mass] \
+                                                           [$planet cget -esc_velocity] \
+                                                           [$planet cget -rms_velocity] \
+                                                           [$sun cget -mass] \
+                                                           [$planet cget -orbit_zone] \
+                                                           [$planet cget -greenhouse_effect] \
+                                                           [expr {([$planet cget -gas_mass]
+                                                                   / [$planet cget -mass]) > 0.000001}]]
+                $planet configure -surf_pressure 	[pressure \
+                                                         [$planet cget -volatile_gas_inventory] \
+                                                         [$planet cget -radius] \
+                                                         [$planet cget -surf_grav]]
+
+                if {([$planet cget -surf_pressure] == 0.0)} {
+                    $planet configure -boil_point 0.0
+                } else {
+                    $planet configure -boil_point [boiling_point \
+                                                   [$planet cget -surf_pressure]]
+                }
+                iterate_surface_temp $planet;# /*	Sets:
+                                             #  *		planet->surf_temp
+                                             #  *		planet->greenhs_rise
+                                             #  *		planet->albedo
+                                             #  *		planet->hydrosphere
+                                             #  *		planet->cloud_cover
+                                             #  *		planet->ice_cover
+                                             #  */
+
+                if {$do_gases &&
+                    ([$planet cget -max_temp] >= $::stargen::FREEZING_POINT_OF_WATER) &&
+                    ([$planet cget -min_temp] <= [$planet cget -boil_point])} {
+                    calculate_gases $sun $planet $planet_id
+                }
+                #/*
+                # *	Next we assign a type to the planet.
+                # */
+                
+                if {[$planet cget -surf_pressure] < 1.0} {
+                    if {!$is_moon
+                        && (([$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES) < $::stargen::ASTEROID_MASS_LIMIT)} {
+                        $planet configure -ptype  tAsteroids
+                    } else {
+                        $planet configure -ptype  tRock
+                    }
+                } elseif {(planet->surf_pressure > 6000.0) &&
+                    (planet->molec_weight <= 2.0)} {	#// Retains Hydrogen
+                    $planet configure -ptype  tSubSubGasGiant
+                    $planet configure -gases  0
+                    set olda [$planet cget -atmosphere]
+                    foreach g $olda {$g destroy}
+                    unset olda
+                    $planet configure -atmosphere {}
+                } else {#	// Atmospheres:
+                    if {(int([$planet cget -day]) == int([$planet cget -orb_period] * 24.0)) || 
+                        [$planet cget -resonant_period]} {
+                        $planet configure -ptype  t1Face
+                    } elseif {[$planet cget -hydrosphere] >= 0.95} {
+                        $planet configure -ptype tWater;#	// >95% water
+                    } elseif {[$planet cget -ice_cover] > 0.95} {
+                        $planet configure -ptype  tIce;#	// >95% ice
+                    } elseif {[$planet cget -hydrosphere] > 0.05} {
+                        $planet configure -ptype  tTerrestrial;#// Terrestrial
+                        #// else <5% water
+                    } elseif {[$planet cget -max_temp] > [$planet cget -boil_point]} {
+                        $planet configure -ptype  tVenusian;#// Hot = Venusian
+                    } elseif {([$planet cget -gas_mass] / [$planet cget -mass]) > 0.0001} {										// Accreted gas
+                        $planet configure -ptype  tIce;#// But no Greenhouse
+                        $planet configure -ice_cover  1.0;#	// or liquid water
+                        # // Make it an Ice World
+                    } elseif {[$planet cget -surf_pressure] <= 250.0} {#// Thin air = Martian
+                        $planet configure -ptype  tMartian
+                    } elseif {[$planet -surf_temp] < $::stargen::FREEZING_POINT_OF_WATER} {
+                        $planet configure -ptype  tIce
+                    } else {
+                        $planet configure -ptype  tUnknown
+                        
+                        if {($::stargen::flag_verbose & 0x0001) != 0} {
+                            puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%s\t Unknown %s" \ 
+                                         [type_string [$planet cget -ptype]] \
+                                         [$planet cget -surf_pressure] \
+                                         [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                         [$planet cget -surf_grav] \
+                                         [expr {[$planet cget -surf_temp]  - $::stargen::EARTH_AVERAGE_KELVIN}] \
+                                         $planet_id \
+                                         [expr {(int([$planet cget -day]) == int([$planet cget -orb_period] * 24.0) || 
+                                                 ([$planet cget -resonant_period])) ? "(1-Face)" : ""}]]
+                        }
+                    }
+                }
+            }
+            if {$do_moons && !$is_moon} {
+                if {[llength [$planet cget -moons]] != 0} {
+                    set n 0
+                    foreach ptr [$planet cget -moons] {
+                        if {[$ptr cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES > .000001} {
+                            set roche_limit 0.0
+                            set hill_sphere 0.0
+                            
+                            $ptr configure -a [$planet cget -a]
+                            $ptr configure -e [$planet cget -e]
+                               
+                            incr n
+                            
+                            set moon_id [format "%s.%d" $planet_id $n]
+                            
+                            $self generate_planet $ptr $n $random_tilt \
+                                  $moon_id $do_gases $do_moons true;#	// Adjusts ptr->density
+                               
+                            set roche_limit [expr {2.44 * [$planet cget -radius] * pow(([$planet cget -density] / [$ptr cget -density]), (1.0 / 3.0))}]
+                            set hill_sphere [expr {[$planet cget -a] * $::stargen::KM_PER_AU * pow(([$planet cget -mass] / (3.0 * [$sun cget -mass])), (1.0 / 3.0))}]
+                            
+                            if {($roche_limit * 3.0) < $hill_sphere} {
+                                $ptr configure -moon_a \
+                                      [expr {[random_number \
+                                              [expr {$roche_limit * 1.5}] \
+                                              [expr {$hill_sphere / 2.0}]] / $::stargen::KM_PER_AU}]
+                                    $ptr configure -moon_e [random_eccentricity]
+                                } else {
+                                    $ptr configure -moon_a 0
+                                    $ptr configure -moon_e 0
+                                }
+                                
+                                if {($::stargen::flag_verbose & 0x40000) != 0} {
+                                    puts stderr \
+                                          [format "   Roche limit: R = %4.2lg, rM = %4.2lg, rm = %4.2lg -> %.0lf km\n   Hill Sphere: a = %4.2lg, m = %4.2lg, M = %4.2lg -> %.0lf km\n   %s Moon orbit: a = %.0lf km, e = %.0lg" \
+                                           [$planet cget -radius] \
+                                           [$planet cget -density] \
+                                           [$ptr -density] \
+                                           $roche_limit \
+                                           [expr {[$planet cget -a] * $::stargen::KM_PER_AU}] \
+                                           [expr {[$planet cget -mass] * $::stargen::SOLAR_MASS_IN_KILOGRAMS}] \
+                                           [expr {[$sun cget -mass] * $::stargen::SOLAR_MASS_IN_KILOGRAMS}] \
+                                           $hill_sphere \
+                                           $moon_id \
+                                           [expr {[$ptr -moon_a] * $::stargen::KM_PER_AU}] \
+                                           [$ptr cget -moon_e]]
+                                }
+                            }
+
+                            if {($::stargen::flag_verbose & 0x1000) != 0} {
+                                puts stderr [format "  %s: (%7.2lfEM) %d %4.2lgEM" \
+                                             $planet_id \
+                                             [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                             $n \
+                                             [expr {[$ptr cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+                            }
+                    }
+                }
+            }
+        }
+        method check_planet {planet planet_id is_moon} {
+            puts stderr "*** $self check_planet $planet $planet_id $is_moon"
+            set tIndex 0
+	
+            switch [$planet cget -ptype] {
+                tUnknown         {set tIndex 0}
+		tRock    	 {set tIndex 1}
+		tVenusian:	 {set tIndex 2}
+		tTerrestrial:	 {set tIndex 3}
+		tSubSubGasGiant: {set tIndex 4}
+		tSubGasGiant:	 {set tIndex 5}
+		tGasGiant:	 {set tIndex 6}
+		tMartian:	 {set tIndex 7}
+		tWater:		 {set tIndex 8}
+		tIce:		 {set tIndex 9}
+		tAsteroids: 	 {set tIndex 10}
+		t1Face:		 {set tIndex 11}
+            }
+		
+            if {[lindex $type_counts $tIndex] == 0} {
+                incr type_count
+            }
+		
+	    lset type_counts $tIndex [expr {[lindex $type_counts $tIndex] + 1}]
+		
+            
+            #/* Check for and list planets with breathable atmospheres */
+	
+            set breathe [breathability $planet]
+		
+            if {($breathe == $::stargen::enviro::BREATHABLE) &&
+                (![$planet cet -resonant_period]) &&	#	// Option needed?
+                (int([$planet cget -day]) != int([$planet cget -orb_period] * 24.0))} {
+                set list_it false
+                set illumination [expr {pow2 (1.0 / [$planet cget -a]) 
+                                  * [[$planet cget -sun] cget -luminosity]}]
+                
+                incr habitable
+                
+                if {$min_breathable_temp > [$planet cget -surf_temp]} {
+                    set min_breathable_temp [$planet cget -surf_temp]
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {$max_breathable_temp < [$planet cget -surf_temp]} {
+                    set max_breathable_temp [$planet cget -surf_temp]
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+		
+                if {$min_breathable_g > [$planet cget -surf_grav]} {
+                    set min_breathable_g [$planet cget -surf_grav]
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {$max_breathable_g < [$planet cget -surf_grav]} {
+                    set max_breathable_g [$planet cget -surf_grav]
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {$min_breathable_l > $illumination} {
+                    set min_breathable_l $illumination
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {$max_breathable_l < $illumination} {
+                    set max_breathable_l $illumination
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {[$planet cget -ptype] eq "tTerrestrial"} {
+                    if {$min_breathable_terrestrial_g > [$planet cget -surf_grav]} {
+                        set min_breathable_terrestrial_g [$planet cget -surf_grav]
+                        
+                        if {($::stargen::flag_verbose & 0x0002) != 0} {
+                            set list_it true
+                        }
+                    }
+                    
+                    if {$max_breathable_terrestrial_g < [$planet cget -surf_grav]} {
+                        set max_breathable_terrestrial_g [$planet cget -surf_grav]
+                        
+                        if {($::stargen::flag_verbose & 0x0002) != 0} {
+                            set list_it true
+                        }
+                    }
+                    
+                    if {$min_breathable_terrestrial_l > $illumination} {
+                        set min_breathable_terrestrial_l $illumination
+                        
+                        if {($::stargen::flag_verbose & 0x0002) != 0} {
+                            set list_it true
+                        }
+		    }
+                    
+                    if {$max_breathable_terrestrial_l < $illumination} {
+                        set max_breathable_terrestrial_l $illumination;
+                        
+                        if {($::stargen::flag_verbose & 0x0002) != 0} {
+                            set list_it true
+                        }
+                    }
+                }
+                
+                if {$min_breathable_p > [$planet cget -surf_pressure]} {
+                    set min_breathable_p [$planet cget -surf_pressure]
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {$max_breathable_p < [$planet cget -surf_pressure]} {
+                    set max_breathable_p [$planet cget -surf_pressure]
+                    
+                    if {($::stargen::flag_verbose & 0x0002) != 0} {
+                        set list_it true
+                    }
+                }
+                
+                if {($::stargen::flag_verbose & 0x0004) != 0} {
+                    set list_it true
+                }
+                
+                if {$list_it} {
+                    puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\tl=%4.2lf\t%s" \
+                                 [type_string [$planet cget -ptype]] \
+                                 [$planet cget -surf_pressure] \
+                                 [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                 [$planet cget -surf_grav] \
+                                 [expr {[$planet cget -surf_temp]  - $::stargen::EARTH_AVERAGE_KELVIN}] \
+                                 $illumination \
+                                 $planet_id]
+                }
+            }
+            
+            if {$is_moon  && $max_moon_mass < [$planet cget -mass]} {
+                max_moon_mass = planet->mass;
+            
+                if {($::stargen::flag_verbose & 0x0002) != 0} {
+                    puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%s Moon Mass" \
+                                 [type_string [$planet cget -ptype]] \
+                                 [$planet cget -surf_pressure] \
+                                 [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                 [$planet cget -surf_grav] \
+                                 [expr {[$planet cget -surf_temp]  - $::stargen::EARTH_AVERAGE_KELVIN}] \
+                                 $planet_id);
+                }
+        
+                if {(($::stargen::flag_verbose & 0x0800) != 0)
+                     && ([$planet cget -dust_mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES >= 0.0006)
+                     && ([$planet cget -gas_mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES >= 0.0006)
+                     && ([$planet cget -ptype] ne "tGasGiant") 
+                     && ([$planet cget -ptype] ne "tSubGasGiant")} {
+                     set core_size [expr {int(((50. * [$planet cget -core_radius]) / [$planet cget -radius]))}]
+            
+                     if {$core_size <= 49} {
+                         puts stderr [format "%12s\tp=%4.2lf\tr=%4.2lf\tm=%4.2lf\t%s\t%d" \
+                                      [type_string [$planet cget -ptype]] \
+                                      [$planet cget -core_radius] \
+                                      [$planet cget -radius] \
+                                      [expr {[$planet->mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                      $planet_id \
+                                      [expr {50-$core_size}]]
+                     }
+                }
+	
+                set rel_temp [expr {([$planet cget -surf_temp] -  $::stargen::FREEZING_POINT_OF_WATER) -
+                              $::stargen::EARTH_AVERAGE_CELSIUS}]
+		set seas       [expr {([$planet cget -hydrosphere] * 100.0)}]
+		set clouds     [expr {([$planet cget -cloud_cover] * 100.0)}]
+		set pressure   [expr {([$planet cget -surf_pressure] / 
+                                       $::stargen::EARTH_SURF_PRES_IN_MILLIBARS)}]
+		set ice        [expr {([$planet cget -ice_cover] * 100.0)}]
+		set gravity    [$planet cget -surf_grav]
+		set breathe    [breathability $planet]
+	
+		if {($gravity 	>= .8) &&
+                    ($gravity 	<= 1.2) &&
+                    ($rel_temp 	>= -2.0) &&
+                    ($rel_temp 	<= 3.0) &&
+                    ($ice 		<= 10.) &&
+                    ($pressure   >= 0.5) &&
+                    ($pressure   <= 2.0) &&
+                    ($clouds		>= 40.) &&
+                    ($clouds		<= 80.) &&
+                    ($seas 		>= 50.) &&
+                    ($seas 		<= 80.) &&
+                    ([$planet cget -ptype] ne "tWater") &&
+                    ($breathe    == $::stargen::enviro::BREATHABLE)} {
+                    incr earthlike
+
+                    if {($::stargen::flag_verbose & 0x0008) != 0} {
+                        puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%d %s\tEarth-like" \
+                                     [type_string [$planet cget -ptype]] \
+                                     [$planet cget -surf_pressure] \
+                                     [expr {[$planet cget -mass] * SUN_MASS_IN_EARTH_MASSES}] \
+                                     [$planet cget -surf_grav] \
+                                     [expr {[$planet cget -surf_temp]  - EARTH_AVERAGE_KELVIN}] \
+                                     $habitable \
+                                     $planet_id]
+                    }
+		} elseif {(($::stargen::flag_verbose & 0x0008) != 0) &&
+                          ($breathe   == $::stargen::enviro::BREATHABLE) &&
+                          ($gravity	 > 1.3) &&
+                          ($habitable	 > 1) &&
+                          (($rel_temp  < -2.0) ||
+                           ($ice	 > 10.))} {
+                    puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%s\tSphinx-like" \
+                                 [type_string [$planet cget -ptype]] \
+                                 [$planet cget -surf_pressure] \
+                                 [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                 [$planet cget -surf_grav] \
+                                 [expr {[$planet cget -surf_temp]  - $::stargen::EARTH_AVERAGE_KELVIN}] \
+                                 $planet_id]
+                }
+            }
         }
         method generate_planets {random_tilt flag_char sys_no system_name 
             do_gases do_moons} {
             puts stderr "*** $self generate_planets $random_tilt $flag_char $sys_no $system_name $do_gases $do_moons"
+            set planet_no 0
+            set moons 0
+            
+            foreach planet $planets {
+                incr planet_no
+                set planet_id [format "%s (-s%ld -%c%d) %d" \
+                               $system_name $flag_seed $flag_char $sys_no \
+                               $planet_no]
+
+
+		$self generate_planet $planet $planet_no $random_tilt \
+                      $planet_id $do_gases $do_moons false
+		
+		#/*
+		# *	Now we're ready to test for habitable planets,
+		# *	so we can count and log them and such
+		# */
+		 
+                $self check_planet $planet $planet_id false
+						
+                set moons 0
+                foreach moon [$planet cget -moons] {
+                    incr moons
+                    set moon_id [format "%s.%d" $planet_id $moons]
+                    $self check_planet $moon $moon_id true
+		}
+            }
+            
         }
         
         typevariable min_mass 0.4
