@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160421.1549>
+#  Last Modified : <160427.1652>
 #
 #  Description	
 #
@@ -1382,8 +1382,17 @@ proc print {v} {
 ##set system [planetarysystem::PlanetarySystem %AUTO% -generate no -filename test.system]
 #
 #
-set maindisp [planetarysystem::MainScreen .main -generate no -filename test.system]
-pack $maindisp -fill both -expand yes
+#set maindisp [planetarysystem::MainScreen .main -generate no -filename test.system]
+#pack $maindisp -fill both -expand yes
 #$pd save test.system
 #exit
+
+package require stargen
+
+set results [stargen main -mass [expr {.8+(rand()*.4)}] -habitable -moons \
+             -count 5 -verbose 0x7FFFF -seed 661278582 -use_solar_system]
+
+foreach s $results {
+    $s print stdout
+}
 

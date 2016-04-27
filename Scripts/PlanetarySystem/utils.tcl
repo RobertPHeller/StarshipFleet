@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:01:31 2016
-#  Last Modified : <160411.1422>
+#  Last Modified : <160427.1347>
 #
 #  Description	
 #
@@ -57,4 +57,9 @@ namespace eval stargen::utils {
     }
     namespace export random_number about random_eccentricity
 }
+
+namespace eval ::tcl::mathfunc:: {
+    namespace import ::stargen::utils::about
+}
+
 

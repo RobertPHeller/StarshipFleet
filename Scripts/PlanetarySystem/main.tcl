@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 10:23:40 2016
-#  Last Modified : <160427.1056>
+#  Last Modified : <160427.1325>
 #
 #  Description	
 #
@@ -42,14 +42,14 @@
 
 
 source [file join [file dirname [info script]] stargen.tcl]
-namespace import stargen::*
+#namespace import stargen::*
 
 package require snit
 
 
 
 
-snit::type main {
+snit::type stargen {
     pragma -hastypeinfo no -hastypedestroy no -hasinstances no
     
     typeconstructor {
@@ -64,7 +64,7 @@ snit::type main {
         #planets sphinx    ={ 2,	1.6,	0.02,	10.5,	EM(2.2),	FALSE,	EM(2.2),	0, 	ZEROES,0,NULL, &sphinx2};
         #planets manticore ={ 1,	1.115,	0.017,	23.5,	EM(1.01),	FALSE,	EM(1.01),	0, 	ZEROES,0,NULL, &sphinx};
         
-        namespace import ::stargen::*
+        #namespace import ::stargen::*
         
         Planets_Record sphinx3  -planet_no 4 -a 3.0 -e 0.046 \
               -axial_tilt 10.5 -mass [EM 2.35] -gas_giant false \
@@ -159,7 +159,7 @@ snit::type main {
         set ratio_arg 0.0
         set flags_arg 0
         
-        namespace import ::stargen::*
+        #namespace import ::stargen::*
         set seed_arg [from args -seed $seed_arg]
         #puts stderr "*** $type main: seed_arg = $seed_arg"
         set mass_arg [from args -mass $mass_arg]
@@ -301,3 +301,4 @@ snit::type main {
                 $ratio_arg $flags_arg]
     }
 }
+package provide stargen 0.1

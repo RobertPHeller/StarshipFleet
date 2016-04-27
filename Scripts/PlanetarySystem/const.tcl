@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:57:46 2016
-#  Last Modified : <160410.1044>
+#  Last Modified : <160427.1356>
 #
 #  Description	
 #
@@ -94,7 +94,7 @@ namespace eval stargen {
     variable FREEZING_POINT_OF_WATER 273.15;#		/* Units of degrees Kelvin	*/
     #//      EARTH_AVERAGE_CELSIUS   (15.5)			/* Average Earth Temperature */
     variable EARTH_AVERAGE_CELSIUS   14.0;#			/* Average Earth Temperature */
-    variable EARTH_AVERAGE_KELVIN    EARTH_AVERAGE_CELSIUS + FREEZING_POINT_OF_WATER;#
+    variable EARTH_AVERAGE_KELVIN    [expr {$EARTH_AVERAGE_CELSIUS + $FREEZING_POINT_OF_WATER}];#
     variable DAYS_IN_A_YEAR			365.256;#		/* Earth days per Earth year*/
     #//		gas_retention_threshold = 5.0;  		/* ratio of esc vel to RMS vel */
     variable GAS_RETENTION_THRESHOLD 6.0;#			/* ratio of esc vel to RMS vel */

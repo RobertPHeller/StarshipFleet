@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160427.1138>
+#  Last Modified : <160427.1654>
 #
 #  Description	
 #
@@ -132,9 +132,9 @@ namespace eval stargen {
             return [llength $planets]
         }
         destructor {
-            foreach planet $planets {
-                $planet destroy
-            }
+            #foreach planet $planets {
+            #    $planet destroy
+            #}
         }
         method print {outchan} {
             puts $outchan [format "%s: %s" $self [$self cget -name]]
@@ -206,7 +206,7 @@ namespace eval stargen {
 	option -estimated_temp -type {snit::double -min 0.0} -default 0.0;# quick non-iterative estimate (K)
 	option -estimated_terr_temp -type snit::double -default 0.0;# for terrestrial moons and the like
 	option -surf_temp -type {snit::double -min 0.0} -default 0.0;# surface temperature in Kelvin
-	option -greenhs_rise -type {snit::double -min 0.0} -default 0.0;# Temperature rise due to greenhouse
+	option -greenhs_rise -type snit::double -default 0.0;# Temperature rise due to greenhouse
 	option -high_temp -type snit::double -default 0.0;# Day-time temperature
 	option -low_temp -type snit::double -default 0.0;# Night-time temperature
 	option -max_temp -type snit::double -default 0.0;# Summer/Day
@@ -256,12 +256,14 @@ namespace eval stargen {
             $self configurelist $args
         }
         destructor {
-            foreach moon $moons {
-                $moon destroy
-            }
-            foreach g $atmosphereGases {
-                $g destroy
-            }
+            #if {[catch {set moons}]} {set moons [list]}
+            #foreach moon $moons {
+            #    $moon destroy
+            #}
+            #if {[catch {set atmosphereGases}]} {set atmosphereGases [list]}
+            #foreach g $atmosphereGases {
+            #    $g destroy
+            #}
         }
         method addmoon {moon} {
             ::stargen::Planets_Record validate $moon
@@ -308,74 +310,74 @@ namespace eval stargen {
         typemethod copy {name other {copy_all yes}} {
             $type validate $other
             if {$copy_all} {
-                return[$type create $name \
-                       -planet_no [$other cget -planet_no] \
-                       -a [$other cget -a] \
-                       -e [$other cget -e] \
-                       -axial_tilt [$other cget -axial_tilt] \
-                       -mass [$other cget -mass] \
-                       -gas_giant [$other cget -gas_giant] \
-                       -dust_mass [$other cget -dust_mass] \
-                       -gas_mass [$other cget -gas_mass] \
-                       -moon_a [$other cget -moon_a] \
-                       -moon_e [$other cget -moon_e] \
-                       -core_radius [$other cget -core_radius] \
-                       -radius [$other cget -radius] \
-                       -orbit_zone [$other cget -orbit_zone] \
-                       -density [$other cget -density] \
-                       -orb_period [$other cget -orb_period] \
-                       -day [$other cget -day] \
-                       -resonant_period [$other cget -resonant_period] \
-                       -esc_velocity [$other cget -esc_velocity] \
-                       -surf_accel [$other cget -surf_accel] \
-                       -surf_grav [$other cget -surf_grav] \
-                       -rms_velocity [$other cget -rms_velocity] \
-                       -molec_weight [$other cget -molec_weight] \
-                       -volatile_gas_inventory [$other cget -volatile_gas_inventory] \
-                       -surf_pressure [$other cget -surf_pressure] \
-                       -greenhouse_effect [$other cget -greenhouse_effect] \
-                       -boil_point [$other cget -boil_point] \
-                       -albedo [$other cget -albedo] \
-                       -exospheric_temp [$other cget -exospheric_temp] \
-                       -estimated_temp [$other cget -estimated_temp] \
-                       -estimated_terr_temp [$other cget -estimated_terr_temp] \
-                       -surf_temp [$other cget -surf_temp] \
-                       -greenhs_rise [$other cget -greenhs_rise] \
-                       -high_temp [$other cget -high_temp] \
-                       -low_temp [$other cget -low_temp] \
-                       -max_temp [$other cget -max_temp] \
-                       -min_temp [$other cget -min_temp] \
-                       -hydrosphere [$other cget -hydrosphere] \
-                       -cloud_cover [$other cget -cloud_cover] \
-                       -ice_cover [$other cget -ice_cover] \
-                       -sun [$other cget -sun] \
-                       -atmosphere [::stargen::GasList copy [$other cget -atmosphere]] \
-                       -ptype [$other cget -ptype] \
-                       -minor_moons [$other cget -minor_moons] \
-                       -moons [::stargen::PlanetList copy [$other cget -moons] $copy_all]]
+                return [$type create $name \
+                        -planet_no [$other cget -planet_no] \
+                        -a [$other cget -a] \
+                        -e [$other cget -e] \
+                        -axial_tilt [$other cget -axial_tilt] \
+                        -mass [$other cget -mass] \
+                        -gas_giant [$other cget -gas_giant] \
+                        -dust_mass [$other cget -dust_mass] \
+                        -gas_mass [$other cget -gas_mass] \
+                        -moon_a [$other cget -moon_a] \
+                        -moon_e [$other cget -moon_e] \
+                        -core_radius [$other cget -core_radius] \
+                        -radius [$other cget -radius] \
+                        -orbit_zone [$other cget -orbit_zone] \
+                        -density [$other cget -density] \
+                        -orb_period [$other cget -orb_period] \
+                        -day [$other cget -day] \
+                        -resonant_period [$other cget -resonant_period] \
+                        -esc_velocity [$other cget -esc_velocity] \
+                        -surf_accel [$other cget -surf_accel] \
+                        -surf_grav [$other cget -surf_grav] \
+                        -rms_velocity [$other cget -rms_velocity] \
+                        -molec_weight [$other cget -molec_weight] \
+                        -volatile_gas_inventory [$other cget -volatile_gas_inventory] \
+                        -surf_pressure [$other cget -surf_pressure] \
+                        -greenhouse_effect [$other cget -greenhouse_effect] \
+                        -boil_point [$other cget -boil_point] \
+                        -albedo [$other cget -albedo] \
+                        -exospheric_temp [$other cget -exospheric_temp] \
+                        -estimated_temp [$other cget -estimated_temp] \
+                        -estimated_terr_temp [$other cget -estimated_terr_temp] \
+                        -surf_temp [$other cget -surf_temp] \
+                        -greenhs_rise [$other cget -greenhs_rise] \
+                        -high_temp [$other cget -high_temp] \
+                        -low_temp [$other cget -low_temp] \
+                        -max_temp [$other cget -max_temp] \
+                        -min_temp [$other cget -min_temp] \
+                        -hydrosphere [$other cget -hydrosphere] \
+                        -cloud_cover [$other cget -cloud_cover] \
+                        -ice_cover [$other cget -ice_cover] \
+                        -sun [$other cget -sun] \
+                        -atmosphere [::stargen::GasList copy [$other cget -atmosphere]] \
+                        -ptype [$other cget -ptype] \
+                        -minor_moons [$other cget -minor_moons] \
+                        -moons [::stargen::PlanetList copy [$other cget -moons] $copy_all]]
             } else {
-                return[$type create $name \
-                       -planet_no [$other cget -planet_no] \
-                       -a [$other cget -a] \
-                       -e [$other cget -e] \
-                       -axial_tilt [$other cget -axial_tilt] \
-                       -mass [$other cget -mass] \
-                       -gas_giant [$other cget -gas_giant] \
-                       -dust_mass [$other cget -dust_mass] \
-                       -gas_mass [$other cget -gas_mass] \
-                       -minor_moons [$other cget -minor_moons] \
-                       -moons [::stargen::PlanetList copy [$other cget -moons] $copy_all]]
+                return [$type create $name \
+                        -planet_no [$other cget -planet_no] \
+                        -a [$other cget -a] \
+                        -e [$other cget -e] \
+                        -axial_tilt [$other cget -axial_tilt] \
+                        -mass [$other cget -mass] \
+                        -gas_giant [$other cget -gas_giant] \
+                        -dust_mass [$other cget -dust_mass] \
+                        -gas_mass [$other cget -gas_mass] \
+                        -minor_moons [$other cget -minor_moons] \
+                        -moons [::stargen::PlanetList copy [$other cget -moons] $copy_all]]
             }
        }
 
     }
-    snit::listtype Dustlist -type ::stargen::Dust_Record
     snit::type Dust_Record {
         typemethod validate {o} {
+            puts stderr "*** $type validate $o"
             if {[catch {$o info type} ot]} {
-                error [format "%s is not a %s" $o $type]
+                error [format "%s is not a %s (no info type method: %s)" $o $type $ot]
             } elseif {$ot ne $type} {
-                error [format "%s is not a %s" $o $type]
+                error [format "%s is not a %s it is a %s" $o $type $ot]
             } else {
                 return $o
             }
@@ -388,6 +390,7 @@ namespace eval stargen {
             $self configurelist $args
         }
     }
+    snit::listtype DustList -type ::stargen::Dust_Record
     snit::type Star {
         typemethod validate {o} {
             if {[catch {$o info type} ot]} {
@@ -449,7 +452,7 @@ namespace eval stargen {
                 return $o
             }
         }
-        variable dusts
+        variable dusts [list]
         option -dusts -default {} -type ::stargen::DustList \
               -configuremethod _setdusts -cgetmethod _getdusts
         method _setdusts {o v} {set dusts $v}
@@ -459,7 +462,7 @@ namespace eval stargen {
             }
             return $dusts
         }
-        variable planets
+        variable planets [list]
         option -planets -default {} -type ::stargen::PlanetList \
               -configuremethod _setplanets -cgetmethod _getplanets
         method _setplanets {o v} {set planets $v}
@@ -471,6 +474,8 @@ namespace eval stargen {
         }
         constructor {args} {
             $self configurelist $args
+            if {[catch {set dusts}]} {set dusts [list]}
+            if {[catch {set planets}]} {set planets [list]}
         }
         destructor {
             foreach d $dusts {

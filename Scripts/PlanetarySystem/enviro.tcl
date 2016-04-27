@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:34 2016
-#  Last Modified : <160424.1201>
+#  Last Modified : <160427.1358>
 #
 #  Description	
 #
@@ -500,6 +500,8 @@ namespace eval ::stargen::enviro {
             
 
     proc est_temp {ecosphere_radius orb_radius albedo} {
+        #puts stderr "*** [namespace current]::est_temp $ecosphere_radius $orb_radius $albedo"
+        #puts stderr "*** [namespace current]::est_temp: ::stargen::EARTH_AVERAGE_KELVIN = $::stargen::EARTH_AVERAGE_KELVIN"
         return [expr {(sqrt($ecosphere_radius / $orb_radius) \
                        * pow1_4((1.0 - $albedo) / (1.0 - $::stargen::EARTH_ALBEDO)) \
                        * $::stargen::EARTH_AVERAGE_KELVIN)}]
@@ -859,7 +861,7 @@ namespace eval ::stargen::enviro {
         if {($::stargen::flag_verbose & 0x0020) != 0} {
             
             puts stderr [format \
-                         {%5.1lf AU: %5.1lf = %5.1lf ef + %5.1lf gh%c (W: %4.2lf (%4.2lf) C: %4.2lf (%4.2lf) I: %4.2lf A: (%4.2lf))} \
+                         {%5.1lf AU: %5.1lf = %5.1lf ef + %5.1lf gh%s (W: %4.2lf (%4.2lf) C: %4.2lf (%4.2lf) I: %4.2lf A: (%4.2lf))} \
                          [$planet cget -a] \
                          [expr {[$planet cget -surf_temp] - $::stargen::FREEZING_POINT_OF_WATER}] \
                          [expr {$effective_temp - $::stargen::FREEZING_POINT_OF_WATER}] \
@@ -983,7 +985,7 @@ namespace eval ::stargen::enviro {
 
     #* function for 'soft limiting' temperatures */
 
-    proc ::mathfunc::lim {x} {
+    proc ::tcl::mathfunc::lim {x} {
         return [expr {$x / sqrt(sqrt(1 + $x*$x*$x*$x))}]
     }
 
@@ -1023,7 +1025,8 @@ namespace eval ::stargen::enviro {
           ice_fraction eff_temp est_temp grnhouse green_rise planet_albedo \
           opacity gas_life calculate_surface_temp iterate_surface_temp \
           inspired_partial_pressure breathability NONE BREATHABLE \
-          UNBREATHABLE POISONOUS breathability_phrase lim soft set_temp_range
+          UNBREATHABLE POISONOUS breathability_phrase lim soft set_temp_range \
+          inclination
 }
 
 

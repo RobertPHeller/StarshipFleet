@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160427.1139>
+#  Last Modified : <160427.1700>
 #
 #  Description	
 #
@@ -697,6 +697,7 @@ namespace eval stargen {
         
         variable type_counts [list]
         variable type_count 0
+        variable max_type_count 0
         typevariable total_earthlike 0
         typevariable total_habitable 0
     
@@ -712,6 +713,7 @@ namespace eval stargen {
         variable	min_breathable_l 1000.0
         variable	max_breathable_terrestrial_l 0.0
         variable	max_breathable_l 0.0
+        variable        max_moon_mass 0.0
         
         typemethod clone {sun} {
             puts stderr "*** $type clone $sun"
@@ -730,7 +732,7 @@ namespace eval stargen {
             if {$flag_seed != 0} {
                 set seed [clock seconds]
                 expr {srand($seed)}
-                set flag_seed [expr {rand()*0x0ffffffff}]
+                set flag_seed [expr {int(rand()*0x0ffffffff)}]
             }
             expr {srand($flag_seed)}
         }
@@ -789,7 +791,7 @@ namespace eval stargen {
         }
         method post_generate {only_habitable only_multi_habitable 
             only_jovian_habitable only_earthlike index use_solar_system 
-            reuse_solar_system} {
+            reuse_solar_system system_name flag_char sys_no seed_increment} {
             puts stderr "*** $self post_generate $only_habitable $only_multi_habitable"
             
             set wt_type_count $type_count
@@ -840,7 +842,7 @@ namespace eval stargen {
                 set max_type_count $norm_type_count
 		
                 if {($::stargen::flag_verbose & 0x10000) != 0} {
-                    puts stderr [format "System %ld - %s (-s%ld -%c%d) has %d types out of %d planets. [%d]" \
+                    puts stderr [format "System %ld - %s (-s%ld -%s%d) has %d types out of %d planets. \[%d\]" \
                                  $flag_seed \
                                  $system_name \
                                  $flag_seed \
@@ -866,7 +868,7 @@ namespace eval stargen {
                 set result true
                 
                 if {($habitable > 1) && ($::stargen::flag_verbose & 0x0001) != 0} {
-                    puts stderr "System %ld - %s (-s%ld -%c%d) has %d planets with breathable atmospheres." \
+                    puts stderr "System %ld - %s (-s%ld -%s%d) has %d planets with breathable atmospheres." \
                           $flag_seed \
                           $system_name \
                           $flag_seed \
@@ -894,7 +896,7 @@ namespace eval stargen {
                 puts stderr [format "Breathable g range: %4.2lf -  %4.2lf" \
                              $min_breathable_g \
                              $max_breathable_g]
-                puts stderr [format "Terrestrial g range: %4.2lf -  %4.2lf" \ 
+                puts stderr [format "Terrestrial g range: %4.2lf -  %4.2lf" \
                              $min_breathable_terrestrial_g \
                              $max_breathable_terrestrial_g]
                 puts stderr [format "Breathable pressure range: %4.2lf -  %4.2lf" \
@@ -922,14 +924,15 @@ namespace eval stargen {
             }
             return $result
         }
-        method calculate_gases {planets planet_id} {
-            puts stderr "*** $self calculate_gases $planets $planet_id"
+        method calculate_gases {planet planet_id} {
+            puts stderr "*** $self calculate_gases $planet $planet_id"
             if {[$planet cget -surf_pressure] > 0} {
                 set amount [listdoubles [expr {$::stargen::max_gas + 1}]]
 		set totamount 0.0
                 set pressure [expr {[$planet cget -surf_pressure] / $::stargen::MILLIBARS_PER_BAR}]
-                set n ;
+                set n 0
                 for {set i 0} {$i < $::stargen::max_gas} {incr i} {
+                    puts stderr "*** $self calculate_gases: i = $i, (max_gas is $::stargen::max_gas)"
                     set yp [expr {[[lindex $::stargen::gases $i] cget -boil] / \
                             (373. * ((log(($pressure) + 0.001) / -5050.5) + \
                                      (1.0 / 373.)))}]
@@ -944,31 +947,31 @@ namespace eval stargen {
                         set fract 1.0
                         set pres2 1.0
 			
-                        if {[[lindex $::stargen::gases $i] -symbol] eq "Ar"} {
+                        if {[[lindex $::stargen::gases $i] cget -symbol] eq "Ar"} {
                             set react [expr {.15 * [$sun cget -age]/4e9}]
-                        } elseif {[[lindex $::stargen::gases $i] -symbol] eq "He"} {
+                        } elseif {[[lindex $::stargen::gases $i] cget -symbol] eq "He"} {
                             set abund [expr {$abund * (0.001 + ([$planet cget -gas_mass] / [$planet cget -mass]))}]
                             set pres2 [expr {(0.75 + $pressure)}]
                             set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), [$sun cget -age]/2e9 * $pres2)}]
-                        } elseif {([[lindex $::stargen::gases $i] -symbol] eq "O" ||
-                                   [[lindex $::stargen::gases $i] -symbol] eq "O2") && 
+                        } elseif {([[lindex $::stargen::gases $i] cget -symbol] eq "O" ||
+                                   [[lindex $::stargen::gases $i] cget -symbol] eq "O2") && 
                                   [$sun cget -age] > 2e9 &&
                                   [$planet cget -surf_temp] > 270 && [$planet cget -surf_temp] < 400} {
                             #/*	pres2 = (0.65 + pressure/2);			Breathable - M: .55-1.4 	*/
                             set pres2 [expr {(0.89 + $pressure/4.0)}];#		/*	Breathable - M: .6 -1.8 	*/
                             set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), \
                                                        pow([$sun cget -age]/2e9, 0.25) * $pres2)}]
-                        } elseif {[[lindex $::stargen::gases $i] -symbol] eq "CO2" && 
+                        } elseif {[[lindex $::stargen::gases $i] cget -symbol] eq "CO2" && 
                                   [$sun cget -age] > 2e9 &&
                                   [$planet cget -surf_temp] > 270 && [$planet cget -surf_temp] < 400} {
-                            set pres2 [expr {(0.75 + pressure)}]
+                            set pres2 [expr {(0.75 + $pressure)}]
                             set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), \
                                                  pow([$sun cget -age]/2e9, 0.5) * $pres2)}]
                             set react [expr {$react * 1.5}]
                         } else {
                             set pres2 [expr {(0.75 + $pressure)}]
                             set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), \
-                                                 [expr $sun cget -age]/2e9 * $pres2)}]
+                                                 [$sun cget -age]/2e9 * $pres2)}]
                         }
                         
                         set fract [expr {(1 - ([$planet cget -molec_weight] / [[lindex $::stargen::gases $i] cget -weight]))}]
@@ -980,8 +983,8 @@ namespace eval stargen {
                              [[lindex $::stargen::gases $i] cget -symbol] eq "N" ||
                              [[lindex $::stargen::gases $i] cget -symbol] eq "Ar" ||
                              [[lindex $::stargen::gases $i] cget -symbol] eq "He" ||
-                             [[lindex $::stargen::gases $i] cget -symbol] eq "CO2)} {
-                            puts stderr [format {%-5.2lf %-3.3s, %-5.2lf = a %-5.2lf * p %-5.2lf * r %-5.2lf * p2 %-5.2lf * f %-5.2lf\t(%.3lf%%)}  \
+                             [[lindex $::stargen::gases $i] cget -symbol] eq "CO2")} {
+                            puts stderr [format "%-5.2lf %-3.3s, %-5.2lf = a %-5.2lf * p %-5.2lf * r %-5.2lf * p2 %-5.2lf * f %-5.2lf\t(%.3lf%%)"  \
                                          [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
                                          [[lindex $::stargen::gases $i] cget -symbol] \
                                          [lindex $amount $i] \
@@ -994,25 +997,28 @@ namespace eval stargen {
                         }
 
                         set totamount [expr {$totamount + [lindex $amount $i]}]
-                        if {[lindex $amount $i] > 0.0} {n++;}
+                        if {[lindex $amount $i] > 0.0} {incr n}
                     } else {
                         lset amount $i 0.0
                     }
                 }
-
-		if {$n > 0} {
+                puts stderr "*** $self calculate_gases: n = $n"
+		puts stderr "*** $self calculate_gases: amount is $amount"
+                if {$n > 0} {
                     set atmospherelist [list]
                     
-                    for {set i 0} {$i < $::stargen::max_gas} {incr i++} {
+                    for {set i 0} {$i < $::stargen::max_gas} {incr i} {
+                        puts stderr "*** $self calculate_gases (n > 0 loop): i = $i, max_gas = $::stargen::max_gas"
+                        puts stderr "*** $self calculate_gases (n > 0 loop): [lindex $amount $i]"
                         if {[lindex $amount $i] > 0.0} {
                             lappend atmospherelist \
                                   [::stargen::Gas %AUTO% \
                                    -num [[lindex $::stargen::gases $i] cget -num] \
-                                   -surf_pressure [expr {[$planet cget -surf_pressure] \ 
-                                                   * [lindex $amount $i] / $totamount}]
-                            
+                                   -surf_pressure [expr {[$planet cget -surf_pressure] \
+                                                   * [lindex $amount $i] / $totamount}]]
+                            puts stderr "*** $self calculate_gases: added [[lindex $::stargen::gases $i] cget -symbol], ammount is [lindex $amount $i]"
                             if {($::stargen::flag_verbose & 0x2000) != 0} {
-                                if {[[lindex $atmospherelist end] cget -num] == $::stargen::AN_O) && \
+                                if {[[lindex $atmospherelist end] cget -num] == $::stargen::AN_O && \
                                     [inspired_partial_pressure \
                                      [$planet cget -surf_pressure] \
                                      [[lindex $atmospherelist end] cget -surf_pressure]] \
@@ -1105,11 +1111,11 @@ namespace eval stargen {
                 && (([$planet cget -gas_mass] / [$planet cget -mass])        > 0.05)
                 && ([min_molec_weight $planet]				  <= 4.0)} {
                 if {([$planet cget -gas_mass] / [$planet cget -mass]) < 0.20} {
-                    $planet configure -type  tSubSubGasGiant
+                    $planet configure -ptype  tSubSubGasGiant
                 } elseif {([$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES) < 20.0} {
-                    $planet configure -type  tSubGasGiant
+                    $planet configure -ptype  tSubGasGiant
                 } else {
-                    $planet configure -type  tGasGiant
+                    $planet configure -ptype  tGasGiant
                 }
             } else { #// If not, it's rocky.
                 $planet configure -radius    [kothari_radius \
@@ -1178,9 +1184,9 @@ namespace eval stargen {
                                              [$planet cget -mass] \
                                              [$planet cget -radius]]
             
-            if {([$planet cget -ptype eq "tGasGiant")
-                || ([$planet cget -ptype eq "tSubGasGiant") 
-                || ([$planet cget -ptype eq "tSubSubGasGiant")} {
+            if {([$planet cget -ptype] eq "tGasGiant")
+                || ([$planet cget -ptype] eq "tSubGasGiant") 
+                || ([$planet cget -ptype] eq "tSubSubGasGiant")} {
                 $planet configure -greenhouse_effect 	  false
                 $planet configure -volatile_gas_inventory $::stargen::INCREDIBLY_LARGE_NUMBER
                 $planet configure -surf_pressure 	  $::stargen::INCREDIBLY_LARGE_NUMBER
@@ -1211,7 +1217,7 @@ namespace eval stargen {
                 if {($temp >= $::stargen::FREEZING_POINT_OF_WATER)
                     && ($temp <= $::stargen::EARTH_AVERAGE_KELVIN + 10.)
                     && ([$sun cget -age] > 2.0E9)} {
-                    incr habitable_jovians++
+                    incr habitable_jovians
                         
                     if {($::stargen::flag_verbose & 0x8000) != 0} {
                         puts stderr [format \
@@ -1279,7 +1285,7 @@ namespace eval stargen {
                 if {$do_gases &&
                     ([$planet cget -max_temp] >= $::stargen::FREEZING_POINT_OF_WATER) &&
                     ([$planet cget -min_temp] <= [$planet cget -boil_point])} {
-                    calculate_gases $sun $planet $planet_id
+                    $self calculate_gases $planet $planet_id
                 }
                 #/*
                 # *	Next we assign a type to the planet.
@@ -1295,7 +1301,6 @@ namespace eval stargen {
                 } elseif {([$planet cget -surf_pressure] > 6000.0) &&
                     ([$planet cget -molec_weight] <= 2.0)} {	#// Retains Hydrogen
                     $planet configure -ptype  tSubSubGasGiant
-                    $planet configure -gases  0
                     set olda [$planet cget -atmosphere]
                     foreach g $olda {$g destroy}
                     unset olda
@@ -1313,19 +1318,19 @@ namespace eval stargen {
                         #// else <5% water
                     } elseif {[$planet cget -max_temp] > [$planet cget -boil_point]} {
                         $planet configure -ptype  tVenusian;#// Hot = Venusian
-                    } elseif {([$planet cget -gas_mass] / [$planet cget -mass]) > 0.0001} {										// Accreted gas
+                    } elseif {([$planet cget -gas_mass] / [$planet cget -mass]) > 0.0001} {#	// Accreted gas
                         $planet configure -ptype  tIce;#// But no Greenhouse
                         $planet configure -ice_cover  1.0;#	// or liquid water
                         # // Make it an Ice World
                     } elseif {[$planet cget -surf_pressure] <= 250.0} {#// Thin air = Martian
                         $planet configure -ptype  tMartian
-                    } elseif {[$planet -surf_temp] < $::stargen::FREEZING_POINT_OF_WATER} {
+                    } elseif {[$planet cget -surf_temp] < $::stargen::FREEZING_POINT_OF_WATER} {
                         $planet configure -ptype  tIce
                     } else {
                         $planet configure -ptype  tUnknown
                         
                         if {($::stargen::flag_verbose & 0x0001) != 0} {
-                            puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%s\t Unknown %s" \ 
+                            puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%s\t Unknown %s" \
                                          [type_string [$planet cget -ptype]] \
                                          [$planet cget -surf_pressure] \
                                          [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
@@ -1375,14 +1380,14 @@ namespace eval stargen {
                                           [format "   Roche limit: R = %4.2lg, rM = %4.2lg, rm = %4.2lg -> %.0lf km\n   Hill Sphere: a = %4.2lg, m = %4.2lg, M = %4.2lg -> %.0lf km\n   %s Moon orbit: a = %.0lf km, e = %.0lg" \
                                            [$planet cget -radius] \
                                            [$planet cget -density] \
-                                           [$ptr -density] \
+                                           [$ptr cget -density] \
                                            $roche_limit \
                                            [expr {[$planet cget -a] * $::stargen::KM_PER_AU}] \
                                            [expr {[$planet cget -mass] * $::stargen::SOLAR_MASS_IN_KILOGRAMS}] \
                                            [expr {[$sun cget -mass] * $::stargen::SOLAR_MASS_IN_KILOGRAMS}] \
                                            $hill_sphere \
                                            $moon_id \
-                                           [expr {[$ptr -moon_a] * $::stargen::KM_PER_AU}] \
+                                           [expr {[$ptr cget -moon_a] * $::stargen::KM_PER_AU}] \
                                            [$ptr cget -moon_e]]
                                 }
                             }
@@ -1427,9 +1432,9 @@ namespace eval stargen {
             #/* Check for and list planets with breathable atmospheres */
 	
             set breathe [breathability $planet]
-		
+		#	// Option needed?
             if {($breathe == $::stargen::enviro::BREATHABLE) &&
-                (![$planet cet -resonant_period]) &&	#	// Option needed?
+                (![$planet cet -resonant_period]) &&	
                 (int([$planet cget -day]) != int([$planet cget -orb_period] * 24.0))} {
                 set list_it false
                 set illumination [expr {pow2 (1.0 / [$planet cget -a]) 
@@ -1561,7 +1566,7 @@ namespace eval stargen {
                                  [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
                                  [$planet cget -surf_grav] \
                                  [expr {[$planet cget -surf_temp]  - $::stargen::EARTH_AVERAGE_KELVIN}] \
-                                 $planet_id);
+                                 $planet_id]
                 }
         
                 if {(($::stargen::flag_verbose & 0x0800) != 0)
@@ -1641,7 +1646,7 @@ namespace eval stargen {
             
             foreach planet [$sun getplanets] {
                 incr planet_no
-                set planet_id [format "%s (-s%ld -%c%d) %d" \
+                set planet_id [format "%s (-s%ld -%s%d) %d" \
                                $system_name $flag_seed $flag_char $sys_no \
                                $planet_no]
 
@@ -1831,13 +1836,14 @@ namespace eval stargen {
                 if {[$system post_generate $only_habitable \
                      $only_multi_habitable $only_jovian_habitable \
                      $only_earthlike $index $use_solar_system \
-                     $reuse_solar_system]} {
+                     $reuse_solar_system $system_name $flag_char $sys_no \
+                     $seed_increment]} {
                     lappend result $system
                 } else {
                     $system destroy
                     incr index -1
                 }
-                
+                puts stderr "*** $type stargen: system_count = $system_count, index = $index, result has [llength $result] elements"
             }
             $sun destroy
             return $result
@@ -1846,6 +1852,7 @@ namespace eval stargen {
     namespace export System
 }    
     
+
 
 
 

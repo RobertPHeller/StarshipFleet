@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:05 2016
-#  Last Modified : <160414.1158>
+#  Last Modified : <160427.1601>
 #
 #  Description	
 #
@@ -72,6 +72,7 @@ namespace eval ::stargen::accrete {
         variable dust_left
         variable cloud_eccentricity
         
+        #puts stderr "*** ::stargen::accrete::set_initial_conditions: dust_head is \{$dust_head\}"
         set hist [Generation %AUTO% -dusts $dust_head -planets $planet_head]
         set hist_head [linsert $hist_head 0 $hist]
         set dust_head [list [Dust_Record %AUTO% \
@@ -217,6 +218,7 @@ namespace eval ::stargen::accrete {
     }
     proc collect_dust {last_mass new_dustName new_gasName a e crit_mass 
         dust_band} {
+        puts stderr "*** [namespace current]::collect_dust $last_mass $new_dustName $new_gasName $a $e $crit_mass $dust_band"
         variable dust_left
         variable r_inner
         variable r_outer
@@ -294,6 +296,7 @@ namespace eval ::stargen::accrete {
     }
     proc accrete_dust {seed_massName new_dustName new_gasName a e crit_mass 
         body_inner_bound body_outer_bound} {
+        puts stderr "*** [namespace current]::accrete_dust $seed_massName $new_dustName $new_gasName $a $e $crit_mass $body_inner_bound $body_outer_bound"
         upvar $seed_massName seed_mass
         upvar $new_dustName new_dust
         upvar $new_gasName new_gas
@@ -305,6 +308,7 @@ namespace eval ::stargen::accrete {
         do {
             set temp_mass $new_mass
             set new_mass [collect_dust $new_mass new_dust new_gas $a $e $crit_mass $dust_head]
+            puts stderr "*** [namespace current]::accrete_dust: new_mass = $new_mass"
         } while {!(($new_mass - $temp_mass) < (0.0001 * $temp_mass))}
         set seed_mass [expr {$seed_mass + $new_mass}]
         update_dust_lanes $r_inner $r_outer $seed_mass $crit_mass \
@@ -324,14 +328,17 @@ namespace eval ::stargen::accrete {
     }
                 
     proc reinsert_planet {pindex} {
+        puts stderr "*** [namespace current]::reinsert_planet $pindex"
         variable planet_head
         
         set the_planet [lindex $planet_head $pindex]
+        puts stderr "*** [namespace current]::reinsert_planet: the_planet -name = [$the_planet cget -name]"
         set planet_head [lreplace $planet_head $pindex $pindex]
         return [insert_planet $the_planet]
     }
     proc coalesce_planetesimals {a e mass crit_mass dust_mass gas_mass 
         stell_luminosity_ratio body_inner_bound body_outer_bound do_moons} {
+        puts stderr "*** [namespace current]::coalesce_planetesimals $a $e $mass $crit_mass $dust_mass $gas_mass $stell_luminosity_ratio $body_inner_bound $body_outer_bound $do_moons"
         variable dust_left
         variable r_inner
         variable r_outer
@@ -397,7 +404,6 @@ namespace eval ::stargen::accrete {
                                           -moons      [list] \
                                           -gas_giant  false \
                                           -albedo     0 \
-                                          -gases      0 \
                                           -surf_temp  0 \
                                           -high_temp  0 \
                                           -low_temp   0 \
@@ -470,6 +476,7 @@ namespace eval ::stargen::accrete {
                         $the_planet configure -gas_giant true
                     }
                     
+                    puts stderr "*** [namespace current]::coalesce_planetesimals: pindex = $pindex, the_planet is [$the_planet -cget -name]"
                     set pindex [reinsert_planet $pindex]
                     incr pindex
                 }
@@ -484,9 +491,9 @@ namespace eval ::stargen::accrete {
             set the_planet [Planets_Record %AUTO% -ptype tUnknown -a $a -e $e \
                             -mass $mass -dust_mass $dust_mass \
                             -gas_mass $gas_mass -atmosphere [list] \
-                            -moons [list] -albedo 0 -gases 0 -surf_temp 0 \
+                            -moons [list] -albedo 0  -surf_temp 0 \
                             -high_temp 0 -low_temp 0 -max_temp 0 -min_temp 0 \
-                            -greenhs_rise 0 -minor_moons= 0]
+                            -greenhs_rise 0 -minor_moons 0]
             if {$mass >= $crit_mass} {
                 $the_planet configure -gas_giant true
             } else {
@@ -539,11 +546,11 @@ namespace eval ::stargen::accrete {
             if {[dust_available [inner_effect_limit $a $e $mass] \
                  [outer_effect_limit $a $e $mass]]} {
                 if {($::stargen::flag_verbose & 0x0100) != 0} {
-                    puts stderr [format "Injecting protoplanet at %Lg AU." $a]
+                    puts stderr [format "Injecting protoplanet at %lg AU." $a]
                 }
                 set dust_density [expr {$dust_density_coeff * \
                                   sqrt($stell_mass_ratio) * \
-                                  exp(-$::stargen::ALPHA * pow($aa,(1.0 / $::stargen::N)))}]
+                                  exp(-$::stargen::ALPHA * pow($a,(1.0 / $::stargen::N)))}]
                 set crit_mass [critical_limit $a $e $stell_luminosity_ratio]
                 accrete_dust mass dust_mass gas_mass $a $e $crit_mass \
                       $planet_inner_bound $planet_outer_bound    
@@ -587,8 +594,11 @@ namespace eval ::stargen::accrete {
         foreach h $hist_head {
             $h destroy
         }
+        set hist_head [list]
         free_dust $dust_head
+        set dust_head [list]
         free_planet $planet_head
+        set planet_head [list]
     }
     namespace export set_initial_conditions stellar_dust_limit nearest_planet \
           farthest_planet inner_effect_limit outer_effect_limit dust_available \
