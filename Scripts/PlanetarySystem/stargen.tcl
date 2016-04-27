@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160427.1045>
+#  Last Modified : <160427.1139>
 #
 #  Description	
 #
@@ -686,6 +686,7 @@ namespace eval stargen {
         typevariable dust_density_coeff 
         typeconstructor {
             set dust_density_coeff $::stargen::DUST_DENSITY_COEFF
+            namespace import ::stargen::*
             namespace import ::stargen::accrete::*
             namespace import ::stargen::enviro::*
             namespace import ::stargen::utils::*
@@ -1058,6 +1059,7 @@ namespace eval stargen {
             $planet configure -planet_no $planet_no
             $planet configure -sun	 $sun
             $planet configure -resonant_period  false
+            $planet configure -name $planet_id
             
             $planet configure -orbit_zone [orb_zone \
                                            [$sun cget -luminosity] \

@@ -19,7 +19,14 @@ PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
 		 	 Scripts/PlanetarySystem/PlanetarySystem.tcl \
 		 	 Scripts/PlanetarySystem/SystemDisplay.tcl \
 		 	 Scripts/PlanetarySystem/ObjectDetail.tcl \
-		 	 Scripts/PlanetarySystem/MainDisplay.tcl
+		 	 Scripts/PlanetarySystem/MainDisplay.tcl \
+		 	 Scripts/PlanetarySystem/accrete.tcl \
+		 	 Scripts/PlanetarySystem/const.tcl \
+		 	 Scripts/PlanetarySystem/enviro.tcl \
+		 	 Scripts/PlanetarySystem/main.tcl \
+		 	 Scripts/PlanetarySystem/stargen.tcl \
+		 	 Scripts/PlanetarySystem/structs.tcl \
+		 	 Scripts/PlanetarySystem/utils.tcl
 		 	 
 GUISupportScripts = Scripts/GUISupport/close.gif \
 		    Scripts/GUISupport/DeepwoodsBanner.gif \

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 10:23:40 2016
-#  Last Modified : <160411.1332>
+#  Last Modified : <160427.1056>
 #
 #  Description	
 #
@@ -285,6 +285,11 @@ snit::type main {
         set ratio [from args -ratio 0.0]
         #puts stderr "*** $type main: I = $I (-ratio)"
         if {$ratio > 0.0} {set ratio_arg $ratio}
+        set ::stargen::flag_verbose [from args -verbose 0]
+        if {($::stargen::flag_verbose & 0x0001) != 0} {
+            set flags_arg [expr {$flags_arg | $::stargen::fDoGases}]
+        }
+        
         if {[lsearch -glob $args "-*"] >= 0} {
             puts stderr "Unknown extra args: $args"
             return {}

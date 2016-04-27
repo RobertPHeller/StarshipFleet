@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160427.1019>
+#  Last Modified : <160427.1138>
 #
 #  Description	
 #
@@ -136,6 +136,19 @@ namespace eval stargen {
                 $planet destroy
             }
         }
+        method print {outchan} {
+            puts $outchan [format "%s: %s" $self [$self cget -name]]
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set v [lindex $orec 4]
+                if {$o eq "-name"} {continue}
+                puts $outchan [format "\t%s %lg" $o $v]
+            }
+            foreach p $planets {
+                $p print $outchan
+            }
+        }
+                
     }
     
     snit::type SunOrNull {
@@ -160,6 +173,7 @@ namespace eval stargen {
                 return $o
             }
         }
+        option -name -default ""
         option -planet_no -type {snit::integer -min 0} -default 0
         option -a -type {snit::double -min 0.0} -default 0.0;# semi-major axis of solar orbit (in AU)
         option -e -type {snit::double -min 0.0 -max 1.0} -default 0.0;# eccentricity of solar orbit
@@ -256,6 +270,40 @@ namespace eval stargen {
         method consmoon {moon} {
             ::stargen::Planets_Record validate $moon
             set moons [linsert $moons 0 $moon]
+        }
+        method print {outchan {ismoon no}} {
+            if {$ismoon} {
+                set tab "\t"
+            } else {
+                set tab ""
+            }
+            puts $outchan [format "%s%s: %s" $tab $self [$self cget -name]]
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set v [lindex $orec 4]
+                if {$o eq "-planet_no" || $o eq "-minor_moons"} {
+                    puts $outchan [format "%s\t%s %d" $tab $o $v]
+                } elseif {$o eq "-gas_giant" || $o eq "-resonant_period" ||
+                    $o eq "-greenhouse_effect" || $o eq "-sun"} {
+                    puts $outchan [format "%s\t%s %s" $tab $o $v]
+                } elseif {$o eq "-atmosphere"} {
+                    puts [format "%s\t%s" $tab $o]
+                    foreach g $atmosphereGases {
+                        puts [format "%s\t\t%s %lg" $tab \
+                              [::stargen::ChemTable getsymbol [$g cget -num]] \
+                              [$g cget -surf_pressure]]
+                    }
+                } elseif {$o eq "-moons" && !$ismoon} {
+                    puts [format "\t%s" $o]
+                    foreach m $moons {
+                        $m print $outchan yes
+                    }
+                } elseif {$o eq "-ptype"} {
+                    puts $outchan [format "%s%s: %s" $tab $o [::stargen::type_string $v]]
+                } else {
+                    puts $outchan [format "%s\t%s %lg" $tab $o $v]
+                }
+            }
         }
         typemethod copy {name other {copy_all yes}} {
             $type validate $other
@@ -469,6 +517,14 @@ namespace eval stargen {
                 return $o
             }
         }
+        typemethod getsymbol {num} {
+            foreach i [$type info instances] {
+                if {[$i cget -num] == $num} {
+                    return [$i cget -symbol]
+                }
+            }
+            return ""
+        }
         option -num -type {snit::integer -min 1} -readonly yes
         option -symbol -readonly yes
         option -name -readonly yes
@@ -485,8 +541,27 @@ namespace eval stargen {
         }
     }
     snit::listtype ChemTableList -type ::stargen::ChemTable
+    proc type_string {ptype} {
+	set typeString "Unknown"
+	
+	switch $ptype {
+            tUnknown        {set typeString "Unknown"}
+            tRock	    {set typeString "Rock"}
+            tVenusian	    {set typeString "Venusian"}
+            tTerrestrial    {set typeString "Terrestrial"}
+            tSubSubGasGiant {set typeString "GasDwarf"}
+            tSubGasGiant    {set typeString "Sub-Jovian"}
+            tGasGiant	    {set typeString "Jovian"}
+            tMartian	    {set typeString "Martian"}
+            tWater	    {set typeString "Water"}
+            tIce	    {set typeString "Ice"}
+            tAsteroids 	    {set typeString "Asteroids"}
+            t1Face	    {set typeString "1Face"}
+	}
+	return $typeString
+    }
     namespace export Planet_Type Gas GasList PlanetList Sun SunOrNull \
           Planets_Record Dustlist Dust_Record Star Catalog Generation \
-          ChemTable ChemTableList
+          ChemTable ChemTableList type_string
 }
 
