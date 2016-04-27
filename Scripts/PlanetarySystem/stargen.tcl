@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160426.1413>
+#  Last Modified : <160427.1045>
 #
 #  Description	
 #
@@ -683,7 +683,6 @@ namespace eval stargen {
         delegate option * to sun
         delegate method * to sun
         typevariable flag_seed 0
-        variable planets {}
         typevariable dust_density_coeff 
         typeconstructor {
             set dust_density_coeff $::stargen::DUST_DENSITY_COEFF
@@ -697,8 +696,8 @@ namespace eval stargen {
         
         variable type_counts [list]
         variable type_count 0
-        variable total_earthlike 0
-        variable total_habitable 0
+        typevariable total_earthlike 0
+        typevariable total_habitable 0
     
         variable	min_breathable_terrestrial_g 1000.0
         variable	min_breathable_g 1000.0
@@ -766,7 +765,7 @@ namespace eval stargen {
             $sun configure -life [expr {1.0E10 * ([$sun cget -mass] / [$sun cget -luminosity])}]
             
             if {$use_seed_system} {
-                set planets [::stargen::PlanetList copy $seed_system no]
+                $sun setplanets [::stargen::PlanetList copy $seed_system no]
                 $sun configure -age 5.0E9
             } else {
                 set min_age 1.0E9
@@ -774,7 +773,7 @@ namespace eval stargen {
                 if {[$sun cget -life] < $max_age} {
                     set max_age [$sun cget -life]
                 }
-                set planets [dist_planetary_masses \
+                $sun setplanets [dist_planetary_masses \
                                       [$sun cget -mass] \
                                       [$sun cget -luminosity] \
                                       0.0 $outer_dust_limit \
@@ -788,9 +787,132 @@ namespace eval stargen {
                   $sys_no $system_name $do_gases $do_moons
         }
         method post_generate {only_habitable only_multi_habitable 
-            only_jovian_habitable only_earthlike} {
+            only_jovian_habitable only_earthlike index use_solar_system 
+            reuse_solar_system} {
             puts stderr "*** $self post_generate $only_habitable $only_multi_habitable"
-            return false
+            
+            set wt_type_count $type_count
+            set norm_type_count 0
+		
+            if {[lindex $type_counts 3]  > 0} {
+                incr wt_type_count 20;#	// Terrestrial
+            }
+            if {[lindex $type_counts 8]  > 0} {
+                incr wt_type_count 18;#	// Water
+            }
+            if {[lindex $type_counts 2]  > 0} {
+                incr wt_type_count 16;#	// Venusian
+            }
+            if {[lindex $type_counts 7]  > 0} {
+                incr wt_type_count 15;#	// Martian
+            }
+            if {[lindex $type_counts 9]  > 0} {
+                incr wt_type_count 14;#	// Ice
+            }
+            if {[lindex $type_counts 10] > 0} {
+                incr wt_type_count 13;#	// Asteroids
+            }
+            if {[lindex $type_counts 4]  > 0} {
+                incr wt_type_count 12;#	// Gas Dwarf
+            }
+            if {[lindex $type_counts 5]  > 0} {
+                incr wt_type_count 11;#	// Sub_Jovian
+            }
+            if {[lindex $type_counts 11] > 0} {
+                incr wt_type_count 10;#	// 1-Face
+            }
+            if {[lindex $type_counts 1]  > 0} {
+                incr wt_type_count 3;#		// Rock
+            }
+            if {[lindex $type_counts 6]  > 0} {
+                incr wt_type_count 2;#		// Jovian
+            }
+            if {[lindex $type_counts 0]  > 0} {
+                incr wt_type_count 1;#		// Unknown
+            }
+            
+            set counter [$sun planetcount]
+			
+            set norm_type_count [expr {$wt_type_count - ($counter - $type_count)}]
+			
+            if {$max_type_count < $norm_type_count} {
+                set max_type_count $norm_type_count
+		
+                if {($::stargen::flag_verbose & 0x10000) != 0} {
+                    puts stderr [format "System %ld - %s (-s%ld -%c%d) has %d types out of %d planets. [%d]" \
+                                 $flag_seed \
+                                 $system_name \
+                                 $flag_seed \
+                                 $flag_char \
+                                 $sys_no \
+                                 $type_count \
+                                 $counter \
+                                 $norm_type_count]
+                }
+            }
+
+            incr total_habitable $habitable
+            incr total_earthlike $earthlike
+        
+            set result false
+        
+            if {(!($only_habitable || $only_multi_habitable || $only_jovian_habitable || $only_earthlike))
+                || ($only_habitable && ($habitable > 0))
+                || ($only_multi_habitable && ($habitable > 1))
+                || ($only_jovian_habitable && ($habitable_jovians > 0)) 
+                || ($only_earthlike && ($earthlike > 0))} {
+                
+                set result true
+                
+                if {($habitable > 1) && ($::stargen::flag_verbose & 0x0001) != 0} {
+                    puts stderr "System %ld - %s (-s%ld -%c%d) has %d planets with breathable atmospheres." \
+                          $flag_seed \
+                          $system_name \
+                          $flag_seed \
+                          $flag_char \
+                          $sys_no \
+                          $habitable]
+                }
+            }
+
+        
+            if {! (($use_solar_system) && ($index == 0))} {
+                incr flag_seed $seed_increment
+            }
+        
+            if {$reuse_solar_system} {
+                $::stargen::earth configure -mass \
+                      [expr {[$::stargen::earth cget -mass] + [EM $inc_mass]}]
+            }
+            #// Free the dust and planets created by accrete:
+            free_generations
+
+            if {($::stargen::flag_verbose & 0x0001) != 0 || ($::stargen::flag_verbose & 0x0002) != 0} {
+                puts stderr [format "Earthlike planets: %d" $total_earthlike]
+                puts stderr [format "Breathable atmospheres: %d" $total_habitable]
+                puts stderr [format "Breathable g range: %4.2lf -  %4.2lf" \
+                             $min_breathable_g \
+                             $max_breathable_g]
+                puts stderr [format "Terrestrial g range: %4.2lf -  %4.2lf" \ 
+                             $min_breathable_terrestrial_g \
+                             $max_breathable_terrestrial_g]
+                puts stderr [format "Breathable pressure range: %4.2lf -  %4.2lf" \
+                             $min_breathable_p \
+                             $max_breathable_p]
+                puts stderr [format "Breathable temp range: %+.1lf C -  %+.1lf C" \
+                             [expr {$min_breathable_temp - $::stargen::EARTH_AVERAGE_KELVIN}] \
+                             [expr {$max_breathable_temp - $::stargen::EARTH_AVERAGE_KELVIN}]]
+                puts stderr [format "Breathable illumination range: %4.2lf -  %4.2lf" \
+                             $min_breathable_l \
+                             $max_breathable_l]
+                puts stderr [format "Terrestrial illumination range: %4.2lf -  %4.2lf" \
+                             $min_breathable_terrestrial_l \
+                             $max_breathable_terrestrial_l]
+                puts stderr [format "Max moon mass: %4.2lf" \
+                             [expr {$max_moon_mass * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
+            }
+            
+            return $result
         }
         proc listdoubles {n} {
             set result [list]
@@ -1049,7 +1171,7 @@ namespace eval stargen {
                     }
                 }
             }
-            $planet configure -day [day_length $planet];#	/* Modifies planet->resonant_period *
+            $planet configure -day [day_length $planet];#	/* Modifies planet->resonant_period */
             $planet configure -esc_velocity [escape_vel \
                                              [$planet cget -mass] \
                                              [$planet cget -radius]]
@@ -1168,8 +1290,8 @@ namespace eval stargen {
                     } else {
                         $planet configure -ptype  tRock
                     }
-                } elseif {(planet->surf_pressure > 6000.0) &&
-                    (planet->molec_weight <= 2.0)} {	#// Retains Hydrogen
+                } elseif {([$planet cget -surf_pressure] > 6000.0) &&
+                    ([$planet cget -molec_weight] <= 2.0)} {	#// Retains Hydrogen
                     $planet configure -ptype  tSubSubGasGiant
                     $planet configure -gases  0
                     set olda [$planet cget -atmosphere]
@@ -1428,7 +1550,7 @@ namespace eval stargen {
             }
             
             if {$is_moon  && $max_moon_mass < [$planet cget -mass]} {
-                max_moon_mass = planet->mass;
+                set max_moon_mass [$planet cget -mass]
             
                 if {($::stargen::flag_verbose & 0x0002) != 0} {
                     puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\t%s Moon Mass" \
@@ -1452,7 +1574,7 @@ namespace eval stargen {
                                       [type_string [$planet cget -ptype]] \
                                       [$planet cget -core_radius] \
                                       [$planet cget -radius] \
-                                      [expr {[$planet->mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                                      [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
                                       $planet_id \
                                       [expr {50-$core_size}]]
                      }
@@ -1515,7 +1637,7 @@ namespace eval stargen {
             set planet_no 0
             set moons 0
             
-            foreach planet $planets {
+            foreach planet [$sun getplanets] {
                 incr planet_no
                 set planet_id [format "%s (-s%ld -%c%d) %d" \
                                $system_name $flag_seed $flag_char $sys_no \
@@ -1706,10 +1828,12 @@ namespace eval stargen {
                       $outer_limit $do_gases $do_moons
                 if {[$system post_generate $only_habitable \
                      $only_multi_habitable $only_jovian_habitable \
-                     $only_earthlike]} {
+                     $only_earthlike $index $use_solar_system \
+                     $reuse_solar_system]} {
                     lappend result $system
                 } else {
                     $system destroy
+                    incr index -1
                 }
                 
             }

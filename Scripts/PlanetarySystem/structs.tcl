@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160426.0908>
+#  Last Modified : <160427.1019>
 #
 #  Description	
 #
@@ -104,6 +104,7 @@ namespace eval stargen {
         option -r_ecosphere -default 0.0 -type {snit::double -min 0.0}
         option -name -default ""
         variable planets [list]
+        
         typemethod validate {o} {
             if {[catch {$o info type} ot]} {
                 error [format "%s is not a %s" $o $type]
@@ -119,6 +120,16 @@ namespace eval stargen {
         method addplanet {planet} {
             ::stargen::Planets_Record validate  $planet
             lappend planets $planet
+        }
+        method setplanets {_planets} {
+            ::stargen::PlanetList validate $_planets
+            set planets $_planets
+        }
+        method getplanets {} {
+            return $planets
+        }
+        method planetcount {} {
+            return [llength $planets]
         }
         destructor {
             foreach planet $planets {
@@ -190,14 +201,26 @@ namespace eval stargen {
 	option -cloud_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -ice_cover -type {snit::double -min 0.0} -default 0.0;# fraction of surface covered
 	option -sun -type ::stargen::SunOrNull
-	option -atmosphere -type ::stargen::GasList
+        variable atmosphereGases
+	option -atmosphere -type ::stargen::GasList -default {} \
+              -configuremethod _setatmosphereGases \
+              -cgetmethod _getatmosphereGases
+        method _setatmosphereGases {o v} {
+            set atmosphereGases $v
+        }
+        method _getatmosphereGases {o} {
+            if {[catch {set atmosphereGases}]} {
+                set atmosphereGases [list]
+            }
+            return $atmosphereGases
+        }
         option -gases -readonly yes -configuremethod _noset \
               -cgetmethod _gascount
         method _noset {o v} {
             error [format "%s cannot be set" $o]
         }
         method _gascount {o} {
-            return [llength [$self cget -atmosphere]]
+            return [llength $atmosphereGases]
         }
 	option -ptype -type ::stargen::Planet_Type -default tUnknown;# Type code
 	# Zeros end here
@@ -221,6 +244,9 @@ namespace eval stargen {
         destructor {
             foreach moon $moons {
                 $moon destroy
+            }
+            foreach g $atmosphereGases {
+                $g destroy
             }
         }
         method addmoon {moon} {
