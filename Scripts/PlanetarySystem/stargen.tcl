@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160427.1700>
+#  Last Modified : <160428.1056>
 #
 #  Description	
 #
@@ -941,7 +941,7 @@ namespace eval stargen {
                         set vrms [rms_vel \
                                   [[lindex $::stargen::gases $i] cget -weight] \
                                   [$planet cget -exospheric_temp]]
-                        set pvrms [expr {pow(1 / (1 + $vrms / [$planet cget -esc_velocity]), [$sun cget -age] / 1e9)}]
+                        set pvrms [expr {pow(1.0 / (1.0 + $vrms / [$planet cget -esc_velocity]), [$sun cget -age] / 1e9)}]
                         set abund [[lindex $::stargen::gases $i] cget -abunds];# /* gases[i].abunde */
                         set react 1.0
                         set fract 1.0
@@ -952,29 +952,30 @@ namespace eval stargen {
                         } elseif {[[lindex $::stargen::gases $i] cget -symbol] eq "He"} {
                             set abund [expr {$abund * (0.001 + ([$planet cget -gas_mass] / [$planet cget -mass]))}]
                             set pres2 [expr {(0.75 + $pressure)}]
-                            set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), [$sun cget -age]/2e9 * $pres2)}]
+                            set react [expr {pow(1.0 / (1.0 + [[lindex $::stargen::gases $i] cget -reactivity]), [$sun cget -age]/2e9 * $pres2)}]
                         } elseif {([[lindex $::stargen::gases $i] cget -symbol] eq "O" ||
                                    [[lindex $::stargen::gases $i] cget -symbol] eq "O2") && 
                                   [$sun cget -age] > 2e9 &&
                                   [$planet cget -surf_temp] > 270 && [$planet cget -surf_temp] < 400} {
                             #/*	pres2 = (0.65 + pressure/2);			Breathable - M: .55-1.4 	*/
                             set pres2 [expr {(0.89 + $pressure/4.0)}];#		/*	Breathable - M: .6 -1.8 	*/
-                            set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), \
+                            set react [expr {pow(1.0 / (1.0 + [[lindex $::stargen::gases $i] cget -reactivity]), \
                                                        pow([$sun cget -age]/2e9, 0.25) * $pres2)}]
                         } elseif {[[lindex $::stargen::gases $i] cget -symbol] eq "CO2" && 
                                   [$sun cget -age] > 2e9 &&
                                   [$planet cget -surf_temp] > 270 && [$planet cget -surf_temp] < 400} {
                             set pres2 [expr {(0.75 + $pressure)}]
-                            set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), \
+                            set react [expr {pow(1.0 / (1.0 + [[lindex $::stargen::gases $i] cget -reactivity]), \
                                                  pow([$sun cget -age]/2e9, 0.5) * $pres2)}]
                             set react [expr {$react * 1.5}]
                         } else {
                             set pres2 [expr {(0.75 + $pressure)}]
-                            set react [expr {pow(1 / (1 + [[lindex $::stargen::gases $i] cget -reactivity]), \
+                            set react [expr {pow(1.0 / (1.0 + [[lindex $::stargen::gases $i] cget -reactivity]), \
                                                  [$sun cget -age]/2e9 * $pres2)}]
                         }
-                        
+                                
                         set fract [expr {(1 - ([$planet cget -molec_weight] / [[lindex $::stargen::gases $i] cget -weight]))}]
+                        puts stderr "*** $self calculate_gases($i: [[lindex $::stargen::gases $i] cget -symbol]): abund = $abund, pvrms = $pvrms. react = $react, fract = $fract"
                         
                         lset amount $i [expr {$abund * $pvrms * $react * $fract}]
                         
@@ -1432,9 +1433,10 @@ namespace eval stargen {
             #/* Check for and list planets with breathable atmospheres */
 	
             set breathe [breathability $planet]
+            puts stderr "*** $self check_planet: breathe = $breathe, ::stargen::enviro::BREATHABLE == $::stargen::enviro::BREATHABLE"
 		#	// Option needed?
             if {($breathe == $::stargen::enviro::BREATHABLE) &&
-                (![$planet cet -resonant_period]) &&	
+                (![$planet cget -resonant_period]) &&	
                 (int([$planet cget -day]) != int([$planet cget -orb_period] * 24.0))} {
                 set list_it false
                 set illumination [expr {pow2 (1.0 / [$planet cget -a]) 
@@ -1543,6 +1545,8 @@ namespace eval stargen {
                 if {($::stargen::flag_verbose & 0x0004) != 0} {
                     set list_it true
                 }
+                
+                puts stderr "*** $self check_planet: list_it = $list_it"
                 
                 if {$list_it} {
                     puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\tl=%4.2lf\t%s" \
@@ -1734,6 +1738,7 @@ namespace eval stargen {
             }
             
             set result [list]
+            set max_fail 100
             for {set index 0} {$index < $system_count} {incr index} {
                 set system_name ""
                 set designation ""
@@ -1829,6 +1834,7 @@ namespace eval stargen {
                     }
                 }
                 
+                puts stderr "*** $type stargen: system_count = $system_count, index = $index, flag_seed = $flag_seed"
                 set system [$type clone $sun]
                 $system generate_stellar_system  $use_seed_system \
                       $seed_planets $flag_char $sys_no $system_name \
@@ -1842,6 +1848,11 @@ namespace eval stargen {
                 } else {
                     $system destroy
                     incr index -1
+                    incr max_fail -1
+                    if {$max_fail < 1} {
+                        puts stderr "*** $type stargen: max fail count reached!"
+                        break
+                    }
                 }
                 puts stderr "*** $type stargen: system_count = $system_count, index = $index, result has [llength $result] elements"
             }

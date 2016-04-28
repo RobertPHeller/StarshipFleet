@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160427.1652>
+#  Last Modified : <160428.1125>
 #
 #  Description	
 #
@@ -1389,10 +1389,10 @@ proc print {v} {
 
 package require stargen
 
-set results [stargen main -mass [expr {.8+(rand()*.4)}] -habitable -moons \
-             -count 5 -verbose 0x7FFFF -seed 661278582 -use_solar_system]
+set results [stargen main -mass 1.0 -seed 1 -habitable -moons \
+             -count 5 -verbose 0x7FFFF]
 
 foreach s $results {
     $s print stdout
 }
-
+exit 0

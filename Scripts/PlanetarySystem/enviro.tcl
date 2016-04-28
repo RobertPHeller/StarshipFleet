@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:34 2016
-#  Last Modified : <160427.1358>
+#  Last Modified : <160428.1048>
 #
 #  Description	
 #
@@ -933,8 +933,11 @@ namespace eval ::stargen::enviro {
     #*--------------------------------------------------------------------------*/
 
     proc inspired_partial_pressure {surf_pressure gas_pressure} {
+        puts stderr "*** [namespace current]::inspired_partial_pressure $surf_pressure $gas_pressure"
         set pH2O $::stargen::H20_ASSUMED_PRESSURE
+        puts stderr "*** [namespace current]::inspired_partial_pressure: pH2O = $pH2O"
         set fraction [expr {$gas_pressure / $surf_pressure}]
+        puts stderr "*** [namespace current]::inspired_partial_pressure: fraction = $fraction"
         
         return [expr {($surf_pressure - $pH2O) * $fraction}]
     }
@@ -952,6 +955,8 @@ namespace eval ::stargen::enviro {
         variable ::stargen::max_gas
         set oxygen_ok false
         
+        puts stderr "*** [namespace current]::breathability $planet"
+        puts stderr "*** [namespace current]::breathability: gas count is [$planet cget -gases]"
         if {[$planet cget -gases] == 0} {return $::stargen::enviro::NONE}
         
         for {set index 0} {$index < [$planet cget -gases]} {incr index} {
@@ -960,22 +965,28 @@ namespace eval ::stargen::enviro {
             set ipp [inspired_partial_pressure \
                      [$planet cget -surf_pressure] \
                      [[lindex [$planet cget -atmosphere] $index] cget -surf_pressure]]
-            
+            puts stderr "*** [namespace current]::breathability ($index): ipp = $ipp"
             for {set n 0} {$n < $max_gas} {incr n} {
                 if {[[lindex $gases $n] cget -num] == [[lindex [$planet cget -atmosphere] $index] cget -num]} {
                     set gas_no $n
                 }
             }
             
+            puts stderr "*** [namespace current]::breathability ($index): gas_no = $gas_no"
+            puts stderr "*** [namespace current]::breathability ($index): [[lindex $gases $gas_no] cget -symbol]: [[lindex [$planet cget -atmosphere] $index] cget -num], $::stargen::AN_O"
+            puts stderr "*** [namespace current]::breathability ($index): -map_ipp is [[lindex $gases $gas_no] cget -max_ipp]"
             if {$ipp > [[lindex $gases $gas_no] cget -max_ipp]} {
                 return $::stargen::enviro::POISONOUS
             }
             
             if {[[lindex [$planet cget -atmosphere] $index] cget -num] == $::stargen::AN_O} {
-                set oxygen_ok [expr {(($ipp >= $::stargen::MIN_O2_IPP) && ($ipp <= $::stargen::MAX_O2_IPP))}]
+                puts stderr "*** [namespace current]::breathability ($index): ::stargen::MIN_O2_IPP is $::stargen::MIN_O2_IPP, ::stargen::MAX_O2_IPP is $::stargen::MAX_O2_IPP"
+                set oxygen_ok [expr {(($ipp >= $::stargen::MIN_O2_IPP) && 
+                                      ($ipp <= $::stargen::MAX_O2_IPP))}]
             }
         }
 	
+        puts stderr "*** [namespace current]::breathability: oxygen_ok = $oxygen_ok"
         if {$oxygen_ok} {
             return $::stargen::enviro::BREATHABLE
         } else {

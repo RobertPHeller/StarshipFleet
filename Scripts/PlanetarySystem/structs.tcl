@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160427.1654>
+#  Last Modified : <160428.1105>
 #
 #  Description	
 #
@@ -295,15 +295,20 @@ namespace eval stargen {
                               [::stargen::ChemTable getsymbol [$g cget -num]] \
                               [$g cget -surf_pressure]]
                     }
-                } elseif {$o eq "-moons" && !$ismoon} {
+                } elseif {$o eq "-moons"} {
+                    if {$ismoon} {continue}
                     puts [format "\t%s" $o]
                     foreach m $moons {
                         $m print $outchan yes
                     }
                 } elseif {$o eq "-ptype"} {
-                    puts $outchan [format "%s%s: %s" $tab $o [::stargen::type_string $v]]
-                } else {
+                    puts $outchan [format "%s\t%s: %s" $tab $o [::stargen::type_string $v]]
+                } elseif {$o eq "-name"} {
+                    continue
+                } elseif {[string is double -strict]} {
                     puts $outchan [format "%s\t%s %lg" $tab $o $v]
+                } else {
+                    puts $outchan [format "%s\t%s \{%s\}" $tab $o $v]
                 }
             }
         }

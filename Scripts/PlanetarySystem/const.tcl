@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:57:46 2016
-#  Last Modified : <160427.1356>
+#  Last Modified : <160428.1055>
 #
 #  Description	
 #
@@ -66,8 +66,8 @@ namespace eval stargen {
     variable EARTH_SURF_PRES_IN_MILLIBARS 1013.25;#
     variable EARTH_SURF_PRES_IN_MMHG	760.;#			/* Dole p. 15				*/
     variable EARTH_SURF_PRES_IN_PSI	14.696;#		/* Pounds per square inch	*/
-    variable MMHG_TO_MILLIBARS $EARTH_SURF_PRES_IN_MILLIBARS;#  / EARTH_SURF_PRES_IN_MMHG;#
-    variable PSI_TO_MILLIBARS $EARTH_SURF_PRES_IN_MILLIBARS;# / EARTH_SURF_PRES_IN_PSI)
+    variable MMHG_TO_MILLIBARS [expr {$EARTH_SURF_PRES_IN_MILLIBARS / $EARTH_SURF_PRES_IN_MMHG}];#
+    variable PSI_TO_MILLIBARS [expr {$EARTH_SURF_PRES_IN_MILLIBARS / $EARTH_SURF_PRES_IN_PSI}]
     variable H20_ASSUMED_PRESSURE	[expr {47. * $MMHG_TO_MILLIBARS}];# /* Dole p. 15      */
     variable MIN_O2_IPP	[expr {72. * $MMHG_TO_MILLIBARS}];#	/* Dole, p. 15				*/
     variable MAX_O2_IPP	[expr {400. * $MMHG_TO_MILLIBARS}];#	/* Dole, p. 15				*/
