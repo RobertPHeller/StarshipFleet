@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <160421.1451>
+#  Last Modified : <160502.1408>
 #
 #  Description	
 #
@@ -126,6 +126,12 @@ namespace eval planetarysystem {
             wm protocol $toplevel WM_DELETE_WINDOW [mymethod _exit]
             wm title    $toplevel "Main Starship Display"
             set frame [$hull getframe]
+            #install systemdisplay using planetarysystem::PlanetaryDisplay \
+            #      $frame.pd -seed [from args -seed 0] \
+            #      -stellarmass [from args -stellarmass 0.0] \
+            #      -generate [from args -generate yes] \
+            #      -filename [from args -filename PlanetarySystem.system]
+            #pack $systemdisplay -expand yes -fill both
             install tabs using ttk::notebook $frame.tabs
             pack $tabs -fill both -expand yes
             install systemdisplay using planetarysystem::PlanetaryDisplay \

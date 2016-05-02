@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160428.1125>
+#  Last Modified : <160502.1413>
 #
 #  Description	
 #
@@ -1379,20 +1379,24 @@ proc print {v} {
     puts "[format {X: %10.5g, Y: %10.5g, Z: %10.5g} [$v GetX] [$v GetY] [$v GetZ]]"
 }
 
-##set system [planetarysystem::PlanetarySystem %AUTO% -generate no -filename test.system]
+#set system [planetarysystem::PlanetarySystem %AUTO% -generate no -filename test.system]
 #
 #
 #set maindisp [planetarysystem::MainScreen .main -generate no -filename test.system]
-#pack $maindisp -fill both -expand yes
-#$pd save test.system
+#set pd [planetarysystem::PlanetaryDisplay .pd  -generate no -filename test.system]
+#pack $pd -fill both -expand yes
+
+set maindisp [planetarysystem::MainScreen .main -generate yes -stellarmass 1.0 -seed 1]
+pack $maindisp -fill both -expand yes
+#$maindisp save test.system
 #exit
 
-package require stargen
-
-set results [stargen main -mass 1.0 -seed 1 -habitable -moons \
-             -count 5 -verbose 0x7FFFF]
-
-foreach s $results {
-    $s print stdout
-}
-exit 0
+#package require stargen
+#
+#set results [stargen main -mass 1.0 -seed 1 -habitable -moons \
+#             -count 5 -verbose 0x7FFFF]
+#
+#foreach s $results {
+#    $s print stdout
+#}
+#exit 0

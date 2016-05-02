@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:01:31 2016
-#  Last Modified : <160427.1347>
+#  Last Modified : <160502.1214>
 #
 #  Description	
 #
@@ -43,7 +43,9 @@
 
 namespace eval stargen::utils {
     proc random_number {inner outer} {
+        #puts stderr "*** [namespace current]::random_number $inner $outer"
         set range [expr {$outer - $inner}]
+        #puts stderr "*** [namespace current]::random_number: range = $range"
         return [expr {(rand() * $range) + $inner}]
     }
     proc about {value variation} {
@@ -53,9 +55,16 @@ namespace eval stargen::utils {
     proc random_eccentricity {} {
         set e [expr {1.0 - pow(rand(),$::stargen::ECCENTRICITY_COEFF)}]
         if {$e > .99} {set e .99}
+        #puts stderr "*** [namespace current]::random_eccentricity returns $e"
         return $e
     }
-    namespace export random_number about random_eccentricity
+    #proc stack_trace {} {
+    #    set level [expr {[info level] - 1}]
+    #    for {set l $level} {$l > 0} {incr l -1} {
+    #        puts stderr "*** $l: [info level $l]"
+    #    }
+    #}
+    namespace export random_number about random_eccentricity stack_trace
 }
 
 namespace eval ::tcl::mathfunc:: {

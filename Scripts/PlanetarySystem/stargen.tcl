@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 9 13:53:21 2016
-#  Last Modified : <160428.1056>
+#  Last Modified : <160502.1257>
 #
 #  Description	
 #
@@ -716,7 +716,7 @@ namespace eval stargen {
         variable        max_moon_mass 0.0
         
         typemethod clone {sun} {
-            puts stderr "*** $type clone $sun"
+            #puts stderr "*** $type clone $sun"
             ::stargen::Sun validate $sun
             set sys [$type create %AUTO% \
                      -luminosity [$sun cget -luminosity] \
@@ -727,18 +727,21 @@ namespace eval stargen {
                      -name [$sun cget -name]]
             return $sys
         }
+        variable system_seed 0
+        method get_seed {} {return $system_seed}
         typemethod init {} {
-            puts stderr "*** $type init"
-            if {$flag_seed != 0} {
+            #puts stderr "*** $type init"
+            if {$flag_seed == 0} {
                 set seed [clock seconds]
                 expr {srand($seed)}
                 set flag_seed [expr {int(rand()*0x0ffffffff)}]
             }
             expr {srand($flag_seed)}
+            set system_seed $flag_seed
         }
         
         constructor {args} {
-            puts stderr "*** $type create $self $args"
+            #puts stderr "*** $type create $self $args"
             install sun using stargen::Sun %AUTO% \
                   -luminosity [from args -luminosity 0] \
                   -mass       [from args -mass 0] \
@@ -756,7 +759,7 @@ namespace eval stargen {
         method generate_stellar_system {use_seed_system seed_system 
             flag_char sys_no system_name outer_planet_limit do_gases 
             do_moons} {
-            puts stderr "*** $self generate_stellar_system $use_seed_system \{$seed_system\} $flag_char $sys_no $system_name $outer_planet_limit $do_gases $do_moons"
+            #puts stderr "*** $self generate_stellar_system $use_seed_system \{$seed_system\} $flag_char $sys_no $system_name $outer_planet_limit $do_gases $do_moons"
             if {([$sun cget -mass] < 0.2) || ([$sun cget -mass] > 1.5)} {
                 $sun configure -mass [random_number 0.7 1.4]
             }
@@ -792,7 +795,7 @@ namespace eval stargen {
         method post_generate {only_habitable only_multi_habitable 
             only_jovian_habitable only_earthlike index use_solar_system 
             reuse_solar_system system_name flag_char sys_no seed_increment} {
-            puts stderr "*** $self post_generate $only_habitable $only_multi_habitable"
+            #puts stderr "*** $self post_generate $only_habitable $only_multi_habitable"
             
             set wt_type_count $type_count
             set norm_type_count 0
@@ -925,14 +928,14 @@ namespace eval stargen {
             return $result
         }
         method calculate_gases {planet planet_id} {
-            puts stderr "*** $self calculate_gases $planet $planet_id"
+            #puts stderr "*** $self calculate_gases $planet $planet_id"
             if {[$planet cget -surf_pressure] > 0} {
                 set amount [listdoubles [expr {$::stargen::max_gas + 1}]]
 		set totamount 0.0
                 set pressure [expr {[$planet cget -surf_pressure] / $::stargen::MILLIBARS_PER_BAR}]
                 set n 0
                 for {set i 0} {$i < $::stargen::max_gas} {incr i} {
-                    puts stderr "*** $self calculate_gases: i = $i, (max_gas is $::stargen::max_gas)"
+                    #puts stderr "*** $self calculate_gases: i = $i, (max_gas is $::stargen::max_gas)"
                     set yp [expr {[[lindex $::stargen::gases $i] cget -boil] / \
                             (373. * ((log(($pressure) + 0.001) / -5050.5) + \
                                      (1.0 / 373.)))}]
@@ -975,7 +978,7 @@ namespace eval stargen {
                         }
                                 
                         set fract [expr {(1 - ([$planet cget -molec_weight] / [[lindex $::stargen::gases $i] cget -weight]))}]
-                        puts stderr "*** $self calculate_gases($i: [[lindex $::stargen::gases $i] cget -symbol]): abund = $abund, pvrms = $pvrms. react = $react, fract = $fract"
+                        #puts stderr "*** $self calculate_gases($i: [[lindex $::stargen::gases $i] cget -symbol]): abund = $abund, pvrms = $pvrms. react = $react, fract = $fract"
                         
                         lset amount $i [expr {$abund * $pvrms * $react * $fract}]
                         
@@ -1003,21 +1006,21 @@ namespace eval stargen {
                         lset amount $i 0.0
                     }
                 }
-                puts stderr "*** $self calculate_gases: n = $n"
-		puts stderr "*** $self calculate_gases: amount is $amount"
+                #puts stderr "*** $self calculate_gases: n = $n"
+		#puts stderr "*** $self calculate_gases: amount is $amount"
                 if {$n > 0} {
                     set atmospherelist [list]
                     
                     for {set i 0} {$i < $::stargen::max_gas} {incr i} {
-                        puts stderr "*** $self calculate_gases (n > 0 loop): i = $i, max_gas = $::stargen::max_gas"
-                        puts stderr "*** $self calculate_gases (n > 0 loop): [lindex $amount $i]"
+                        #puts stderr "*** $self calculate_gases (n > 0 loop): i = $i, max_gas = $::stargen::max_gas"
+                        #puts stderr "*** $self calculate_gases (n > 0 loop): [lindex $amount $i]"
                         if {[lindex $amount $i] > 0.0} {
                             lappend atmospherelist \
                                   [::stargen::Gas %AUTO% \
                                    -num [[lindex $::stargen::gases $i] cget -num] \
                                    -surf_pressure [expr {[$planet cget -surf_pressure] \
                                                    * [lindex $amount $i] / $totamount}]]
-                            puts stderr "*** $self calculate_gases: added [[lindex $::stargen::gases $i] cget -symbol], ammount is [lindex $amount $i]"
+                            #puts stderr "*** $self calculate_gases: added [[lindex $::stargen::gases $i] cget -symbol], ammount is [lindex $amount $i]"
                             if {($::stargen::flag_verbose & 0x2000) != 0} {
                                 if {[[lindex $atmospherelist end] cget -num] == $::stargen::AN_O && \
                                     [inspired_partial_pressure \
@@ -1055,7 +1058,7 @@ namespace eval stargen {
         }
         method generate_planet {planet planet_no random_tilt planet_id 
             do_gases do_moons is_moon} {
-            puts stderr "*** $self generate_planet $planet $planet_no $random_tilt $planet_id $do_gases $do_moons $is_moon"
+            #puts stderr "*** $self generate_planet $planet $planet_no $random_tilt $planet_id $do_gases $do_moons $is_moon"
             $planet configure -atmosphere {}
             $planet configure -surf_temp  0
             $planet configure -high_temp  0
@@ -1405,7 +1408,7 @@ namespace eval stargen {
             }
         }
         method check_planet {planet planet_id is_moon} {
-            puts stderr "*** $self check_planet $planet $planet_id $is_moon"
+            #puts stderr "*** $self check_planet $planet $planet_id $is_moon"
             set tIndex 0
 	
             switch [$planet cget -ptype] {
@@ -1433,7 +1436,7 @@ namespace eval stargen {
             #/* Check for and list planets with breathable atmospheres */
 	
             set breathe [breathability $planet]
-            puts stderr "*** $self check_planet: breathe = $breathe, ::stargen::enviro::BREATHABLE == $::stargen::enviro::BREATHABLE"
+            #puts stderr "*** $self check_planet: breathe = $breathe, ::stargen::enviro::BREATHABLE == $::stargen::enviro::BREATHABLE"
 		#	// Option needed?
             if {($breathe == $::stargen::enviro::BREATHABLE) &&
                 (![$planet cget -resonant_period]) &&	
@@ -1546,7 +1549,7 @@ namespace eval stargen {
                     set list_it true
                 }
                 
-                puts stderr "*** $self check_planet: list_it = $list_it"
+                #puts stderr "*** $self check_planet: list_it = $list_it"
                 
                 if {$list_it} {
                     puts stderr [format "%12s\tp=%4.2lf\tm=%4.2lf\tg=%4.2lf\tt=%+.1lf\tl=%4.2lf\t%s" \
@@ -1644,7 +1647,7 @@ namespace eval stargen {
         }
         method generate_planets {random_tilt flag_char sys_no system_name 
             do_gases do_moons} {
-            puts stderr "*** $self generate_planets $random_tilt $flag_char $sys_no $system_name $do_gases $do_moons"
+            #puts stderr "*** $self generate_planets $random_tilt $flag_char $sys_no $system_name $do_gases $do_moons"
             set planet_no 0
             set moons 0
             
@@ -1834,7 +1837,7 @@ namespace eval stargen {
                     }
                 }
                 
-                puts stderr "*** $type stargen: system_count = $system_count, index = $index, flag_seed = $flag_seed"
+                #puts stderr "*** $type stargen: system_count = $system_count, index = $index, flag_seed = $flag_seed"
                 set system [$type clone $sun]
                 $system generate_stellar_system  $use_seed_system \
                       $seed_planets $flag_char $sys_no $system_name \
@@ -1850,11 +1853,11 @@ namespace eval stargen {
                     incr index -1
                     incr max_fail -1
                     if {$max_fail < 1} {
-                        puts stderr "*** $type stargen: max fail count reached!"
+                        #puts stderr "*** $type stargen: max fail count reached!"
                         break
                     }
                 }
-                puts stderr "*** $type stargen: system_count = $system_count, index = $index, result has [llength $result] elements"
+                #puts stderr "*** $type stargen: system_count = $system_count, index = $index, result has [llength $result] elements"
             }
             $sun destroy
             return $result

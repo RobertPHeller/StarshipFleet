@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160421.1441>
+#  Last Modified : <160502.1609>
 #
 #  Description	
 #
@@ -45,6 +45,7 @@ package require orsa
 package require control
 namespace import control::*
 package require pdf4tcl
+package require stargen
 
 namespace eval planetarysystem {
     variable PLANETARYSYSTEM_DIR [file dirname [info script]]
@@ -415,7 +416,7 @@ namespace eval planetarysystem {
             if {[$m cget -sun] ne [$self cget -sun]} {
                 error [format "%s is not in the same solar system as %s!" $m $self]
             }
-            if {[$m cget -refbody] ne $self} {
+            if {[$m cget -refbody] ne $body} {
                 error [format "%s is not one of %s's moons!" $m $self]
             }
             return $m
@@ -613,9 +614,9 @@ namespace eval planetarysystem {
                     set color #FF0000
                 }
                 Water {
-                    set color #0000FF
+                    set color #0000CC
                 }
-                Water {
+                Ice {
                     set color [format {#%02X%02X%02X} 173 216 230]
                 }
                 GasGiant {
@@ -734,8 +735,6 @@ namespace eval planetarysystem {
         ## The planets and their moons.
         variable objects [list]
         ## Other objects
-        typevariable STARGEN /home/heller/Deepwoods/StarshipFleet/assets/StarGenSource/stargen
-        ## StarGen executable path.
         option -seed -default 0 -type snit::integer
         option -stellarmass -default 0.0 -type {snit::double -min 0.0}
         option -generate -default true -type snit::boolean -readonly yes
@@ -768,177 +767,70 @@ namespace eval planetarysystem {
                 set $options(-stellarmass) [expr {.8+(rand()*.4)}]
             }
             if {$options(-seed) == 0} {
-                set cmdline "$STARGEN -m$options(-stellarmass) -p/tmp -H -M -t -n20"
+                set generatedsystem [stargen main -mass $options(-stellarmass) -habitable -moons -count 1]
             } else {
-                set cmdline "$STARGEN -s$options(-seed) -m$options(-stellarmass) -p/tmp -H -M -t -n20"
+                set generatedsystem [stargen main -seed $options(-seed) -mass $options(-stellarmass) -habitable -moons -count 1]
             }
-            #puts stderr "*** $type create $self: options(-stellarmass) = $options(-stellarmass)"
-            set genout [open "|$cmdline" r]
-            set line [gets $genout]
-            #puts stderr "*** $type create $self: line = \{$line\}"
-            set StargenSeed 0
-            if {[regexp {seed=([[:digit:]]+)$} $line => StargenSeed] < 0} {
-                error "Format error: $line, expecting seed="
+            if {[llength $generatedsystem] > 1} {
+                set generatedsystem [lindex $generatedsystem 0]
             }
+            set StargenSeed [$generatedsystem get_seed]
             set options(-seed) $StargenSeed
-            #puts stderr "*** $type create $self: StargenSeed = $StargenSeed"
-            set line [gets $genout];# SYSTEM  CHARACTERISTICS
-            #puts stderr "*** $type create $self: $line"
-            set line [gets $genout]
-            #puts stderr "*** $type create $self: $line"
-            if {[regexp {^Stellar mass:[[:space:]]+([[:digit:].]+)[[:space:]]+solar masses} $line => sm] < 1} {
-                set sm 0
-                puts stderr "Input error (Stellar mass): $line"
-            }
-            set line [gets $genout]
-            #puts stderr "*** $type create $self: $line"
-            if {[regexp {^Stellar luminosity:[[:space:]]+([[:digit:].]+)$} $line => sl] < 1} {
-                set sl 0
-                puts stderr "Input error (Stellar luminosity): $line"
-            }
-            set line [gets $genout]
-            #puts stderr "*** $type create $self: $line"
-            if {[regexp {^Age:[[:space:]]+([[:digit:].]+)[[:space:]]+billion years} $line => sa] < 1} {
-                set sa 0
-                puts stderr "Input error (Age): $line"
-            }
-            set line [gets $genout]
-            #puts stderr "*** $type create $self: $line"
-            if {[regexp {^Habitable ecosphere radius: ([[:digit:].]+)[[:space:]]+AU$} $line => hr] < 1} {
-                set hr 0
-                puts stderr "Input error (Habitable ecosphere radius): $line"
-            }
+            set sm [$generatedsystem cget -mass]
+            set sl [$generatedsystem cget -luminosity]
+            set sa [$generatedsystem cget -age]
+            set hr [$generatedsystem cget -r_ecosphere]
             
             set starname [planetarysystem::Sun namegenerator]
             set sun [planetarysystem::Sun $starname -mass $sm -luminosity $sl -age $sa -habitable $hr]
             
-            #puts stderr "*** $type create $self: starname = $starname, sm = $sm, sl = $sl, sa = $sa, hr = $hr"
-            #puts stderr "*** $type create $self: sun = $sun"
-            gets $genout;# 
-            gets $genout;# Planets present at:
-            set nplanets 0
-            # n d.dd AU d.dd EM c
-            while {[gets $genout line] > 0} {
-                #puts stderr $line
-                if {[regexp {^([[:digit:]]+)[[:space:]]+([[:digit:].]+)[[:space:]]+AU[[:space:]]+([[:digit:].]+)[[:space:]]+EM[[:space:]]+(.)$} \
-                     $line => indx dist mass char] > 0} {
-                    incr nplanets
-                    set  planets($indx,dist) $dist
-                    set  planets($indx,mass) $mass
-                    set  planets($indx,char) $char
-                    set  planets($indx,ptype) [pchar2ptype $char]
-                } else {
-                    error "Opps: planet_table regexp failed at line \{$line\}"
-                }
-            }
-            #puts stderr "*** $type create $self: nplanets = $nplanets"
+            set nplanets [$generatedsystem planetcount]
             for {set i 1} {$i <= $nplanets} {incr i} {
-                #puts stderr "*** $type create $self: $i $planets($i,dist) $planets($i,mass) $planets($i,char)"
-                while {[gets $genout line] == 0} {
-                    #puts stderr $line
-                    #skip blank lines
-                }
-                set checkreg [format {^Planet %d} $i]
-                #puts stderr "*** $type create $self: line is '$line'"
-                if {[regexp $checkreg $line] < 1} {
-                    error "Opps: Planet n check failed at line \{$line\}"
+                set planet [$generatedsystem getplanet $i]
+                #puts stderr "*** $self _generate: i = $i ($nplanets), planet = $planet"
+                set planets($i,dist) [$planet cget -a]
+                set planets($i,mass) [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]
+                set planets($i,ptype) [regsub {^t} [$planet cget -ptype] {}]
+                if {[$planet cget -gas_giant]} {
+                    set planets($i,gasgiant) yes
+                    set planets($i,gravity)  INF
+                    set planets($i,pressure) INF
+                    set planets($i,greenhouse) no
+                    set planets($i,temperature) INF
+                    set planets($i,waterboils) INF
+                    set planets($i,hydrosphere) 0
+                    set planets($i,cloudcover) 100
+                    set planets($i,icecover) 0
                 } else {
-                    if {[regexp {\*gas giant\*} $line] > 0} {
-                        set planets($i,gasgiant) yes
-                        set planets($i,gravity)  INF
-                        set planets($i,pressure) INF
+                    set planets($i,gasgiant) no
+                }
+                set planets($i,distance) [$planet cget -a]
+                set planets($i,mass) [expr {[$planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]
+                if {!$planets($i,gasgiant)} {
+                    set planets($i,gravity) [$planet cget -surf_grav]
+                    set planets($i,pressure) [expr {[$planet cget -surf_pressure] / 1000.0}]
+                    if {[$planet cget -greenhouse_effect] &&
+                        [$planet cget -surf_pressure] > 0} {
+                        set planets($i,greenhouse) yes
+                    } else {
                         set planets($i,greenhouse) no
-                        set planets($i,temperature) INF
-                        set planets($i,waterboils) INF
-                        set planets($i,hydrosphere) 0
-                        set planets($i,cloudcover) 100
-                        set planets($i,icecover) 0
-                    } else {
-                        set planets($i,gasgiant) no
-                        if {$planets($i,ptype) eq "GasGiant"} {
-                            puts stderr "Opps: ptype wrong, fixing"
-                            set planets($i,ptype) Rock
-                        }
                     }
+                    set planets($i,temperature) [expr {[$planet cget -surf_temp] - $::stargen::FREEZING_POINT_OF_WATER}]
+                    set planets($i,waterboils) [expr {[$planet cget -boil_point] - $::stargen::FREEZING_POINT_OF_WATER}]
+                    set planets($i,hydrosphere) [expr {[$planet cget -hydrosphere] * 100.0}]
+                    set planets($i,cloudcover) [expr {[$planet cget -cloud_cover] * 100.0}]
+                    set planets($i,icecover) [expr {[$planet cget -ice_cover] * 100.0}]
                 }
-                while {[gets $genout line] > 0} {
-                    #puts stderr "*** $type create $self: line is '$line'"
-                    if {[regexp {^Planet is} $line] > 0} {
-                        set line [gets $genout];# skip "Planet is <mumble>" line
-                    } elseif {[regexp {^Planet's rotation is in a resonant} $line] > 0} {
-                        set line [gets $genout];# skip "Planet's rotation is in a resonant <mumble>" line
-                    }
-                    if {[regexp {^[[:space:]]*Distance from primary star:[[:space:]]+([[:digit:].]+)[[:space:]]+AU} \
-                         $line => distance] > 0} {
-                        set planets($i,distance) $distance
-                    } elseif {[regexp {^[[:space:]]*Mass:[[:space:]]+([[:digit:].]+)[[:space:]]+Earth masses} \
-                               $line => mass] > 0} {
-                        set planets($i,mass) $mass
-                    } elseif {[regexp {^[[:space:]]*Surface gravity:[[:space:]]+([[:digit:].]+)[[:space:]]+Earth gees} \
-                               $line => gravity] > 0} {
-                        set planets($i,gravity) $gravity
-                    } elseif {[regexp {^[[:space:]]*Surface pressure:[[:space:]]+([[:digit:].]+)[[:space:]]+Earth atmospheres} \
-                               $line => pressure] > 0} {
-                        set planets($i,pressure) $pressure
-                        if {[regexp {GREENHOUSE EFFECT} $line] > 0} {
-                            set planets($i,greenhouse) yes
-                        } else {
-                            set planets($i,greenhouse) no
-                        }
-                    } elseif {[regexp {^[[:space:]]*Surface temperature:[[:space:]]+(-?[[:digit:].]+)[[:space:]]+degrees Celcius} \
-                               $line => temperature] > 0} {
-                        set planets($i,temperature) $temperature
-                    } elseif {[regexp {^[[:space:]]*Equatorial radius:[[:space:]]+([[:digit:].]+)[[:space:]]+Km} \
-                               $line => radius] > 0} {
-                        set planets($i,radius) $radius
-                    } elseif {[regexp {^[[:space:]]*Density:[[:space:]]+([[:digit:].]+)[[:space:]]+grams/cc} \
-                               $line => density] > 0} {
-                        set planets($i,density) $density
-                    } elseif {[regexp {^[[:space:]]*Eccentricity of orbit:[[:space:]]+([[:digit:].]+)$} \
-                               $line => eccentricity] > 0} {
-                        set planets($i,eccentricity) $eccentricity
-                    } elseif {[regexp {^[[:space:]]*Escape Velocity:[[:space:]]+([[:digit:].]+)[[:space:]]+Km/sec} \
-                               $line => escapevelocity] > 0} {
-                        set planets($i,escapevelocity) $escapevelocity
-                    } elseif {[regexp {^[[:space:]]*Molecular weight retained:[[:space:]]+([[:digit:].]+)[[:space:]]+and above} \
-                               $line => molweightretained] > 0} {
-                        set planets($i,molweightretained) $molweightretained
-                    } elseif {[regexp {^[[:space:]]*Surface acceleration:[[:space:]]+([[:digit:].]+)[[:space:]]+cm/sec2} \
-                               $line => acceleration] > 0} {
-                        set planets($i,acceleration) $acceleration
-                    } elseif {[regexp {^[[:space:]]*Axial tilt:[[:space:]]+(-?[[:digit:].]+)[[:space:]]+degrees} \
-                               $line => tilt] > 0} {
-                        set planets($i,tilt) $tilt
-                    } elseif {[regexp {^[[:space:]]*Planetary albedo:[[:space:]]+([[:digit:].]+)$} \
-                               $line => albedo] > 0} {
-                        set planets($i,albedo) $albedo
-                    } elseif {[regexp {^[[:space:]]*Length of year:[[:space:]]+([[:digit:].]+)[[:space:]]+days} \
-                               $line => year] > 0} {
-                        set planets($i,year) $year
-                    } elseif {[regexp {^[[:space:]]*Length of day:[[:space:]]+([[:digit:].]+)[[:space:]]+hours} \
-                               $line => day] > 0} {
-                        set planets($i,day) $day
-                    } elseif {[regexp {^[[:space:]]*Boiling point of water:[[:space:]]+(-?[[:digit:].]+)[[:space:]]+degrees Celcius} \
-                               $line => waterboils] > 0} {
-                        set planets($i,waterboils) $waterboils
-                    } elseif {[regexp {^[[:space:]]*Hydrosphere percentage:[[:space:]]+([[:digit:].]+)$} \
-                               $line => hydrosphere] > 0} {
-                        set planets($i,hydrosphere) $hydrosphere
-                    } elseif {[regexp {^[[:space:]]*Cloud cover percentage:[[:space:]]+([[:digit:].]+)$} \
-                               $line => cloudcover] > 0} {
-                        set planets($i,cloudcover) $cloudcover
-                    } elseif {[regexp {^[[:space:]]*Ice cover percentage:[[:space:]]+([[:digit:].]+)$} \
-                               $line => icecover] > 0} {
-                        set planets($i,icecover) $icecover
-                    } else {
-                        puts stderr "*** Not matched: \{$line\}"
-                    }
-                }
-                if {$planets($i,gasgiant)} {
-                    if {$planets($i,mass) < 20} {
-                        set planets($i,ptype) SubGasGiant
-                    }
-                }
+                set planets($i,radius) [$planet cget -radius]
+                set planets($i,density) [$planet cget -density]
+                set planets($i,eccentricity) [$planet cget -e]
+                set planets($i,escapevelocity) [expr {[$planet cget -esc_velocity] / $::stargen::CM_PER_KM}]
+                set planets($i,molweightretained) [$planet cget -molec_weight]
+                set planets($i,acceleration) [$planet cget -surf_accel]
+                set planets($i,tilt) [$planet cget -axial_tilt]
+                set planets($i,albedo) [$planet cget -albedo]
+                set planets($i,year) [$planet cget -orb_period]
+                set planets($i,day) [$planet cget -day]
                 set planetname [planetarysystem::Planet namegenerator $starname]
                 #puts stderr "*** $type create $self: $starname $i: planetname = $planetname"
                 set planets($i,planet) [planetarysystem::Planet $planetname \
@@ -965,6 +857,43 @@ namespace eval planetarysystem {
                                         -hydrosphere  $planets($i,hydrosphere) \
                                         -cloudcover  $planets($i,cloudcover) \
                                         -icecover  $planets($i,icecover)]
+                set np $planets($i,planet)
+                set nmoons [$planet mooncount]
+                #puts stderr "*** $self _generate: $planetname has $nmoons moons"
+                for {set im 1} {$im <= $nmoons} {incr im} {
+                    set moon [$planet getmoon $im]
+                    set newmoonname [planetarysystem::Planet namegenerator ${starname}::[namespace tail $planetname]]
+                    #puts stderr "*** $self _generate: moon $im: $newmoonname"
+                    if {[$moon cget -greenhouse_effect] &&
+                        [$moon cget -surf_pressure] > 0} {
+                        set moongrnh yes
+                    } else {
+                        set moongrnh no
+                    }
+                    $np moon add [namespace tail $newmoonname] \
+                          -mass     [expr {[$moon  cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
+                          -distance [$moon cget -moon_a] \
+                          -radius   [$moon cget -radius] \
+                          -eccentricity [$moon cget -moon_e] \
+                          -period   [$moon cget -orb_period] \
+                          -ptype    [regsub {^t} [$moon cget -ptype] {}] \
+                          -gasgiant no \
+                          -gravity  [$moon cget -surf_grav] \
+                          -pressure [expr {[$moon  cget -surf_pressure] / 1000.0}] \
+                          -greenhouse $moongrnh \
+                          -temperature [expr {[$moon cget -surf_temp] - $::stargen::FREEZING_POINT_OF_WATER}] \
+                          -density [$moon cget -density] \
+                          -escapevelocity [expr {[$moon cget -esc_velocity] / $::stargen::CM_PER_KM}] \
+                          -molweightretained [$moon cget -molec_weight] \
+                          -acceleration [$moon cget -surf_accel] \
+                          -tilt [$moon cget -axial_tilt] \
+                          -day  [$moon cget -day] \
+                          -waterboils [expr {[$moon cget -boil_point] - $::stargen::FREEZING_POINT_OF_WATER}] \
+                          -hydrosphere [expr {[$moon cget -hydrosphere] * 100.0}] \
+                          -cloudcover [expr {[$moon cget -cloud_cover] * 100.0}] \
+                          -icecover [expr {[$moon cget -ice_cover] * 100.0}]
+                }
+
                 $self add $planets($i,planet)
                 lappend planetlist $planets($i,planet)
 
@@ -1061,6 +990,7 @@ namespace eval planetarysystem {
                 foreach orec [$planet configure] {
                     set o [lindex $orec 0]
                     set ov [lindex $orec 4]
+                    if {$o eq "-refbody"} {continue}
                     if {$o eq "-moons"} {
                         set moons $ov
                     } else {
@@ -1070,7 +1000,7 @@ namespace eval planetarysystem {
                 puts $ofp "\]\}"
                 if {[llength $moons] > 0} {
                     foreach m $moons {
-                        puts $ofp "\{$planet moon add $m \\"
+                        puts $ofp "\{$planet moon add [namespace tail $m] \\"
                         foreach orec [$m configure] {
                             set o [lindex $orec 0]
                             set ov [lindex $orec 4]

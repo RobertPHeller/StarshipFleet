@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 6 18:32:00 2016
-#  Last Modified : <160428.1105>
+#  Last Modified : <160502.1521>
 #
 #  Description	
 #
@@ -130,6 +130,14 @@ namespace eval stargen {
         }
         method planetcount {} {
             return [llength $planets]
+        }
+        method getplanet {iplanet} {
+            #puts stderr "*** $self getplanet $iplanet"
+            #puts stderr "*** $self getplanet: llength $planets is [llength $planets]"
+            if {$iplanet < 1 || $iplanet > [llength $planets]} {
+                error [format "Planet index (%d) out of range 1..%d" $iplanet [llength $planets]]
+            }
+            return [lindex $planets [expr {$iplanet - 1}]]
         }
         destructor {
             #foreach planet $planets {
@@ -273,6 +281,13 @@ namespace eval stargen {
             ::stargen::Planets_Record validate $moon
             set moons [linsert $moons 0 $moon]
         }
+        method mooncount {} {return [llength $moons]}
+        method getmoon {imoon} {
+            if {$imoon < 1 || $imoon > [llength $moons]} {
+                error [format "Moon index (%d) out of range 1..%d" $imoon [llength $moons]]
+            }
+            return [lindex $moons [expr {$imoon - 1}]]
+        }
         method print {outchan {ismoon no}} {
             if {$ismoon} {
                 set tab "\t"
@@ -378,7 +393,7 @@ namespace eval stargen {
     }
     snit::type Dust_Record {
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} ot]} {
                 error [format "%s is not a %s (no info type method: %s)" $o $type $ot]
             } elseif {$ot ne $type} {
@@ -487,9 +502,9 @@ namespace eval stargen {
                 $d destroy
             }
             set dusts [list]
-            foreach p $planets {
-                $p destroy
-            }
+            #foreach p $planets {
+            #    $p destroy
+            #}
             set planets [list]
         }
         method adddust {dust} {

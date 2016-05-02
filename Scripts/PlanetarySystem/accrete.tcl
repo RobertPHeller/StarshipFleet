@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon Apr 11 14:23:05 2016
-#  Last Modified : <160427.1601>
+#  Last Modified : <160502.1201>
 #
 #  Description	
 #
@@ -66,6 +66,7 @@ namespace eval ::stargen::accrete {
     namespace import ::stargen::utils::*
     
     proc set_initial_conditions {inner_limit_of_dust outer_limit_of_dust} {
+        #puts stderr "*** [namespace current]::set_initial_conditions $inner_limit_of_dust $outer_limit_of_dust"
         variable dust_head
         variable planet_head
         variable hist_head
@@ -84,23 +85,31 @@ namespace eval ::stargen::accrete {
         set cloud_eccentricity 0.2
     }
     proc stellar_dust_limit {stell_mass_ratio} {
+        #puts stderr "*** [namespace current]::stellar_dust_limit $stell_mass_ratio"
         return [expr {200.0 * pow($stell_mass_ratio,(1.0 / 3.0))}]
     }
     proc nearest_planet {stell_mass_ratio} {
+        #puts stderr "*** [namespace current]::nearest_planet $stell_mass_ratio"
         return [expr {0.3 * pow($stell_mass_ratio,(1.0 / 3.0))}]
     }
     proc farthest_planet {stell_mass_ratio} {
+        #puts stderr "*** [namespace current]::farthest_planet $stell_mass_ratio"
         return [expr {50.0 * pow($stell_mass_ratio,(1.0 / 3.0))}]
     }
     proc inner_effect_limit {a e mass} {
+        #puts stderr "*** [namespace current]::inner_effect_limit $a $e $mass"
         variable cloud_eccentricity
+        #puts stderr "*** [namespace current]::inner_effect_limit: cloud_eccentricity = $cloud_eccentricity"
         return [expr {($a * (1.0 - $e) * (1.0 - $mass) / (1.0 + $cloud_eccentricity))}]
     }
     proc outer_effect_limit {a e mass} {
+        #puts stderr "*** [namespace current]::outer_effect_limit $a $e $mass"
         variable cloud_eccentricity
-        return [expr {($a * (1.0 + $e) * (1.0 - $mass) / (1.0 + $cloud_eccentricity))}]
+        #puts stderr "*** [namespace current]::outer_effect_limit cloud_eccentricity = $cloud_eccentricity"
+        return [expr {($a * (1.0 + $e) * (1.0 + $mass) / (1.0 - $cloud_eccentricity))}]
     }
     proc dust_available {inside_range outside_range} {
+        #puts stderr "*** [namespace current]::dust_available $inside_range $outside_range"
         variable dust_head
         set dust_here false
         set foundstart no
@@ -123,6 +132,8 @@ namespace eval ::stargen::accrete {
             }
             
         }
+        #puts stderr "*** [namespace current]::dust_available current_dust_band is [$current_dust_band configure]"
+        #puts stderr "*** [namespace current]::dust_available returns: $dust_here"
         return $dust_here
     }
     proc eqbool {b1 b2} {
@@ -134,11 +145,19 @@ namespace eval ::stargen::accrete {
             return false
         }
     }
+    #proc fp4bands {message band_i} {
+    #    variable dust_head
+    #    for {set i 0} {$i < 4 && ($i + $band_i) < [llength $dust_head]} {incr i} {
+    #        set band [lindex $dust_head [expr {$i + $band_i}]]
+    #        puts stderr "$message: $i: [$band configure]"
+    #    }
+    #}
     proc update_dust_lanes {min max mass crit_mass body_inner_bound 
         body_outer_bound} {
         variable dust_left
         variable dust_head
         
+        #puts stderr "*** [namespace current]::update_dust_lanes $min $max $mass $crit_mass $body_inner_bound $body_outer_bound"
         set dust_left false
         if {$mass > $crit_mass} {
             set gas false
@@ -148,8 +167,9 @@ namespace eval ::stargen::accrete {
         set node1_i 0
         while {$node1_i < [llength $dust_head]} {
             set node1 [lindex $dust_head $node1_i]
+            #puts stderr "*** [namespace current]::update_dust_lanes: (while1) node1 - [$node1 configure]"
             if {([$node1 cget -inner_edge] < $min) &&
-                ([$node1 cget -outer_edge] < $max)} {
+                ([$node1 cget -outer_edge] > $max)} {
                 if {[$node1 cget -gas_present]} {
                     set node2_gp $gas
                 } else {
@@ -166,6 +186,7 @@ namespace eval ::stargen::accrete {
                 $node1 configure -outer_edge $min
                 set dust_head [linsert $dust_head [expr {$node1_i + 1}] \
                                $node2 $node3]
+                #fp4bands "*** [namespace current]::update_dust_lanes:  (if1)" $node1_i
                 incr node1_i 3
             } elseif {([$node1 cget -inner_edge] < $max) &&
                 ([$node1 cget -outer_edge] > $max)} {
@@ -183,6 +204,22 @@ namespace eval ::stargen::accrete {
                 $node1 configure -dust_present false
                 set dust_head [linsert $dust_head [expr {$node1_i + 1}] \
                                $node2]
+                #fp4bands "*** update_dust_lanes: (if2)" $node1_i
+                incr node1_i 2
+            } elseif {([$node1 cget -inner_edge] < $min) && ([$node1 cget -outer_edge] > $min)} {
+                if {[$node1 cget -gas_present]} {
+                    set tempgas $gas
+                } else {
+                    set tempgas false
+                }
+                set node2 [Dust_Record %AUTO% \
+                           -dust_present false \
+                           -outer_edge [$node1 cget -outer_edge] \
+                           -inner_edge $min \
+                           -gas_present $tempgas]
+                $node1 configure -outer_edge $min
+                set dust_head [linsert $dust_head [expr {$node1_i + 1}] $node2]
+                #fp4bands "*** update_dust_lanes: (if3)" $node1_i
                 incr node1_i 2
             } elseif {([$node1 cget -inner_edge] >= $min) &&
                 ([$node1 cget -outer_edge] <= $max)} {
@@ -190,6 +227,7 @@ namespace eval ::stargen::accrete {
                     $node1 configure -gas_present $gas
                 }
                 $node1 configure -dust_present false
+                #fp4bands "*** update_dust_lanes: (if4)" $node1_i
                 incr node1_i
             } elseif {([$node1 cget -outer_edge] < $min) || ([$node1 cget -inner_edge] > $max)} {
                 incr node1_i
@@ -198,11 +236,13 @@ namespace eval ::stargen::accrete {
         set node1_i 0
         while {$node1_i < [llength $dust_head]} {
             set node1 [lindex $dust_head $node1_i]
+            #puts stderr "*** [namespace current]::update_dust_lanes: (while2) node1 - [$node1 configure]"
             if {([$node1 cget -dust_present]) &&
                 (([$node1 cget -outer_edge] >= $body_inner_bound) 
                  && ([$node1 cget -inner_edge] <= $body_inner_bound))} {
                 set dust_left true
             }
+            #fp4bands "*** update_dust_lanes: (while2, if1)" $node1_i
             set node2_i [expr {$node1_i + 1}]
             set node2 [lindex $dust_head $node2_i]
             if {$node2 ne {}} {
@@ -213,12 +253,13 @@ namespace eval ::stargen::accrete {
                     $node2 destroy
                 }
             }
+            #fp4bands "*** update_dust_lanes: (while2 bottom)" $node1_i
             incr node1_i
         }
     }
     proc collect_dust {last_mass new_dustName new_gasName a e crit_mass 
         dust_band} {
-        puts stderr "*** [namespace current]::collect_dust $last_mass $new_dustName $new_gasName $a $e $crit_mass $dust_band"
+        #puts stderr "*** [namespace current]::collect_dust $last_mass $new_dustName $new_gasName $a $e $crit_mass $dust_band"
         variable dust_left
         variable r_inner
         variable r_outer
@@ -238,7 +279,7 @@ namespace eval ::stargen::accrete {
         set reduced_mass [expr {pow($temp,(1.0 / 4.0))}]
         set r_inner [inner_effect_limit $a $e $reduced_mass]
         set r_outer [outer_effect_limit $a $e $reduced_mass]
-        
+        #puts stderr "*** [namespace current]::collect_dust: reduced_mass = $reduced_mass, r_inner = $r_inner, r_outer = $r_outer"
         if {$r_inner < 0.0} {
             set r_inner 0.0
         }
@@ -260,24 +301,31 @@ namespace eval ::stargen::accrete {
             }
             if {([$dust_band1 cget -outer_edge] <= $r_inner) ||
                 ([$dust_band1 cget -inner_edge] >= $r_outer)} {
+                #puts stderr "*** [namespace current]::collect_dust - plunging, out of band"
                 return [collect_dust $last_mass new_dust new_gas $a $e \
                         $crit_mass [lrange $dust_band 1 end]]
             } else {
                 set bandwidth [expr {$r_outer - $r_inner}]
+                #puts stderr "*** [namespace current]::collect_dust: bandwidth = $bandwidth"
                 set temp1 [expr {$r_outer - [$dust_band1 cget -outer_edge]}]
                 if {$temp1 < 0.0} {set temp1 0.0}
                 set width [expr {$bandwidth - $temp1}]
                 set temp2 [expr {[$dust_band1 cget -inner_edge] - $r_inner}]
                 if {$temp2 < 0.0} {set temp2 0.0}
                 set width [expr {$width - $temp2}]
+                #puts stderr "*** [namespace current]::collect_dust: width = $width"
                 set temp [expr {4.0 * $::stargen::PI * pow($a,2.0) * $reduced_mass * (1.0 - $e * ($temp1 - $temp2) / $bandwidth)}]
                 set volume [expr {$temp * $width}]
+                #puts stderr "*** [namespace current]::collect_dust: volume =  $volume"
                 set new_mass [expr {$volume * $mass_density}]
                 set new_gas  [expr {$volume * $gas_density}]
                 set new_dust [expr {$new_mass - $new_gas}]
+                #puts stderr "*** [namespace current]::collect_dust: new_mass = $new_mass, new_gas = $new_gas, new_dust = $new_dust"
+                #puts stderr "*** [namespace current]::collect_dust - plunging, next mass..."
                 set next_mass [collect_dust $last_mass next_dust next_gas $a $e $crit_mass [lrange $dust_band 1 end]]
                 set new_gas [expr {$new_gas + $next_gas}]
                 set new_dust [expr {$new_dust + $next_dust}]
+                #puts stderr "*** [namespace current]::collect_dust returning: [expr {$new_mass + $next_mass}], updated new_dust = $new_dust, new_gas = $new_gas"
                 return [expr {$new_mass + $next_mass}]
             }
         }
@@ -290,13 +338,14 @@ namespace eval ::stargen::accrete {
     #/*--------------------------------------------------------------------------*/
 
     proc critical_limit {orb_radius eccentricity stell_luminosity_ratio} {
+        #puts stderr "*** [namespace current]::critical_limit $orb_radius $eccentricity $stell_luminosity_ratio"
         set perihelion_dist [expr {$orb_radius - $orb_radius * $eccentricity}]
         set temp [expr {$perihelion_dist * sqrt($stell_luminosity_ratio)}]
         return [expr {$::stargen::B * pow($temp,-0.75)}]
     }
     proc accrete_dust {seed_massName new_dustName new_gasName a e crit_mass 
         body_inner_bound body_outer_bound} {
-        puts stderr "*** [namespace current]::accrete_dust $seed_massName $new_dustName $new_gasName $a $e $crit_mass $body_inner_bound $body_outer_bound"
+        #puts stderr "*** [namespace current]::accrete_dust $seed_massName $new_dustName $new_gasName $a $e $crit_mass $body_inner_bound $body_outer_bound"
         upvar $seed_massName seed_mass
         upvar $new_dustName new_dust
         upvar $new_gasName new_gas
@@ -305,40 +354,46 @@ namespace eval ::stargen::accrete {
         variable r_outer
         
         set new_mass $seed_mass
+        #puts stderr "*** [namespace current]::accrete_dust: new_mass = $new_mass"
         do {
             set temp_mass $new_mass
             set new_mass [collect_dust $new_mass new_dust new_gas $a $e $crit_mass $dust_head]
-            puts stderr "*** [namespace current]::accrete_dust: new_mass = $new_mass"
+            #puts stderr "*** [namespace current]::accrete_dust: (do..while) new_mass = $new_mass"
         } while {!(($new_mass - $temp_mass) < (0.0001 * $temp_mass))}
         set seed_mass [expr {$seed_mass + $new_mass}]
+        #puts stderr "*** [namespace current]::accrete_dust: seed_mass updated: $seed_mass"
         update_dust_lanes $r_inner $r_outer $seed_mass $crit_mass \
               $body_inner_bound $body_outer_bound
     }
     proc insert_planet {theplanet} {
         variable planet_head
         
+        #puts stderr "*** [namespace current]::insert_planet $theplanet"
         for {set pindex 0} {$pindex < [llength $planet_head]} {incr pindex} {
+            #puts stderr "*** [namespace current]::insert_planet: pindex = $pindex"
             set p [lindex $planet_head $pindex]
+            #puts stderr "*** [namespace current]::insert_planet: $p cget -a = [$p cget -a], $theplanet cget -a = [$theplanet cget -a]"
             if {[$p cget -a] >= [$theplanet cget -a]} {
                 break
             }
         }
         set planet_head [linsert $planet_head  $pindex $theplanet]
+        #puts stderr "*** [namespace current]::insert_planet: inserted at $pindex"
         return $pindex
     }
                 
     proc reinsert_planet {pindex} {
-        puts stderr "*** [namespace current]::reinsert_planet $pindex"
+        #puts stderr "*** [namespace current]::reinsert_planet $pindex"
         variable planet_head
         
         set the_planet [lindex $planet_head $pindex]
-        puts stderr "*** [namespace current]::reinsert_planet: the_planet -name = [$the_planet cget -name]"
+        #puts stderr "*** [namespace current]::reinsert_planet: the_planet -name = [$the_planet cget -name]"
         set planet_head [lreplace $planet_head $pindex $pindex]
         return [insert_planet $the_planet]
     }
     proc coalesce_planetesimals {a e mass crit_mass dust_mass gas_mass 
         stell_luminosity_ratio body_inner_bound body_outer_bound do_moons} {
-        puts stderr "*** [namespace current]::coalesce_planetesimals $a $e $mass $crit_mass $dust_mass $gas_mass $stell_luminosity_ratio $body_inner_bound $body_outer_bound $do_moons"
+        #puts stderr "*** [namespace current]::coalesce_planetesimals $a $e $mass $crit_mass $dust_mass $gas_mass $stell_luminosity_ratio $body_inner_bound $body_outer_bound $do_moons"
         variable dust_left
         variable r_inner
         variable r_outer
@@ -353,9 +408,11 @@ namespace eval ::stargen::accrete {
         #// First we try to find an existing planet with an over-lapping orbit.
 	set pindex 0
         while {$pindex < [llength $planet_head]} {
+            #puts stderr "*** [namespace current]::coalesce_planetesimals: pindex = $pindex"
             set the_planet [lindex $planet_head $pindex]
             
             set diff [expr {[$the_planet cget -a] - $a}]
+            #puts stderr "*** [namespace current]::coalesce_planetesimals: diff = $diff"
             if {$diff > 0.0} {
                 set dist1 [expr {($a * (1.0 + $e) * (1.0 + $reduced_mass)) - $a}]
                 #/* x aphelion    */
@@ -367,6 +424,7 @@ namespace eval ::stargen::accrete {
                 set reduced_mass [expr {pow(([$the_planet cget -mass] / (1.0 + [$the_planet cget -mass])),(1.0 / 4.0))}]
                 set dist2 [expr {([$the_planet cget -a] * (1.0 + [$the_planet cget -e]) * (1.0 + $reduced_mass)) - [$the_planet cget -a]}]
             }
+            #puts stderr "*** [namespace current]::coalesce_planetesimals: dist1 = $dist1, dist2 = $dist2"            
                     
             if {((abs($diff) <= abs($dist1)) || (abs($diff) <= abs($dist2)))} {
                 set new_dust 0.0
@@ -438,19 +496,31 @@ namespace eval ::stargen::accrete {
                                               [expr {$mass * $::stargen::SUN_MASS_IN_EARTH_MASSES}]]
                             }
                        } else {
-                            if {($::stargen::flag_verbose & 0x0100) != 0} {
-                                puts stderr [format "Moon Escapes... %5.3lf AU (%.2lfEM)%s %.2lfEM%s" \
-                                             [$the_planet cget -a] \
-                                             [expr {[$the_planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \ 
-                                             [expr {$existing_mass < ([$the_planet cget -mass] * .05) ? "" : " (big moons)"}] \
-                                             [expr {$mass * $::stargen::SUN_MASS_IN_EARTH_MASSES}] \
-                                             [expr {($mass * $::stargen::SUN_MASS_IN_EARTH_MASSES) >= 2.5 ? ", too big" : \
-                                              ($mass * $::stargen::SUN_MASS_IN_EARTH_MASSES) <= .0001 ? ", too small" : ""}]]
+                           if {($::stargen::flag_verbose & 0x0100) != 0} {
+                               set __a [$the_planet cget -a]
+                               set __m [expr {[$the_planet cget -mass] * $::stargen::SUN_MASS_IN_EARTH_MASSES}]
+                               if {$existing_mass < ([$the_planet cget -mass] * .05)} {
+                                   set __b ""
+                               } else {
+                                   set __b " (big moons)"
+                               }
+                               set __m2 [expr {$mass * $::stargen::SUN_MASS_IN_EARTH_MASSES}]
+                               if {($mass * $::stargen::SUN_MASS_IN_EARTH_MASSES) >= 2.5} {
+                                   set __b2 ", too big"
+                               } else {
+                                   if {($mass * $::stargen::SUN_MASS_IN_EARTH_MASSES) <= .0001} {
+                                       set __b2 ", too small"
+                                   } else {
+                                       set __b2 ""
+                                   }
+                               }
+                               puts stderr [format "Moon Escapes... %5.3lf AU (%.2lfEM)%s %.2lfEM%s" \
+                                             $__a $__m $__b $__m2 $__b2]
                             }
                         }
                     }
                 }
-                 
+                
                 if {!$finished} {
                     if {($::stargen::flag_verbose & 0x0100) != 0} {
                         puts stderr [format {Collision between two planetesimals! %4.2lf AU (%.2lfEM) + %4.2lf AU (%.2lfEM = %.2lfEMd + %.2lfEMg [%.3lfEM])-> %5.3lf AU (%5.3lf)} \
@@ -476,13 +546,15 @@ namespace eval ::stargen::accrete {
                         $the_planet configure -gas_giant true
                     }
                     
-                    puts stderr "*** [namespace current]::coalesce_planetesimals: pindex = $pindex, the_planet is [$the_planet -cget -name]"
+                    #puts stderr "*** [namespace current]::coalesce_planetesimals: pindex = $pindex, the_planet is [$the_planet cget -name]"
                     set pindex [reinsert_planet $pindex]
                     incr pindex
                 }
                 
                 set finished true
-                break;
+                break
+            } else {
+                incr pindex
             }
         }
         
@@ -517,15 +589,18 @@ namespace eval ::stargen::accrete {
         variable planet_head
         variable hist_head
         
+        #puts stderr "*** [namespace current]::dist_planetary_masses $stell_mass_ratio $stell_luminosity_ratio $inner_dust $outer_dust $outer_planet_limit $dust_density_coeff $seed_system $do_moons"
         set seeds $seed_system
         
         set_initial_conditions $inner_dust $outer_dust
         set planet_inner_bound [nearest_planet $stell_mass_ratio]
+        #puts stderr "*** [namespace current]::dist_planetary_masses: planet_inner_bound $planet_inner_bound"
         if {$outer_planet_limit == 0} {
             set planet_outer_bound [farthest_planet $stell_mass_ratio]
         } else {
             set planet_outer_bound $outer_planet_limit
         }
+        #puts stderr "*** [namespace current]::dist_planetary_masses: planet_outer_bound $planet_outer_bound"
         while {$dust_left} {
             if {[llength $seeds] > 0} {
                 set seed [lindex $seeds 0]
@@ -574,9 +649,9 @@ namespace eval ::stargen::accrete {
         }
     }
     proc free_planet {head} {
-        foreach p $head {
-            $p destroy
-        }
+        #foreach p $head {
+        #    $p destroy
+        #}
     }
     proc free_atmosphere {head} {
         foreach p $head {
@@ -597,7 +672,7 @@ namespace eval ::stargen::accrete {
         set hist_head [list]
         free_dust $dust_head
         set dust_head [list]
-        free_planet $planet_head
+        #free_planet $planet_head
         set planet_head [list]
     }
     namespace export set_initial_conditions stellar_dust_limit nearest_planet \

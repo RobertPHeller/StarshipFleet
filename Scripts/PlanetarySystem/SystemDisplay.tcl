@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160421.1449>
+#  Last Modified : <160502.1620>
 #
 #  Description	
 #
@@ -93,7 +93,6 @@ namespace eval planetarysystem {
         variable planetorbits -array {}
         variable labelfont
         variable planetmenus -array {}
-        
         constructor {args} {
             #puts stderr "*** $type create $self $args"
             install system using PlanetarySystem %AUTO% \
