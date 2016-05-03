@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:52:29 2016
-#  Last Modified : <160427.1048>
+#  Last Modified : <160503.0920>
 #
 #  Description	
 #
@@ -42,4 +42,3 @@
 
 
 package ifneeded PlanetarySystem 0.1 [list source  [file join $dir PlanetarySystem.tcl]]
-package ifneeded stargen 0.1 [list source  [file join $dir main.tcl]]

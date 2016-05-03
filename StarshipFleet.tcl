@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160502.1413>
+#  Last Modified : <160503.0945>
 #
 #  Description	
 #
@@ -1386,7 +1386,8 @@ proc print {v} {
 #set pd [planetarysystem::PlanetaryDisplay .pd  -generate no -filename test.system]
 #pack $pd -fill both -expand yes
 
-set maindisp [planetarysystem::MainScreen .main -generate yes -stellarmass 1.0 -seed 1]
+set maindisp [planetarysystem::MainScreen .main -generate yes \
+              -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
 pack $maindisp -fill both -expand yes
 #$maindisp save test.system
 #exit

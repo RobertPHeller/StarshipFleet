@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160408.1303>
+#  Last Modified : <160503.0919>
 #
 #  Description	
 #
@@ -43,4 +43,4 @@
 ##############################################################################
 
 
-SUBDIRS = ORSA_Port PlanetarySystem GUISupport
+SUBDIRS = ORSA_Port PlanetarySystem GUISupport StarGen

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160502.1620>
+#  Last Modified : <160503.0953>
 #
 #  Description	
 #
@@ -54,7 +54,12 @@ namespace eval planetarysystem {
         component canvas
         component tools
         component system
-        delegate method * to system except {load destroy _generate}
+        delegate method * to system except {load destroy _generate _print 
+            _init _sunMenu _planetMenu _suncenter _planetcenter _addtools 
+            _cleartools _zoomin _zoom1 _zoomout _DoZoom _togglesunlabel 
+            _sunInfo _detailedSunInfo _planetInfo _toggleplanetlabel 
+            _toggleplanetorbit _detailedPlanetInfo}
+        delegate option * to system
         typemethod new {name args} {
             return [$type create $name -generate yes \
                     -seed [from args -seed 0] \
@@ -62,6 +67,8 @@ namespace eval planetarysystem {
         }
         method renew {args} {
             $system destroy
+            unset system
+            $self _cleartools
             install system using PlanetarySystem %AUTO% -generate yes \
                   -seed [from args -seed 0] \
                   -stellarmass [from args -stellarmass 0.0]
@@ -82,7 +89,6 @@ namespace eval planetarysystem {
         method _print {} {
             return [$system ReportPDF]
         }
-        delegate option * to system
         variable scalex
         variable scaley
         variable zoomfactor 1.0

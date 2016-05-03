@@ -19,14 +19,17 @@ PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
 		 	 Scripts/PlanetarySystem/PlanetarySystem.tcl \
 		 	 Scripts/PlanetarySystem/SystemDisplay.tcl \
 		 	 Scripts/PlanetarySystem/ObjectDetail.tcl \
-		 	 Scripts/PlanetarySystem/MainDisplay.tcl \
-		 	 Scripts/PlanetarySystem/accrete.tcl \
-		 	 Scripts/PlanetarySystem/const.tcl \
-		 	 Scripts/PlanetarySystem/enviro.tcl \
-		 	 Scripts/PlanetarySystem/main.tcl \
-		 	 Scripts/PlanetarySystem/stargen.tcl \
-		 	 Scripts/PlanetarySystem/structs.tcl \
-		 	 Scripts/PlanetarySystem/utils.tcl
+		 	 Scripts/PlanetarySystem/MainDisplay.tcl
+
+StarGenScripts = Scripts/StarGen/accrete.tcl \
+                 Scripts/StarGen/const.tcl \
+                 Scripts/StarGen/enviro.tcl \
+                 Scripts/StarGen/main.tcl \
+                 Scripts/StarGen/stargen.tcl \
+                 Scripts/StarGen/structs.tcl \
+                 Scripts/StarGen/utils.tcl \
+                 Scripts/StarGen/pkgIndex.tcl
+                 
 		 	 
 GUISupportScripts = Scripts/GUISupport/close.gif \
 		    Scripts/GUISupport/DeepwoodsBanner.gif \
@@ -59,7 +62,8 @@ GUISupportScripts = Scripts/GUISupport/close.gif \
 
 
 StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
-		$(PlanetarySystemScripts) $(GUISupportScripts)
+		$(PlanetarySystemScripts) $(GUISupportScripts) \
+		$(StarGenScripts)
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarshipFleet.tcl
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit unwrap StarshipFleet.kit
@@ -70,6 +74,8 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		lib $(CONTROLLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/ORSA_Port $(ORSA_PortScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarshipFleet lib/StarGen $(StarGenScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/PlanetarySystem $(PlanetarySystemScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \

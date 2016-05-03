@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Tue Apr 5 09:50:37 2016
-#  Last Modified : <160503.0919>
+#  Created       : Tue May 3 09:20:39 2016
+#  Last Modified : <160503.0920>
 #
 #  Description	
 #
@@ -16,9 +16,7 @@
 #
 #  History
 #	
-#  $Log$
-#
-##############################################################################
+#*****************************************************************************
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -40,8 +38,7 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-EXTRA_DIST = pkgIndex.tcl PlanetarySystem.tcl ObjectDetail.tcl \
-		SystemDisplay.tcl MainDisplay.tcl
+package ifneeded stargen 0.1 [list source  [file join $dir main.tcl]]

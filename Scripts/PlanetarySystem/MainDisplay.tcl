@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <160502.1408>
+#  Last Modified : <160503.0942>
 #
 #  Description	
 #
@@ -87,6 +87,7 @@ namespace eval planetarysystem {
         option {-extramenus extraMenus ExtraMenus} \
               -readonly yes \
               -default {}
+        option -geometry -readonly yes -default 1024x768
         delegate option -height to hull
         delegate option -width  to hull
         delegate method {mainframe *} to hull except {getframe addtoobar 
@@ -121,6 +122,7 @@ namespace eval planetarysystem {
                   -progresstype normal
             $hull showstatusbar progression
             set toplevel [winfo toplevel $win]
+            wm withdraw $toplevel
             bind $toplevel <Control-q> [mymethod _exit]
             bind $toplevel <Control-Q> [mymethod _exit]
             wm protocol $toplevel WM_DELETE_WINDOW [mymethod _exit]
@@ -150,6 +152,10 @@ namespace eval planetarysystem {
                   $tabs.weaponsystem
             $tabs add $weaponsystem -sticky news -text {Weapons System}
             $self configurelist $args
+            update idletasks
+            wm geometry $toplevel $options(-geometry)
+            $systemdisplay seecenter [$systemdisplay GetSun]
+            wm deiconify $toplevel
         }
         method _exit {} {
             exit
