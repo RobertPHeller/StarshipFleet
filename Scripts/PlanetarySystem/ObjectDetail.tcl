@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed Apr 20 11:30:12 2016
-#  Last Modified : <160420.1358>
+#  Last Modified : <160505.1301>
 #
 #  Description	
 #
@@ -164,4 +164,4 @@ namespace eval planetarysystem {
 
 }
 
-            
+package provide ObjectDetail 0.1            

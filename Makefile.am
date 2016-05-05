@@ -4,7 +4,7 @@ SUBDIRS = BuildData BuildScripts Docs Scripts UserManual po intl
 
 EXTRA_DIST = StarshipFleet.tcl bootstrap
 
-noinst_SCRIPTS = StarshipFleet${EXEEXT}
+noinst_SCRIPTS = StarshipFleet${EXEEXT} StarSystemServer${EXEEXT}
 
 ORSA_PortScripts = Scripts/ORSA_Port/pkgIndex.tcl \
 		   Scripts/ORSA_Port/orsa_body.tcl \
@@ -20,6 +20,10 @@ PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
 		 	 Scripts/PlanetarySystem/SystemDisplay.tcl \
 		 	 Scripts/PlanetarySystem/ObjectDetail.tcl \
 		 	 Scripts/PlanetarySystem/MainDisplay.tcl
+		 	 
+NetworkScripts = Scripts/Network/pkgIndex.tcl \
+		 Scripts/Network/Server.tcl \
+		 Scripts/Network/Client.tcl
 
 StarGenScripts = Scripts/StarGen/accrete.tcl \
                  Scripts/StarGen/const.tcl \
@@ -90,4 +94,30 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		StarshipFleet${EXEEXT} \
 		-runtime $(top_srcdir)/BuildData/$(TCLKITRUN)
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
+
+StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
+		$(PlanetarySystemNoGUIScripts) $(NetworkScripts) \
+		$(StarGenScripts)
+	-rm -rf StarSystemServer.vfs StarSystemServer.kit
+	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarSystemServer.tcl
+	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit unwrap StarSystemServer.kit
+	-rm -rf StarSystemServer.kit
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
+		lib $(SNITLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
+		lib $(CONTROLLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarSystemServer lib/ORSA_Port $(ORSA_PortScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarSystemServer lib/StarGen $(StarGenScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarSystemServer lib/PlanetarySystem $(PlanetarySystemScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarSystemServer lib/Network $(NetworkScripts)
+	$(UNZIP) -qq -d StarSystemServer.vfs/lib \
+		$(top_srcdir)/BuildData/pdf4tcl05.zip
+	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit wrap \
+		StarSystemServer${EXEEXT} \
+		-runtime $(top_srcdir)/BuildData/$(TCLKITRUN)
+	-rm -rf StarSystemServer.vfs StarSystemServer.kit
 

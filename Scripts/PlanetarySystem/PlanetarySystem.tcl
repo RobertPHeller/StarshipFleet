@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160502.1609>
+#  Last Modified : <160505.1300>
 #
 #  Description	
 #
@@ -1114,10 +1114,6 @@ namespace eval planetarysystem {
 
     namespace export Sun Planet PlanetList PlanetarySystem
 }
-
-source [file join $planetarysystem::PLANETARYSYSTEM_DIR  SystemDisplay.tcl]
-source [file join $planetarysystem::PLANETARYSYSTEM_DIR  ObjectDetail.tcl]
-source [file join $planetarysystem::PLANETARYSYSTEM_DIR  MainDisplay.tcl]
 
 namespace import planetarysystem::*
 

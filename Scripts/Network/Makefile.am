@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160505.1224>
+#  Created       : Thu May 5 12:21:02 2016
+#  Last Modified : <160505.1221>
 #
 #  Description	
 #
@@ -43,4 +43,4 @@
 ##############################################################################
 
 
-SUBDIRS = ORSA_Port PlanetarySystem GUISupport StarGen Network
+EXTRA_DIST = pkgIndex.tcl Server.tcl Client.tcl 

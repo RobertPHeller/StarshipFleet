@@ -159,6 +159,7 @@ AC_CONFIG_FILES([Makefile \
                  Scripts/PlanetarySystem/Makefile \
                  Scripts/StarGen/Makefile \
                  Scripts/GUISupport/Makefile \
+                 Scripts/Network/Makefile \
                  Docs/Makefile \
                  Docs/Doxyfile \
                  Docs/tcldoxyfilter.sh \

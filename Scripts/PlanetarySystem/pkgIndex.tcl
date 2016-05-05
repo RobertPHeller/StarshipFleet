@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:52:29 2016
-#  Last Modified : <160503.0920>
+#  Last Modified : <160505.1300>
 #
 #  Description	
 #
@@ -42,3 +42,7 @@
 
 
 package ifneeded PlanetarySystem 0.1 [list source  [file join $dir PlanetarySystem.tcl]]
+package ifneeded SystemDisplay   0.1 [list source  [file join $dir SystemDisplay.tcl]]
+package ifneeded ObjectDetail    0.1 [list source  [file join $dir ObjectDetail.tcl]]
+package ifneeded MainDisplay     0.1 [list source  [file join $dir MainDisplay.tcl]]
+

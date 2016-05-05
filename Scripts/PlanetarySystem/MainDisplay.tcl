@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <160503.0942>
+#  Last Modified : <160505.1301>
 #
 #  Description	
 #
@@ -45,6 +45,7 @@ package require Tk
 package require tile
 package require MainFrame
 package require snitStdMenuBar
+package require SystemDisplay
 
 namespace eval planetarysystem {
     snit::widgetadaptor MainScreen {
@@ -265,3 +266,4 @@ namespace eval planetarysystem {
     namespace export MainScreen LidarDisplay CommunicationsPanel WeaponSystem
 }
 
+package provide MainDisplay 0.1

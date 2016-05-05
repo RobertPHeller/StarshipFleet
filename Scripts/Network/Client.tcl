@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160505.1224>
+#  Created       : Thu May 5 12:23:23 2016
+#  Last Modified : <160505.1348>
 #
 #  Description	
 #
@@ -16,9 +16,7 @@
 #
 #  History
 #	
-#  $Log$
-#
-##############################################################################
+#*****************************************************************************
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -40,7 +38,35 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-SUBDIRS = ORSA_Port PlanetarySystem GUISupport StarGen Network
+package require snit
+
+namespace eval PlanetarySystemClient {
+    snit::type Client {
+        variable channel
+        option -port -readonly yes -default 5050
+        option -host -readonly yes -default localhost
+        constructor {args} {
+            $self configurelist $args
+            set channel [socket $options(-host) $options(-port)]
+            fileevent readable $channel [mytypemethod _listener]
+        }
+        method _listener {} {
+            if {[gets $channel line] < 0} {
+                $self destroy
+            } else {
+            }
+        }
+        destructor {
+            catch {close $channel}
+        }
+    }
+    namespace export Client
+}
+
+        
+
+package provide PlanetarySystemClient 0.1
+

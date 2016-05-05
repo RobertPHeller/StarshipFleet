@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <160505.1224>
+#  Created       : Thu May 5 12:27:13 2016
+#  Last Modified : <160505.1255>
 #
 #  Description	
 #
@@ -16,9 +16,7 @@
 #
 #  History
 #	
-#  $Log$
-#
-##############################################################################
+#*****************************************************************************
 #
 #    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
@@ -40,7 +38,14 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-SUBDIRS = ORSA_Port PlanetarySystem GUISupport StarGen Network
+package require PlanetarySystem
+package require PlanetarySystemServer
+
+namespace import PlanetarySystemServer::*
+
+eval [list Server InitServer] $::argv
+
+vwait forever

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160503.0953>
+#  Last Modified : <160505.1302>
 #
 #  Description	
 #
@@ -46,6 +46,7 @@ package require Tk
 package require tile
 package require ScrollWindow
 package require ButtonBox
+package require ObjectDetail
 
 namespace eval planetarysystem {
     
@@ -535,3 +536,5 @@ namespace eval planetarysystem {
     
     namespace export PlanetaryDisplay 
 }
+
+package provide SystemDisplay 0.1

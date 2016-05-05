@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160503.0945>
+#  Last Modified : <160505.1306>
 #
 #  Description	
 #
@@ -49,10 +49,6 @@
 package require snit
 package require orsa
 package require PlanetarySystem
-
-proc _ {args} {
-    return [eval format $args]
-}
 
 
 namespace eval starships {
@@ -1385,6 +1381,8 @@ proc print {v} {
 #set maindisp [planetarysystem::MainScreen .main -generate no -filename test.system]
 #set pd [planetarysystem::PlanetaryDisplay .pd  -generate no -filename test.system]
 #pack $pd -fill both -expand yes
+
+package require MainDisplay
 
 set maindisp [planetarysystem::MainScreen .main -generate yes \
               -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
