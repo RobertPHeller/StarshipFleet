@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <160419.1039>
+#  Last Modified : <160507.0924>
 #
 #  Description	
 #
@@ -559,10 +559,6 @@ namespace eval orsa {
         constructor {args} {
             install orbit using Orbit %AUTO%
             $self configurelist $args
-        }
-        method {Compute Vector} {relative_position relative_velocity mu epoch_in} {
-            $self configure -epoch $epoch_in
-            $orbit Compute Vector $relative_position $relative_velocity $mu
         }
         method {Compute Vector} {relative_position relative_velocity mu epoch_in} {
             $self configure -epoch $epoch_in
