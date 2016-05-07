@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160505.1306>
+#  Last Modified : <160505.1910>
 #
 #  Description	
 #
@@ -47,8 +47,8 @@
 
 
 package require snit
-package require orsa
-package require PlanetarySystem
+#package require orsa
+package require PlanetarySystemClient
 
 
 namespace eval starships {
@@ -61,8 +61,9 @@ namespace eval starships {
     # @author Robert Heller \<heller\@deepsoft.com\>
     #
     
-    namespace import ::orsa::*
-    namespace import ::planetarysystem::*
+    #namespace import ::orsa::*
+    #namespace import ::planetarysystem::*
+    namespace import ::PlanetarySystemClient::*
     
     snit::double radians -max [expr {acos(-1)}] -min [expr {-acos(-1)}]
     ## @typedef double radians
@@ -1033,7 +1034,9 @@ namespace eval starships {
         option -mass  -readonly yes -type starships::masstype
         component system
         ## @privatesection @brief The planetary system.
-        option -system -type planetarysystem::PlanetarySystem \
+        #option -system -type planetarysystem::PlanetarySystem \
+        #      -configuremethod _setSystem -cgetmethod _getSystem
+        option -system -type ::PlanetarySystemClient::Client \
               -configuremethod _setSystem -cgetmethod _getSystem
         method _setSystem {option value} {
             ## Set the planetary system.
@@ -1382,11 +1385,11 @@ proc print {v} {
 #set pd [planetarysystem::PlanetaryDisplay .pd  -generate no -filename test.system]
 #pack $pd -fill both -expand yes
 
-package require MainDisplay
-
-set maindisp [planetarysystem::MainScreen .main -generate yes \
-              -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
-pack $maindisp -fill both -expand yes
+#package require MainDisplay
+#
+#set maindisp [planetarysystem::MainScreen .main -generate yes \
+#              -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
+#pack $maindisp -fill both -expand yes
 #$maindisp save test.system
 #exit
 

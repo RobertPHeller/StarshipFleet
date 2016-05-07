@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160505.1300>
+#  Last Modified : <160507.0938>
 #
 #  Description	
 #
@@ -406,6 +406,7 @@ namespace eval planetarysystem {
         option -hydrosphere -default 0 -readonly yes -type {snit::double -min 0 -max 100}
         option -cloudcover -default 0 -readonly yes -type {snit::double -min 0 -max 100}
         option -icecover -default 0 -readonly yes -type {snit::double -min 0 -max 100}
+        option -creationepoch -default 0 -readonly yes -type {snit::integer -min 0}
         option -moons -default {} -readonly yes \
               -type planetarysystem::PlanetList \
               -cgetmethod _getMoons -configuremethod _setMoons
@@ -443,7 +444,7 @@ namespace eval planetarysystem {
             }
             return [lindex $moons [expr {$i - 1}]]
         }
-        
+        variable CreationM 0.0
         typevariable planetname_corpus
         ## Planet name corpus.
         typeconstructor {
@@ -514,6 +515,7 @@ namespace eval planetarysystem {
             if {[lsearch $args -refbody] < 0} {
                 set options(-refbody) [$options(-sun) GetBody]
             }
+            set options(-creationepoch) [from args -creationepoch]
             #puts stderr "*** $type create $self: -refbody processed: $options(-refbody)"
             set needorbit true
             ## Need: orbital parameters.
@@ -524,15 +526,15 @@ namespace eval planetarysystem {
                 [lsearch -exact $args -omega_node] > 0 &&
                 [lsearch -exact $args -m_] > 0 &&
                 [lsearch -exact $args -mu] > 0} {
-                install orbit using Orbit %AUTO% \
+                install orbit using OrbitWithEpoch %AUTO% \
                       -a [from args -a] \
                       -e [from args -e] \
                       -i [from args -i] \
                       -omega_pericenter [from args -omega_pericenter] \
                       -omega_node [from args -omega_node] \
                       -m_ [from args -m_] \
-                      -mu [from args -mu]
-                $orbit RelativePosVel pos vel
+                      -mu [from args -mu] \
+                      -epoch $options(-creationepoch)
                 set needorbit false
             }
             #if {!$needorbit} {
@@ -560,22 +562,21 @@ namespace eval planetarysystem {
                 set omega_node [expr {asin(rand()*.125-0.0625)}]
                 set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
                 
-                set haveGoodM false
-                while {!$haveGoodM} {
-                    set M  [expr {acos(rand()*2.0-1.0)*2.0}]
-                    install orbit using Orbit %AUTO% \
-                          -a $a \
-                          -e $e \
-                          -i $i \
-                          -omega_pericenter $omega_pericenter \
-                          -omega_node $omega_node \
-                          -m_ $M \
-                          -mu $mu
-                    set haveGoodM [$orbit RelativePosVel pos vel]
-                }
+                set M  [expr {acos(rand()*2.0-1.0)*2.0}]
+                install orbit using Orbit %AUTO% \
+                      -a $a \
+                      -e $e \
+                      -i $i \
+                      -omega_pericenter $omega_pericenter \
+                      -omega_node $omega_node \
+                      -m_ $M \
+                      -mu $mu \
+                      -epoch $options(-creationepoch)
                 #puts stderr "*** $type create $self: orbit generated, orbit is $orbit"
             }
             
+            $orbit RelativePosVelAtTime pos vel $options(-creationepoch)
+            set CreationM [$orbit cget -m_]
             $body SetPosition $pos
             $body SetVelocity $vel
             
@@ -682,13 +683,10 @@ namespace eval planetarysystem {
             $pdfobject destroy
             return $filename
         }
-        method update {} {
-            set pos [$body position]
-            set vel [$pody velocity]
-            $pos += $vel
-            $self SetPosition $pos
-            $orbit Compute Body $body [[$self cget -sun] GetBody]
-            $orbit RelativePosVel pos vel
+        method update {epoch} {
+            $orbit RelativePosVelAtTime pos vel $epoch
+            $pos += [[$self cget -refbody] position]
+            $vel += [[$self cget -refbody] velocity]
             $body SetPosition $pos
             $body SetVelocity $vel
             return [list [$pos GetX] [$pos GetY] [$post GetY]]
@@ -735,6 +733,8 @@ namespace eval planetarysystem {
         ## The planets and their moons.
         variable objects [list]
         ## Other objects
+        variable epoch 0
+        ## Current epoch (timestamp)
         option -seed -default 0 -type snit::integer
         option -stellarmass -default 0.0 -type {snit::double -min 0.0}
         option -generate -default true -type snit::boolean -readonly yes
@@ -856,7 +856,8 @@ namespace eval planetarysystem {
                                         -waterboils  $planets($i,waterboils) \
                                         -hydrosphere  $planets($i,hydrosphere) \
                                         -cloudcover  $planets($i,cloudcover) \
-                                        -icecover  $planets($i,icecover)]
+                                        -icecover  $planets($i,icecover) \
+                                        -creationepoch [$self getepoch]]
                 set np $planets($i,planet)
                 set nmoons [$planet mooncount]
                 #puts stderr "*** $self _generate: $planetname has $nmoons moons"
@@ -891,7 +892,8 @@ namespace eval planetarysystem {
                           -waterboils [expr {[$moon cget -boil_point] - $::stargen::FREEZING_POINT_OF_WATER}] \
                           -hydrosphere [expr {[$moon cget -hydrosphere] * 100.0}] \
                           -cloudcover [expr {[$moon cget -cloud_cover] * 100.0}] \
-                          -icecover [expr {[$moon cget -ice_cover] * 100.0}]
+                          -icecover [expr {[$moon cget -ice_cover] * 100.0}] \
+                          -creationepoch [$self getepoch]
                 }
 
                 $self add $planets($i,planet)
@@ -905,6 +907,7 @@ namespace eval planetarysystem {
             
             lappend objects $object
         }
+        method getepoch {} {return $epoch}
         method GetSun {} {return $sun}
         method GetPlanet {i} {
             set nplanets [$self GetPlanetCount]
@@ -1078,13 +1081,14 @@ namespace eval planetarysystem {
         method _updater {} {
             ## @privatesection Update everything.
             
+            incr epoch [expr {wide([$::orsa::units FromUnits_time_unit 1 MINUTE])}]
             foreach p $planetlist {
-                $p update
+                $p update $epoch
             }
             foreach o $objects {
-                $o update
+                $o update $epoch
             }
-            after 100 [mymethod _updater]
+            after 1000 [mymethod _updater]
         }
         proc pchar2ptype {ch} {
             switch -exact -- "$ch" {

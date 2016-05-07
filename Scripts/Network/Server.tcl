@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <160505.1254>
+#  Last Modified : <160506.1348>
 #
 #  Description	
 #
@@ -45,6 +45,16 @@ package require snit
 package require PlanetarySystem
 
 namespace eval PlanetarySystemServer {
+    snit::type clientobjects {
+        option -serverid -readonly yes -default 0
+        option -position -default {0 0 0}
+        option -velocity -default {0 0 0}
+        option -thustvector -default {0 0 0}
+        option -clientconnection -readonly yes -default {}
+        constructor {args} {
+            $self configurelist $args
+        }
+    }
     snit::type Server {
         typecomponent system
         delegate typemethod * to system except {load destroy _generate _print
@@ -69,6 +79,8 @@ namespace eval PlanetarySystemServer {
         typemethod _accept {channel address host} {
             $type create %AUTO% $channel $address $host
         }
+        typevariable objects -array {}
+        typevariable _ID 0
         variable channel 
         variable address 
         variable host
@@ -82,7 +94,46 @@ namespace eval PlanetarySystemServer {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
+                set message [split $line " "]
+                set command [lindex $response 0]
+                set sequence [lindex $response 1]
+                set args [lrange $response 3 end]
+                switch [string toupper $command] {
+                    ADD {
+                        incr _ID
+                        set serverid $_ID
+                        set clientid [from args -id]
+                        set position [from args -position]
+                        set velocity [from args -velocity]
+                        set thustvector [from args -thustvector]
+                        set objects($serverid) [clientobjects create %AUTO% \
+                                         -serverid $serverid \
+                                         -position $position \
+                                         -velocity $velocity \
+                                         -thustvector $thustvector \
+                                         -clientconnection $self]
+                        $self sendResponse 200 $sequence $command \
+                              -id $clientid -remoteid $serverid \
+                              -epoch [$system getepoch]
+                    }
+                    UPDATE_THRUST {
+                        set serverid [from args -remoteid]
+                        set thustvector [from args -thustvector]
+                        if {[catch {set objects($serverid)} object]} {
+                            $self sendResponse 410 $sequence $command \
+                                  -message [format "No such object (%d)" $serverid]
+                        } else {
+                            $object configure -thustvector $thustvector
+                        }
+                    }
+                    default {
+                        $self _response 404 $sequence $command -message [format "Unknown command %s" $command]
+                    }
+                }
             }
+        }
+        method _response {args} {
+            puts $channel $args
         }
         destructor {
             catch {close $channel}

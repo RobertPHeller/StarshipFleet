@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <160505.1348>
+#  Last Modified : <160506.1326>
 #
 #  Description	
 #
@@ -44,7 +44,37 @@
 package require snit
 
 namespace eval PlanetarySystemClient {
+    snit::type ObjectQueue {
+        option -id -readonly yes
+        option -object -readonly -default {}
+        typevariable pendingobjects [list]
+        typevariable _ID 0
+        constructor {args} {
+            $self configurelist $args
+            incr _ID
+            set options(-id) $_ID
+            lappend pendingobjects $self
+        }
+        destructor {
+            set index [lsearch -exact $pendingobjects $self]
+            set pendingobjects [lreplace $pendingobjects $index $index]
+        }
+        typemethod findbyid {id} {
+            foreach o $pendingobjects {
+                if {[$o cget -id] == $id} {
+                    return $o
+                }
+            }
+            return {}
+        }
+    }
     snit::type Client {
+        variable objects -array {}
+        ## Objects in this system we are responsible for.
+        variable objids -array {}
+        typemethod SequenceNumber {} {
+            return [clock clicks]
+        }
         variable channel
         option -port -readonly yes -default 5050
         option -host -readonly yes -default localhost
@@ -57,10 +87,64 @@ namespace eval PlanetarySystemClient {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
+                set response [split $line " "]
+                set status [lindex $response 0]
+                set sequence [lindex $response 1]
+                set command [lindex $response 2]
+                set args [lrange $response 3 end]
+                switch [expr {int($status / 100)}] {
+                    2 {
+                        $self processOKreponse $status $sequence $command $args
+                    }
+                    4 -
+                    5 {
+                        $self processErrorResponse $status $sequence $command $args
+                    }
+                }
             }
         }
+        method processOKreponse {status sequence command arglist} {
+            switch [string toupper $command] {
+                ADD {
+                    set id [from arglist -id]
+                    set remoteid [from arglist -remoteid]
+                    set epoch [from arglist -epoch]
+                    set o [ObjectQueue findbyid $id]
+                    set objects($remoteid) [$o cget -object]
+                    set objids($object) $remoteid
+                    $object configure -epoch $epoch
+                }
+                UPDATE {
+                    set remoteid [from arglist -remoteid]
+                    set newpos   [from arglist -position]
+                    set newvel   [from arglist -velocity]
+                    set epoch [from arglist -epoch]
+                    $objects($remoteid) updateposvel $newpos $newvel
+                    $objects($remoteid) configure -epoch $epoch
+                }
+                    
+            }
+        }
+        method _sendmessage {command args} {
+            set seq [SequenceNumber]
+            set cmdlist [linsert $args 0 $command $seq]
+            puts $channel $cmdlist
+        }
+            
         destructor {
             catch {close $channel}
+        }
+        method add {object} {
+            set o [$ObjectQueue create %AUTO% -object $object]
+            $self _sendmessage ADD -id [$o cget -id] \
+                  -position [$object cget -positionXYZ] \
+                  -velocity [$object cget -velocityXYZ] \
+                  -thustvector [$object cget -thustvectorXYZ]
+        }
+        method updatethrustvector {object} {
+            set remoteid $objids($object)
+            $self _sendmessage UPDATE_THRUST -remoteid $remoteid \
+                  -thustvector [$object cget -thustvectorXYZ]
         }
     }
     namespace export Client
