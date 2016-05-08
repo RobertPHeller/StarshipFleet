@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 20:44:55 2016
-#  Last Modified : <160419.1209>
+#  Last Modified : <160507.1708>
 #
 #  Description	
 #
@@ -431,12 +431,12 @@ namespace eval orsa {
             
         }
         
-        typemethod print {b {fp stdout}} {
-            puts $fp [format "Body name %s   mass %15.10g" [$b name] [$b mass]]
+        typemethod print {b {fp stdout} {tabs ""}} {
+            puts $fp [format "%sBody name %s   mass %15.10g" $tabs [$b name] [$b mass]]
             set p [$b position]
-            puts $fp [format "position  %15.10g %15.10g %15.10g" [$p GetX] [$p GetY] [$p GetZ]]
+            puts $fp [format "%s  position  %15.10g %15.10g %15.10g" $tabs [$p GetX] [$p GetY] [$p GetZ]]
             set v [$b velocity]
-            puts $fp [format "velocity  %15.10g %15.10g %15.10g" [$v GetX] [$v GetY] [$v GetZ]]
+            puts $fp [format "%s  velocity  %15.10g %15.10g %15.10g" $tabs [$v GetX] [$v GetY] [$v GetZ]]
         }
         
     }

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <160507.0924>
+#  Last Modified : <160507.1658>
 #
 #  Description	
 #
@@ -608,6 +608,15 @@ namespace eval orsa {
             $o configure -m_ $M
             $o RelativePosVel relative_position relative_velocity
         }
+        method print {{fp stdout} {tabs ""}} {
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4] 
+                puts $fp [format {%s%s: %s} $tabs $o $ov]
+            }
+        }
+        
+            
     }
     namespace export Orbit OrbitWithEpoch
 }

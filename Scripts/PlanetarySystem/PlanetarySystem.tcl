@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160507.0938>
+#  Last Modified : <160507.1713>
 #
 #  Description	
 #
@@ -323,6 +323,16 @@ namespace eval planetarysystem {
             }
             $pdfobject endPage
         }
+        method print {{fp stdout}} {
+            puts $fp [format "%s: Mass: %g Sun Masses" [namespace tail $self] [$self cget -mass]]
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                if {$o eq "-mass"} {continue}
+                puts $fp [format {%s: %s} $o $ov]
+            }
+            ::orsa::Body print $body
+        }
         typemethod validate {object} {
             ## @publicsection Validate object as a PlantarySystem object.
             #
@@ -374,7 +384,7 @@ namespace eval planetarysystem {
         # @arg -icecover Ice cover percentage.
         # @arg -moons The moons of this planet.
         # @par
-        # Plus all of the options of ::orsa::Orbit.
+        # Plus all of the options of ::orsa::OrbitWithEpoch.
         
         component body
         ## @privatesection The orsa body for this planet.
@@ -502,7 +512,7 @@ namespace eval planetarysystem {
             # @arg -icecover Ice cover percentage.
             # @arg -moons The list of moons.
             # @par
-            # Plus all of the options of ::orsa::Orbit.
+            # Plus all of the options of ::orsa::OrbitWithEpoch.
             
             #puts stderr "*** $type create $self $args"
             if {[lsearch $args -sun] < 0} {
@@ -526,6 +536,7 @@ namespace eval planetarysystem {
                 [lsearch -exact $args -omega_node] > 0 &&
                 [lsearch -exact $args -m_] > 0 &&
                 [lsearch -exact $args -mu] > 0} {
+                #puts stderr "*** All orbital options passed..." 
                 install orbit using OrbitWithEpoch %AUTO% \
                       -a [from args -a] \
                       -e [from args -e] \
@@ -563,7 +574,8 @@ namespace eval planetarysystem {
                 set mu [expr {(4*$orsa::pisq*$a*$a*$a)/($p*$p)}]
                 
                 set M  [expr {acos(rand()*2.0-1.0)*2.0}]
-                install orbit using Orbit %AUTO% \
+                #puts stderr "*** Some orbital options generated..."
+                install orbit using OrbitWithEpoch %AUTO% \
                       -a $a \
                       -e $e \
                       -i $i \
@@ -665,6 +677,24 @@ namespace eval planetarysystem {
                 }
             }
             $pdfobject endPage
+        }
+        method print {{fp stdout} {tabs ""}} {
+            puts $fp "$tabs[format {%s: Mass: %g Earth Masses} [namespace tail $self] [$self cget -mass]]"
+            foreach orec [$self configure] {
+                set o [lindex $orec 0]
+                set ov [lindex $orec 4]
+                if {$o eq "-mass"} {continue}
+                if {$o eq "-moons"} {
+                    puts $fp "${tabs}-moons:"
+                    foreach m $ov {
+                        $m print $fp "${tabs}\t"
+                    }
+                } else {
+                    puts $fp "$tabs[format {%s: %s} $o $ov]"
+                }
+            }
+            ::orsa::Body print $body $fp $tabs
+            $orbit print $fp $tabs
         }
         method ReportPDF {{filename {}}} {
             if {"$filename" eq ""} {
@@ -971,6 +1001,12 @@ namespace eval planetarysystem {
             $pdfobject finish
             $pdfobject destroy
             return $filename
+        }
+        method print {{fp stdout}} {
+            $sun print $fp
+            foreach p $planetlist {
+                $p print $fp
+            }
         }
         method save {filename} {
             if {[catch {open $filename w} ofp]} {

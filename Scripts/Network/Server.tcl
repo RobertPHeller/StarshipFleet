@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <160506.1348>
+#  Last Modified : <160507.1713>
 #
 #  Description	
 #
@@ -73,6 +73,7 @@ namespace eval PlanetarySystemServer {
             set system [PlanetarySystem %AUTO% -generate $generate \
                         -seed $seed -stellarmass $stellarmass \
                         -filename $filename]
+            #$system print stderr
             set serversocket [socket -server [mytypemethod _accept] \
                               -myaddr $myaddr $port]
         }
