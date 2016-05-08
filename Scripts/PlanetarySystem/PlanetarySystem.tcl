@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160507.1713>
+#  Last Modified : <160508.1441>
 #
 #  Description	
 #
@@ -714,12 +714,17 @@ namespace eval planetarysystem {
             return $filename
         }
         method update {epoch} {
+            #puts stderr "*** $self update $epoch"
             $orbit RelativePosVelAtTime pos vel $epoch
             $pos += [[$self cget -refbody] position]
             $vel += [[$self cget -refbody] velocity]
             $body SetPosition $pos
             $body SetVelocity $vel
-            return [list [$pos GetX] [$pos GetY] [$post GetY]]
+            #puts stderr "*** $self update: pos: \{[$pos GetX] [$pos GetY] [$pos GetY]\} val: \{[$vel GetX] [$vel GetY] [$vel GetY]\}"
+            foreach m $moons {
+                $m update $epoch
+            }
+            return [list [$pos GetX] [$pos GetY] [$pos GetY]]
         }
         typemethod namegenerator {starname} {
             namespace eval $starname {}
@@ -765,6 +770,7 @@ namespace eval planetarysystem {
         ## Other objects
         variable epoch 0
         ## Current epoch (timestamp)
+        variable _updater_id -1
         option -seed -default 0 -type snit::integer
         option -stellarmass -default 0.0 -type {snit::double -min 0.0}
         option -generate -default true -type snit::boolean -readonly yes
@@ -787,10 +793,12 @@ namespace eval planetarysystem {
                 $self _generate
                 #puts stderr "*** $type create $self: _generate completed"
             } else {
-                #puts stderr "*** $type create $self: about to load [$self cget -filename]"
+                puts stderr "*** $type create $self: about to load [$self cget -filename]"
                 $self load [$self cget -filename]
                 #puts stderr "*** $type create $self: load completed"
             }
+            set _updater_id [after 1000 [mymethod _updater]]
+            #puts stderr "*** $type create $self: _updater_id = $_updater_id"
         }
         method _generate {} {
             if {$options(-stellarmass) == 0.0} {
@@ -1097,6 +1105,7 @@ namespace eval planetarysystem {
                     -filename [from args -filename PlanetarySystem.system]]
         }
         destructor {
+            catch {after cancel $_updater_id}    
             return
             puts stderr "*** $self destroy"
             set l [info level]
@@ -1117,14 +1126,16 @@ namespace eval planetarysystem {
         method _updater {} {
             ## @privatesection Update everything.
             
+            #puts stderr "*** $self _updater"
             incr epoch [expr {wide([$::orsa::units FromUnits_time_unit 1 MINUTE])}]
+            #puts stderr "*** $self _updater: epoch = $epoch"
             foreach p $planetlist {
                 $p update $epoch
             }
             foreach o $objects {
                 $o update $epoch
             }
-            after 1000 [mymethod _updater]
+            set _updater_id [after 1000 [mymethod _updater]]
         }
         proc pchar2ptype {ch} {
             switch -exact -- "$ch" {

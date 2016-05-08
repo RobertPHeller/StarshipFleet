@@ -66,7 +66,7 @@ GUISupportScripts = Scripts/GUISupport/close.gif \
 
 
 StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
-		$(PlanetarySystemScripts) $(GUISupportScripts) \
+		$(NetworkScripts) $(GUISupportScripts) \
 		$(StarGenScripts)
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarshipFleet.tcl
@@ -81,7 +81,7 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/StarGen $(StarGenScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
-		StarshipFleet lib/PlanetarySystem $(PlanetarySystemScripts)
+		StarshipFleet lib/Network $(NetworkScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/GUISupport $(GUISupportScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit \
@@ -106,6 +106,8 @@ StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
 		lib $(SNITLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
 		lib $(CONTROLLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
+		lib $(TCLLOGLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarSystemServer lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \

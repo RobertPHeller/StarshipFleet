@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:27:13 2016
-#  Last Modified : <160505.1255>
+#  Last Modified : <160508.1558>
 #
 #  Description	
 #
@@ -45,6 +45,8 @@ package require PlanetarySystem
 package require PlanetarySystemServer
 
 namespace import PlanetarySystemServer::*
+
+set ::argv0 [info nameofexe]
 
 eval [list Server InitServer] $::argv
 

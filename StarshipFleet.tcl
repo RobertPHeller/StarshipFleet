@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160505.1910>
+#  Last Modified : <160508.1452>
 #
 #  Description	
 #
@@ -1402,3 +1402,6 @@ proc print {v} {
 #    $s print stdout
 #}
 #exit 0
+
+set client [PlanetarySystemClient::Client %AUTO%]
+vwait forever

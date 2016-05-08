@@ -70,6 +70,7 @@ dnl Check for external Tcl/Tk libraries
 AX_SNIT
 AX_URI
 AX_CONTROL
+AX_TCLLOG
 AC_PATH_PROGS(UNZIP,unzip)
 
 AC_MSG_CHECKING([Checking target Img and tclkit])

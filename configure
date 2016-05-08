@@ -654,6 +654,7 @@ NEED_APP_BUNDLE
 TCLKITRUN
 IMG_ZIP
 UNZIP
+TCLLOGLIB
 CONTROLLIB
 URILIB
 SNITLIB
@@ -850,6 +851,7 @@ with_tcl
 with_snitlib
 with_urilib
 with_controllib
+with_tclloglib
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1515,6 +1517,7 @@ Optional Packages:
   --with-snitlib=DIR          use snit from DIR
   --with-urilib=DIR          use uri from DIR
   --with-controllib=DIR          use control from DIR
+  --with-tclloglib=DIR          use Tcl log from DIR
 
 Some influential environment variables:
   CC          C compiler command
@@ -14213,6 +14216,34 @@ $as_echo "using control library in $CONTROLLIB" >&6; }
 else
    { { $as_echo "$as_me:$LINENO: error: Control library directory not found" >&5
 $as_echo "$as_me: error: Control library directory not found" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+
+{ $as_echo "$as_me:$LINENO: checking Tcl log dir" >&5
+$as_echo_n "checking Tcl log dir... " >&6; }
+searchdirs=`echo 'puts $auto_path'|${HOSTTCLSH}`
+for dir in $searchdirs ; do
+  dirs="${dir}/log* ${dir}/tcllib*/log*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      TCLLOGLIB=`cd $i; pwd`
+    fi
+  done
+done
+
+# Check whether --with-tclloglib was given.
+if test "${with_tclloglib+set}" = set; then
+  withval=$with_tclloglib; TCLLOGLIB=$withval
+fi
+
+if test x$TCLLOGLIB != x -a -d $TCLLOGLIB; then
+   { $as_echo "$as_me:$LINENO: result: using Tcl log library in $TCLLOGLIB" >&5
+$as_echo "using Tcl log library in $TCLLOGLIB" >&6; }
+else
+   { { $as_echo "$as_me:$LINENO: error: Tcl log library directory not found" >&5
+$as_echo "$as_me: error: Tcl log library directory not found" >&2;}
    { (exit 1); exit 1; }; }
 fi
 

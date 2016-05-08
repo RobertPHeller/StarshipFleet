@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <160506.1326>
+#  Last Modified : <160508.1509>
 #
 #  Description	
 #
@@ -42,11 +42,12 @@
 
 
 package require snit
+package require orsa
 
 namespace eval PlanetarySystemClient {
     snit::type ObjectQueue {
         option -id -readonly yes
-        option -object -readonly -default {}
+        option -object -readonly yes -default {}
         typevariable pendingobjects [list]
         typevariable _ID 0
         constructor {args} {
@@ -73,7 +74,7 @@ namespace eval PlanetarySystemClient {
         ## Objects in this system we are responsible for.
         variable objids -array {}
         typemethod SequenceNumber {} {
-            return [clock clicks]
+            return [clock milliseconds]
         }
         variable channel
         option -port -readonly yes -default 5050
@@ -81,17 +82,26 @@ namespace eval PlanetarySystemClient {
         constructor {args} {
             $self configurelist $args
             set channel [socket $options(-host) $options(-port)]
-            fileevent readable $channel [mytypemethod _listener]
+            puts stderr "*** $type create $self: channel = $channel"
+            fconfigure $channel  -buffering line
+            puts stderr "*** $type create $self: fconfigure $channel = [fconfigure $channel]"
+            fileevent $channel readable [mymethod _listener]
         }
         method _listener {} {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
+                puts stderr "*** $self _listener: line = '$line'"
                 set response [split $line " "]
+                puts stderr "*** $self _listener: response is $response"
                 set status [lindex $response 0]
+                puts stderr "*** $self _listener: status is $status"
                 set sequence [lindex $response 1]
+                puts stderr "*** $self _listener: sequence is $sequence"
                 set command [lindex $response 2]
+                puts stderr "*** $self _listener: command is $command"
                 set args [lrange $response 3 end]
+                puts stderr "*** $self _listener: args are $args"
                 switch [expr {int($status / 100)}] {
                     2 {
                         $self processOKreponse $status $sequence $command $args
@@ -103,8 +113,15 @@ namespace eval PlanetarySystemClient {
                 }
             }
         }
+        variable myunits {}
         method processOKreponse {status sequence command arglist} {
             switch [string toupper $command] {
+                INIT {
+                    set myunits [orsa::Units %AUTO% \
+                                 [from arglist -timeunits] \
+                                 [from arglist -lengthunits] \
+                                 [from arglist -massunits]]
+                }
                 ADD {
                     set id [from arglist -id]
                     set remoteid [from arglist -remoteid]
@@ -112,15 +129,15 @@ namespace eval PlanetarySystemClient {
                     set o [ObjectQueue findbyid $id]
                     set objects($remoteid) [$o cget -object]
                     set objids($object) $remoteid
-                    $object configure -epoch $epoch
+                    $object updateepoch $epoch $myunits
                 }
                 UPDATE {
                     set remoteid [from arglist -remoteid]
                     set newpos   [from arglist -position]
                     set newvel   [from arglist -velocity]
                     set epoch [from arglist -epoch]
-                    $objects($remoteid) updateposvel $newpos $newvel
-                    $objects($remoteid) configure -epoch $epoch
+                    $objects($remoteid) updateposvel $newpos $newvel $myunits
+                    $objects($remoteid) updateepoch $epoch
                 }
                     
             }
@@ -137,14 +154,26 @@ namespace eval PlanetarySystemClient {
         method add {object} {
             set o [$ObjectQueue create %AUTO% -object $object]
             $self _sendmessage ADD -id [$o cget -id] \
-                  -position [$object cget -positionXYZ] \
-                  -velocity [$object cget -velocityXYZ] \
-                  -thustvector [$object cget -thustvectorXYZ]
+                  -position [$object GetPositionXYZUnits $myunits] \
+                  -velocity [$object GetVelocityXYZUnits $myunits] \
+                  -thustvector [$object GetThustvectorXYZUnits $myunits] \
+                  -mass [$object GetMassUnits $myunits]
         }
         method updatethrustvector {object} {
-            set remoteid $objids($object)
-            $self _sendmessage UPDATE_THRUST -remoteid $remoteid \
-                  -thustvector [$object cget -thustvectorXYZ]
+            if {[catch {set objids($object)} remoteid]} {
+                error [format "Object not registered: %s" $object]
+            } else {
+                $self _sendmessage UPDATE_THRUST -remoteid $remoteid \
+                      -thustvector [$object GetThustvectorXYZUnits $myunits]
+            }
+        }
+        method updatemass {object} {
+            if {[catch {set objids($object)} remoteid]} {
+                error [format "Object not registered: %s" $object]
+            } else {
+                $self _sendmessage UPDATE_MASS -remoteid $remoteid \
+                      -mass [$object GetMassUnits $myunits]
+            }
         }
     }
     namespace export Client
