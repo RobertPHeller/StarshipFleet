@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 06:49:13 2016
-#  Last Modified : <160403.2214>
+#  Last Modified : <160514.1158>
 #
 #  Description	
 #
@@ -50,7 +50,8 @@ source [file join $orsa::ORSA_DIR orsa_coord.tcl]
 source [file join $orsa::ORSA_DIR orsa_body.tcl]
 source [file join $orsa::ORSA_DIR orsa_units.tcl]
 source [file join $orsa::ORSA_DIR orsa_orbit.tcl]
-
+source [file join $orsa::ORSA_DIR orsa_frame.tcl]
+source [file join $orsa::ORSA_DIR orsa_interaction.tcl]
 
 namespace eval ::tcl::mathfunc {
     ## From orsa_secure_math.{h,cc}

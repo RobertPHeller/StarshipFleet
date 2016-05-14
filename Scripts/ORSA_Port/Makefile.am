@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 06:02:51 2016
-#  Last Modified : <160403.1051>
+#  Last Modified : <160511.1255>
 #
 #  Description	
 #
@@ -44,4 +44,5 @@
 
 
 EXTRA_DIST = pkgIndex.tcl orsa.tcl orsa_body.tcl orsa_common.tcl \
-		orsa_coord.tcl orsa_body.tcl orsa_units.tcl
+		orsa_coord.tcl orsa_body.tcl orsa_units.tcl orsa_frame.tcl \
+		orsa_interaction.tcl

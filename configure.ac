@@ -71,6 +71,7 @@ AX_SNIT
 AX_URI
 AX_CONTROL
 AX_TCLLOG
+AX_STRUCT
 AC_PATH_PROGS(UNZIP,unzip)
 
 AC_MSG_CHECKING([Checking target Img and tclkit])

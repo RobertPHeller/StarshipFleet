@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 1 22:16:30 2016
-#  Last Modified : <160403.2207>
+#  Last Modified : <160511.1444>
 #
 #  Description	
 #
@@ -53,8 +53,11 @@ namespace eval orsa {
         variable z 0.0
         option -par -default 0.0 -type snit::double
         method GetX {} {return $x}
+        method SetX {_x} {set x $_x}
         method GetY {} {return $y}
+        method SetY {_y} {set y $_y}
         method GetZ {} {return $z}
+        method SetZ {_z} {set z $_z}
         method Set {v} {
             $type validate $v
             set x [$v GetX]

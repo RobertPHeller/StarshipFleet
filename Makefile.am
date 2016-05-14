@@ -76,6 +76,8 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		lib $(SNITLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarshipFleet \
 		lib $(CONTROLLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarshipFleet \
+		lib $(STRUCTLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
@@ -108,6 +110,8 @@ StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
 		lib $(CONTROLLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
 		lib $(TCLLOGLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
+		lib $(STRUCTLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarSystemServer lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
