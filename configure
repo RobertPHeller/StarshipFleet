@@ -654,6 +654,7 @@ NEED_APP_BUNDLE
 TCLKITRUN
 IMG_ZIP
 UNZIP
+STRUCTLIB
 TCLLOGLIB
 CONTROLLIB
 URILIB
@@ -852,6 +853,7 @@ with_snitlib
 with_urilib
 with_controllib
 with_tclloglib
+with_structlib
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1518,6 +1520,7 @@ Optional Packages:
   --with-urilib=DIR          use uri from DIR
   --with-controllib=DIR          use control from DIR
   --with-tclloglib=DIR          use Tcl log from DIR
+  --with-structlib=DIR          use struct from DIR
 
 Some influential environment variables:
   CC          C compiler command
@@ -14244,6 +14247,34 @@ $as_echo "using Tcl log library in $TCLLOGLIB" >&6; }
 else
    { { $as_echo "$as_me:$LINENO: error: Tcl log library directory not found" >&5
 $as_echo "$as_me: error: Tcl log library directory not found" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+
+{ $as_echo "$as_me:$LINENO: checking struct dir" >&5
+$as_echo_n "checking struct dir... " >&6; }
+searchdirs=`echo 'puts $auto_path'|${HOSTTCLSH}`
+for dir in $searchdirs ; do
+  dirs="${dir}/struct* ${dir}/tcllib*/struct*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      STRUCTLIB=`cd $i; pwd`
+    fi
+  done
+done
+
+# Check whether --with-structlib was given.
+if test "${with_structlib+set}" = set; then
+  withval=$with_structlib; STRUCTLIB=$withval
+fi
+
+if test x$STRUCTLIB != x -a -d $STRUCTLIB; then
+   { $as_echo "$as_me:$LINENO: result: using struct library in $STRUCTLIB" >&5
+$as_echo "using struct library in $STRUCTLIB" >&6; }
+else
+   { { $as_echo "$as_me:$LINENO: error: Struct library directory not found" >&5
+$as_echo "$as_me: error: Struct library directory not found" >&2;}
    { (exit 1); exit 1; }; }
 fi
 

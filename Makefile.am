@@ -13,7 +13,9 @@ ORSA_PortScripts = Scripts/ORSA_Port/pkgIndex.tcl \
                    Scripts/ORSA_Port/orsa_body.tcl \
                    Scripts/ORSA_Port/orsa_units.tcl \
                    Scripts/ORSA_Port/orsa_orbit.tcl \
-                   Scripts/ORSA_Port/orsa.tcl
+                   Scripts/ORSA_Port/orsa.tcl \
+                   Scripts/ORSA_Port/orsa_frame.tcl \
+                   Scripts/ORSA_Port/orsa_interaction.tcl
 
 PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
 		 	 Scripts/PlanetarySystem/PlanetarySystem.tcl \

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <160508.1643>
+#  Last Modified : <170123.1535>
 #
 #  Description	
 #
@@ -227,6 +227,9 @@ namespace eval PlanetarySystemServer {
                             $object configure -mass $mass
                         }
                     }
+                    ### Sensor logic: visible light, LIDAR, RADAR, etc.
+                    ### SENSOR SEQ -type {VISIBLE LIDAR RADAR} -direction DirVect
+                    ### Returns SEQ Sensor data (depends on type)
                     default {
                         $self sendResponse 404 $sequence $command -message [format "Unknown command %s" $command]
                     }

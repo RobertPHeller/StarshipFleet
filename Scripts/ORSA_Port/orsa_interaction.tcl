@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed May 11 12:56:03 2016
-#  Last Modified : <160514.1151>
+#  Last Modified : <170123.1510>
 #
 #  Description	
 #
@@ -42,16 +42,18 @@
 
 package require struct::matrix
 
-
 namespace eval orsa {
     snit::type TreeNode_ListInterator {
         variable parentnode
         variable index
+        typeconstructor {
+            namespace import ::orsa::*
+        }
         constructor {_p _i} {
             set parentnode $_p
             set index $_i
         }
-        method getnode {
+        method getnode {index} {
             if {$index < [$parentnode child size]} {
                 return [$parentnode child get $index]
             } else {
@@ -108,9 +110,13 @@ namespace eval orsa {
     }
     
     snit::type TreeNode {
+        typeconstructor {
+            namespace import ::orsa::*
+            set o [Vector %AUTO% 0 0 0]
+        }
         variable b [list];# of Body
         variable child [list];# of TreeNode
-        variable o [Vector %AUTO% 0 0 0]
+        variable o
         variable l 0.0
         variable depth 0
         variable _node_mass 0.0
