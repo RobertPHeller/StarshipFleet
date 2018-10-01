@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 8 13:01:31 2016
-#  Last Modified : <160505.1302>
+#  Last Modified : <181001.1034>
 #
 #  Description	
 #
@@ -47,6 +47,7 @@ package require tile
 package require ScrollWindow
 package require ButtonBox
 package require ObjectDetail
+package require PlanetarySystem
 
 namespace eval planetarysystem {
     
@@ -70,7 +71,7 @@ namespace eval planetarysystem {
             $system destroy
             unset system
             $self _cleartools
-            install system using PlanetarySystem %AUTO% -generate yes \
+            install system using ::planetarysystem::PlanetarySystem %AUTO% -generate yes \
                   -seed [from args -seed 0] \
                   -stellarmass [from args -stellarmass 0.0]
             $self _init
@@ -83,7 +84,7 @@ namespace eval planetarysystem {
             $system destroy
             unset system
             $self _cleartools
-            install system using PlanetarySystem %AUTO% -generate no \
+            install system using ::planetarysystem::PlanetarySystem %AUTO% -generate no \
                   -filename [from args -filename PlanetarySystem.system]
             $self _init
         }
@@ -102,7 +103,7 @@ namespace eval planetarysystem {
         variable planetmenus -array {}
         constructor {args} {
             #puts stderr "*** $type create $self $args"
-            install system using PlanetarySystem %AUTO% \
+            install system using ::planetarysystem::PlanetarySystem %AUTO% \
                   -seed [from args -seed 0] \
                   -stellarmass [from args -stellarmass 0.0] \
                   -generate [from args -generate yes] \

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <160508.1441>
+#  Last Modified : <181001.1424>
 #
 #  Description	
 #
@@ -417,6 +417,7 @@ namespace eval planetarysystem {
         option -cloudcover -default 0 -readonly yes -type {snit::double -min 0 -max 100}
         option -icecover -default 0 -readonly yes -type {snit::double -min 0 -max 100}
         option -creationepoch -default 0 -readonly yes -type {snit::integer -min 0}
+        option -parent -default {} -readonly yes
         option -moons -default {} -readonly yes \
               -type planetarysystem::PlanetList \
               -cgetmethod _getMoons -configuremethod _setMoons
@@ -444,7 +445,8 @@ namespace eval planetarysystem {
             from args -refbody
             set m [eval [list $type create ${self}::$mname \
                          -sun [$self cget -sun] \
-                         -refbody $body] $args]
+                         -refbody $body \
+                         -parent $self] $args]
             lappend moons $m
         }
         method {moon count} {} {return [llength $moons]}
@@ -453,6 +455,13 @@ namespace eval planetarysystem {
                 error [format "Moon index (%d) is out of range: 1..%d" $i [llength $moons]]
             }
             return [lindex $moons [expr {$i - 1}]]
+        }
+        method parent {} {
+            if {[$self cget -parent] eq {}} {
+                return [$self cget -sun]
+            } else {
+                return [$self cget -parent]
+            }
         }
         variable CreationM 0.0
         typevariable planetname_corpus
@@ -938,6 +947,18 @@ namespace eval planetarysystem {
                 lappend planetlist $planets($i,planet)
 
             }
+        }
+        method GetReferenceBody {abspos absvel} {
+            set sunbody [$sun GetBody]
+            set nearestObject [$self findnearestbody $abspos]
+            while {$sunbody ne [set nearestBody [$nearestObject GetBody]]} {
+                if {[$nearestBody validorbit $abspos $absvel]} {
+                    return [$nearestObject GetBody]
+                } else {
+                    set nearestObject [$nearestObject parent]
+                }
+            }
+            return $nearestBody
         }
         method add {object} {
             ## Add an object to the list of known objects.

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <170123.1535>
+#  Last Modified : <181001.1355>
 #
 #  Description	
 #
@@ -103,8 +103,8 @@ namespace eval PlanetarySystemServer {
             set system [PlanetarySystem %AUTO% -generate $generate \
                         -seed $seed -stellarmass $stellarmass \
                         -filename $filename]
-            #puts stderr "*** $type InitServer: system = $system"
-            #$system print stderr
+            ::log::log debug "*** $type InitServer: system = $system"
+            if {!$debugnotvis} {$system print $logchan}
             $system add $type
             set serversocket [socket -server [mytypemethod _accept] \
                               -myaddr $myaddr $port]
@@ -142,6 +142,26 @@ namespace eval PlanetarySystemServer {
                 set abspos [Vector copy $pout]
                 $abspos += [$refbody position]
                 $object configure -position $pout
+                ### Might need to update refbody if the object's orbit has 
+                ### changed...
+                ## set _refbody [$system GetReferenceBody $abspos $absvel]
+                ## if {$refbody ne $_refbody} {
+                ##     set refbody $_refbody
+                ##     set newpos [Vector copy $abspos]
+                ##     set newvel [Vector copy $absvel]
+                ##     $newpos -= [$refbody position]
+                ##     $newvel -= [$refbody velocity]
+                ##     set body [Body create %AUTO% "" $mass $position $velocity]
+                ##     set orbit [OrbitWithEpoch create %AUTO%]
+                ##     [$object -body] destroy
+                ##     [$object -orbit] destroy
+                ##     $orbit Compute Body $body $refbody [$system getepoch]
+                ##     $object configure -refbody $refbody \
+                ##                       -body    $body \
+                ##                       -orbit $orbit \
+                ##                       -velocity $newvel \
+                ##                       -position $newpos
+                ## }
                 # update pos: object
                 $self sendResponse 200 [$type SequenceNumber] UPDATE \
                       -remoteid $serverid \
@@ -185,8 +205,11 @@ namespace eval PlanetarySystemServer {
                         set velocity [eval [list Vector create %AUTO%] [from args -velocity [list 0 0 0]]]
                         set mass     [from args -mass 0]
                         set thustvector [eval [list Vector create %AUTO%] [from args -thustvector [list 0 0 0]]]
-                        # Assume orbit is about the sun.  Should really compute
-                        # 'nearest' body
+                        ### Assume orbit is about the sun.  Should really 
+                        ### compute proper reference body, based on speed and 
+                        ### position, etc.
+                        ## set refbody [$system GetReferenceBody $position 
+                        ##                      $velocity]
                         set refbody [[$system GetSun] GetBody]
                         $position -= [$refbody position]
                         $velocity -= [$refbody velocity]
