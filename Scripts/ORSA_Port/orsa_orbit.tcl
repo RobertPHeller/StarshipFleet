@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <160507.1658>
+#  Last Modified : <181002.1209>
 #
 #  Description	
 #
@@ -48,6 +48,7 @@ namespace import control::*
 
 
 namespace eval orsa {
+    snit::enum OrbitType -values {normal capture escape unknown}
     snit::type Orbit {
         #typevariable epsilon 1e-323
         typevariable epsilon 1e-17
@@ -58,6 +59,7 @@ namespace eval orsa {
         option -omega_pericenter -default  0.0 -type snit::double
         option -m_ -default 0.0 -type snit::double
         option -mu -default 0.0  -type snit::double;# G*(m+M)
+        variable orbittype unknown
         constructor {args} {$self configurelist $args}
         method Period {} {
             set mu [$self cget -mu]
@@ -174,6 +176,7 @@ namespace eval orsa {
                 return 1.0
             }
         }
+        method OrbitalType {} {return $orbittype}
         typemethod validate {o} {
             if {[catch {$o info type} otype]} {
                 error [format "%s is not a %s" $o $type]
@@ -362,7 +365,7 @@ namespace eval orsa {
             set dr [[$b position] - [$ref_b position]]
             set dv [[$b velocity] - [$ref_b velocity]]
             set mu [expr {[orsa::GetG] * ([$b mass] + [$ref_b mass])}]
-            $self Compute Vector $dr $dv $mu
+            return [$self Compute Vector $dr $dv $mu]
         }
         method {Compute Vector} {relative_position relative_velocity mu_in} {
             orsa::Vector validate $relative_position
@@ -549,6 +552,22 @@ namespace eval orsa {
                   -omega_pericenter $omega_pericenter \
                   -m_ $M \
                   -mu $mu
+            
+            ## Orbital type: capture, escape, or normal
+            if {$e == 1.0} { ## parabola
+                ## Capture or escape?
+                if {[$relative_velocity Length] < 0} {
+                    set orbittype capture
+                } else {
+                    set orbittype escape
+                }
+            } elseif {$e > 1.0} { ## hyperbola
+                ## Escape always
+                set orbittype escape
+            } else { ## ellipse/circular
+                set orbittype normal
+            }
+            return $orbittype
         }
     }
     snit::type OrbitWithEpoch {
@@ -562,11 +581,11 @@ namespace eval orsa {
         }
         method {Compute Vector} {relative_position relative_velocity mu epoch_in} {
             $self configure -epoch $epoch_in
-            $orbit Compute Vector $relative_position $relative_velocity $mu
+            return [$orbit Compute Vector $relative_position $relative_velocity $mu]
         }
         method {Compute Body} {b ref_b epoch_in} {
             $self configure -epoch $epoch_in
-            $orbit Compute Body $b $ref_b
+            return [$orbit Compute Body $b $ref_b]
         }
         typemethod validate {o} {
             if {[catch {$o info type} otype]} {

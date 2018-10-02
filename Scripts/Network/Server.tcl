@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181002.1007>
+#  Last Modified : <181002.1259>
 #
 #  Description	
 #
@@ -122,31 +122,109 @@ namespace eval PlanetarySystemServer {
             ::log::log debug "*** $type update $epoch"
             foreach serverid [array names objects] {
                 set object $objects($serverid)
-                set o [$object cget -orbit]
-                $o RelativePosVelAtTime pos vel $epoch
+                set orbit [$object cget -orbit]
+                $orbit RelativePosVelAtTime pos vel $epoch
                 set tv [$object cget -thustvector]
                 set tvel [Vector copy [$object cget -velocity]]
                 $tvel += $tv
                 $tvel configure -par 1
                 $vel configure -par 0
-                Vector Interpolate [list $tvel $vel] 1.0 vout verr
+                Vector Interpolate [list $tvel $vel] 1.0 velocity verr
                 $pos configure -par 0
                 set tpos [Vector copy [$object cget -position]]
                 $tpos += $tvel
-                Vector Interpolate [list $tpos $vel] 1.0 pout perr
+                Vector Interpolate [list $tpos $vel] 1.0 position perr
                 set orbiting [$object cget -orbiting]
                 set refbody [$object cget -refbody]
-                [$object cget -body] SetPosition $pout
-                [$object cget -body] SetVelocity $vout
-                $o Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
-                ### Check orbit ($o) for escape and update to new reference 
-                ### body...
-                set absvel [Vector copy $vout]
+                [$object cget -body] SetPosition $position
+                [$object cget -body] SetVelocity $velocity
+                $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                if {$orbiting eq [$system GetSun]} {
+                    set captureBody [$system PlantaryCapture $mass \
+                                     [$position + [$refbody position]] \
+                                     [$velocity + [$refbody velocity]]]
+                    if {$captureBody ne {}} {
+                        ### object is on a capture orbit...
+                        ### Update: orbiting, refbody, body, orbit; 
+                        ### recompute position and velocity
+                        set orbiting $captureBody
+                        $velocity += [$refbody velocity]
+                        $position += [$refbody position]
+                        set refbody [$orbiting GetBody]
+                        $velocity -= [$refbody velocity]
+                        $position -= [$refbody velocity]
+                        [$object cget -body] SetPosition $position
+                        [$object cget -body] SetVelocity $velocity
+                        $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                        $object configure -orbiting $orbiting \
+                              -refbody $refbody
+                    }
+                } elseif {[$orbit OrbitalType] eq "escape"} {
+                    set planet $orbiting
+                    if {[$planet parent] ne {}} {
+                        set planet [$planet parent]
+                    }
+                    set captureBody [$planet SateliteCapture $mass \
+                                     [$position + [$refbody position]] \
+                                     [$velocity + [$refbody velocity]]]
+                    if {$captureBody ne {}} {
+                        ### object is on a transfer orbit to a moon
+                        ### Update: orbiting, refbody, body, orbit; 
+                        ### recompute position and velocity
+                        set orbiting $captureBody
+                        $velocity += [$refbody velocity]
+                        $position += [$refbody position]
+                        set refbody [$orbiting GetBody]
+                        $velocity -= [$refbody velocity]
+                        $position -= [$refbody velocity]
+                        [$object cget -body] SetPosition $position
+                        [$object cget -body] SetVelocity $velocity
+                        $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                        $object configure -orbiting $orbiting \
+                              -refbody $refbody
+                    } else {
+                        set captureBody [$system PlantaryCapture $mass \
+                                         [$position + [$refbody position]] \
+                                         [$velocity + [$refbody velocity]]]
+                        if {$captureBody ne {}} {
+                            ### object is on a transfer orbit to another planet
+                            ### Update: orbiting, refbody, body, orbit; 
+                            ### recompute position and velocity
+                            set orbiting $captureBody
+                            $velocity += [$refbody velocity]
+                            $position += [$refbody position]
+                            set refbody [$orbiting GetBody]
+                            $velocity -= [$refbody velocity]
+                            $position -= [$refbody velocity]
+                            [$object cget -body] SetPosition $position
+                            [$object cget -body] SetVelocity $velocity
+                            $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                            $object configure -orbiting $orbiting \
+                                  -refbody $refbody
+                        } else {
+                            ### object is now in a solar orbit
+                            ### Update: orbiting, refbody, body, orbit; 
+                            ### recompute position and velocity
+                            set orbiting [$system GetSun]
+                            $velocity += [$refbody velocity]
+                            $position += [$refbody position]
+                            set refbody [$orbiting GetBody]
+                            $velocity -= [$refbody velocity]
+                            $position -= [$refbody velocity]
+                            [$object cget -body] SetPosition $position
+                            [$object cget -body] SetVelocity $velocity
+                            $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                            $object configure -orbiting $orbiting \
+                                  -refbody $refbody
+                        }
+                    }
+                }
+                set absvel [Vector copy $velocity]
                 $absvel += [$refbody velocity]
-                $object configure -velocity $vout
-                set abspos [Vector copy $pout]
+                $object configure -velocity $velocity
+                set abspos [Vector copy $position]
                 $abspos += [$refbody position]
-                $object configure -position $pout
+                $object configure -position $position
                 
                 # update pos: object
                 $self sendResponse 200 [$type SequenceNumber] UPDATE \
@@ -199,6 +277,78 @@ namespace eval PlanetarySystemServer {
                         set body [Body create %AUTO% "" $mass $position $velocity]
                         set orbit [OrbitWithEpoch create %AUTO%]
                         $orbit Compute Body $body $refbody [$system getepoch]
+                        if {$orbiting eq [$system GetSun]} {
+                            set captureBody [$system PlantaryCapture $mass \
+                                             [$position + [$refbody position]] \
+                                             [$velocity + [$refbody velocity]]]
+                            if {$captureBody ne {}} {
+                                ### object is on a capture orbit...
+                                ### Update: orbiting, refbody, body, orbit; 
+                                ### recompute position and velocity
+                                set orbiting $captureBody
+                                $velocity += [$refbody velocity]
+                                $position += [$refbody position]
+                                set refbody [$orbiting GetBody]
+                                $velocity -= [$refbody velocity]
+                                $position -= [$refbody velocity]
+                                [$object cget -body] SetPosition $position
+                                [$object cget -body] SetVelocity $velocity
+                                $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                            }
+                        } elseif {[$orbit OrbitalType] eq "escape"} {
+                            set planet $orbiting
+                            if {[$planet parent] ne {}} {
+                                set planet [$planet parent]
+                            }
+                            set captureBody [$planet SateliteCapture $mass \
+                                             [$position + [$refbody position]] \
+                                             [$velocity + [$refbody velocity]]]
+                            if {$captureBody ne {}} {
+                                ### object is on a transfer orbit to a moon
+                                ### Update: orbiting, refbody, body, orbit; 
+                                ### recompute position and velocity
+                                set orbiting $captureBody
+                                $velocity += [$refbody velocity]
+                                $position += [$refbody position]
+                                set refbody [$orbiting GetBody]
+                                $velocity -= [$refbody velocity]
+                                $position -= [$refbody velocity]
+                                [$object cget -body] SetPosition $position
+                                [$object cget -body] SetVelocity $velocity
+                                $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                            } else {
+                                set captureBody [$system PlantaryCapture $mass \
+                                                 [$position + [$refbody position]] \
+                                                 [$velocity + [$refbody velocity]]]
+                                if {$captureBody ne {}} {
+                                    ### object is on a transfer orbit to another planet
+                                    ### Update: orbiting, refbody, body, orbit; 
+                                    ### recompute position and velocity
+                                    set orbiting $captureBody
+                                    $velocity += [$refbody velocity]
+                                    $position += [$refbody position]
+                                    set refbody [$orbiting GetBody]
+                                    $velocity -= [$refbody velocity]
+                                    $position -= [$refbody velocity]
+                                    [$object cget -body] SetPosition $position
+                                    [$object cget -body] SetVelocity $velocity
+                                    $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                                } else {
+                                    ### object is now in a solar orbit
+                                    ### Update: orbiting, refbody, body, orbit; 
+                                    ### recompute position and velocity
+                                    set orbiting [$system GetSun]
+                                    $velocity += [$refbody velocity]
+                                    $position += [$refbody position]
+                                    set refbody [$orbiting GetBody]
+                                    $velocity -= [$refbody velocity]
+                                    $position -= [$refbody velocity]
+                                    [$object cget -body] SetPosition $position
+                                    [$object cget -body] SetVelocity $velocity
+                                    $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                                }
+                            }
+                        }
                         set objects($serverid) [clientobjects create %AUTO% \
                                                 -serverid $serverid \
                                                 -position $position \
@@ -212,7 +362,8 @@ namespace eval PlanetarySystemServer {
                                                 -clientconnection $self]
                         $self sendResponse 200 $sequence $command \
                               -id $clientid -remoteid $serverid \
-                              -epoch [$system getepoch]
+                              -epoch [$system getepoch] \
+                              -orbiting $orbiting
                     }
                     UPDATE_THRUST {
                         set serverid [from args -remoteid 0]
