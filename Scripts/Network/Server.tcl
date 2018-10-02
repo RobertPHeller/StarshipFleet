@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181001.1355>
+#  Last Modified : <181001.2038>
 #
 #  Description	
 #
@@ -209,7 +209,7 @@ namespace eval PlanetarySystemServer {
                         ### compute proper reference body, based on speed and 
                         ### position, etc.
                         ## set refbody [$system GetReferenceBody $position 
-                        ##                      $velocity]
+                        ##                      $velocity $mass]
                         set refbody [[$system GetSun] GetBody]
                         $position -= [$refbody position]
                         $velocity -= [$refbody velocity]

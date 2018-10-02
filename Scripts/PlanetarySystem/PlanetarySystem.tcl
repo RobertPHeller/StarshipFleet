@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <181001.1424>
+#  Last Modified : <181001.2145>
 #
 #  Description	
 #
@@ -457,11 +457,21 @@ namespace eval planetarysystem {
             return [lindex $moons [expr {$i - 1}]]
         }
         method parent {} {
+            return [$self cget -parent]
+        }
+        method GetAbsPosition {} {
+            set position [$body position]
             if {[$self cget -parent] eq {}} {
-                return [$self cget -sun]
+                return $position
             } else {
-                return [$self cget -parent]
+                return [$position + [[$self cget -parent] GetAbsPosition]]
             }
+        }
+        method CapturedP {abspos absvel mass epoch} {
+            set tempbody [Body create %AUTO% "" $mass $abspos $absvel]
+            set temporbit [OrbitWithEpoch create %AUTO%]
+            $temporbit Compute Body $tempbody [$self cget -refbody] $epoch
+            ### Test orbit for open endedness (?)
         }
         variable CreationM 0.0
         typevariable planetname_corpus
@@ -730,9 +740,9 @@ namespace eval planetarysystem {
             $body SetPosition $pos
             $body SetVelocity $vel
             #puts stderr "*** $self update: pos: \{[$pos GetX] [$pos GetY] [$pos GetY]\} val: \{[$vel GetX] [$vel GetY] [$vel GetY]\}"
-            foreach m $moons {
-                $m update $epoch
-            }
+            #foreach m $moons {
+            #    $m update $epoch
+            #}
             return [list [$pos GetX] [$pos GetY] [$pos GetY]]
         }
         typemethod namegenerator {starname} {
@@ -944,21 +954,39 @@ namespace eval planetarysystem {
                 }
 
                 $self add $planets($i,planet)
+                foreach m [$planets($i,planet) cget -moons] {
+                    $self add $m
+                }
                 lappend planetlist $planets($i,planet)
 
             }
         }
-        method GetReferenceBody {abspos absvel} {
+        method findnearestbody {position} {
+            set nearpos [$position Length]
+            set nearobj $sun
+            foreach o $objects {
+                if {[catch {Planet validate $o}]} {continue}
+                set newnear [Vector copy $position]
+                $newnear -= [$o GetAbsPosition]
+                if {[$newnear Length] < $nearpos} {
+                    set nearpos $newnear
+                    set nearobj $o
+                }
+            }
+            return $nearobj
+        }                
+        method GetReferenceBody {abspos absvel mass} {
             set sunbody [$sun GetBody]
-            set nearestObject [$self findnearestbody $abspos]
-            while {$sunbody ne [set nearestBody [$nearestObject GetBody]]} {
-                if {[$nearestBody validorbit $abspos $absvel]} {
+            set nearestObject [$self findnearestbody $abspos $epoch]
+            if {$nearestObject eq $sun} {return $sunbody}
+            while {$nearestObject ne {}} {
+                if {[$nearestObject CapturedP $abspos $absvel $mass [$self getepoch]]} {
                     return [$nearestObject GetBody]
                 } else {
                     set nearestObject [$nearestObject parent]
                 }
             }
-            return $nearestBody
+            return $sunbody
         }
         method add {object} {
             ## Add an object to the list of known objects.
