@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181001.2038>
+#  Last Modified : <181001.2232>
 #
 #  Description	
 #
@@ -144,7 +144,7 @@ namespace eval PlanetarySystemServer {
                 $object configure -position $pout
                 ### Might need to update refbody if the object's orbit has 
                 ### changed...
-                ## set _refbody [$system GetReferenceBody $abspos $absvel]
+                ## set _refbody [$system GetReferenceBody $abspos $absvel [$object cget -mass]]
                 ## if {$refbody ne $_refbody} {
                 ##     set refbody $_refbody
                 ##     set newpos [Vector copy $abspos]
