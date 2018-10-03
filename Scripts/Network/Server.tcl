@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181002.1259>
+#  Last Modified : <181002.2110>
 #
 #  Description	
 #
@@ -144,7 +144,7 @@ namespace eval PlanetarySystemServer {
                                      [$position + [$refbody position]] \
                                      [$velocity + [$refbody velocity]]]
                     if {$captureBody ne {}} {
-                        ### object is on a capture orbit...
+                        ### object is on a plantary capture orbit...
                         ### Update: orbiting, refbody, body, orbit; 
                         ### recompute position and velocity
                         set orbiting $captureBody
@@ -161,12 +161,18 @@ namespace eval PlanetarySystemServer {
                     }
                 } elseif {[$orbit OrbitalType] eq "escape"} {
                     set planet $orbiting
+                    set pposition [Vector copy $position]
+                    set pvelocity [Vector copy $velocity]
+                    set prefbody $refbody
                     if {[$planet parent] ne {}} {
+                        $pposition += [$prefbody position]
+                        $pvelocity += [$prefbody velocity]
                         set planet [$planet parent]
+                        set prefbody [$planet cget -refbody]
                     }
                     set captureBody [$planet SateliteCapture $mass \
-                                     [$position + [$refbody position]] \
-                                     [$velocity + [$refbody velocity]]]
+                                     [$pposition + [$prefbody position]] \
+                                     [$pvelocity + [$prefbody velocity]]]
                     if {$captureBody ne {}} {
                         ### object is on a transfer orbit to a moon
                         ### Update: orbiting, refbody, body, orbit; 
@@ -297,12 +303,18 @@ namespace eval PlanetarySystemServer {
                             }
                         } elseif {[$orbit OrbitalType] eq "escape"} {
                             set planet $orbiting
+                            set pposition [Vector copy $position]
+                            set pvelocity [Vector copy $velocity]
+                            set prefbody $refbody
                             if {[$planet parent] ne {}} {
+                                $pposition += [$prefbody position]
+                                $pvelocity += [$prefbody velocity]
                                 set planet [$planet parent]
+                                set prefbody [$planet GetBody]
                             }
                             set captureBody [$planet SateliteCapture $mass \
-                                             [$position + [$refbody position]] \
-                                             [$velocity + [$refbody velocity]]]
+                                             [$pposition + [$prefbody position]] \
+                                             [$pvelocity + [$prefbody velocity]]]
                             if {$captureBody ne {}} {
                                 ### object is on a transfer orbit to a moon
                                 ### Update: orbiting, refbody, body, orbit; 
