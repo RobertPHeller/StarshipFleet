@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <160508.1509>
+#  Last Modified : <181004.1255>
 #
 #  Description	
 #
@@ -43,6 +43,8 @@
 
 package require snit
 package require orsa
+package require base64
+package require tclgd
 
 namespace eval PlanetarySystemClient {
     snit::type ObjectQueue {
@@ -87,10 +89,21 @@ namespace eval PlanetarySystemClient {
             puts stderr "*** $type create $self: fconfigure $channel = [fconfigure $channel]"
             fileevent $channel readable [mymethod _listener]
         }
+        proc getHeaders {channel} {
+            set result [list]
+            while {[gets $channel line] > 0} {
+                if {[regexp {^([^:]+):[[:space:]]+(.*)$} => key value] > 0} {
+                    lappend result $key $value
+                }
+            }
         method _listener {} {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
+                array set headers [getHeaders $channel]
+                if {$headers(DataLength) > 0} {
+                    set data [::base64::decode [read $channel $headers(DataLength)]]
+                }
                 puts stderr "*** $self _listener: line = '$line'"
                 set response [split $line " "]
                 puts stderr "*** $self _listener: response is $response"

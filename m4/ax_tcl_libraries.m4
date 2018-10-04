@@ -111,6 +111,26 @@ fi
 AC_SUBST(STRUCTLIB)
 ])
 
+AC_DEFUN([AX_BASE64],[
+AC_MSG_CHECKING(base64 dir)
+searchdirs=`echo 'puts $auto_path'|${HOSTTCLSH}`
+for dir in $searchdirs ; do
+  dirs="${dir}/base64* ${dir}/tcllib*/base64*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      BASE64LIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(base64lib, [  --with-base64lib=DIR          use base64 from DIR], Base64LIB=$withval,)
+if test x$BASE64LIB != x -a -d $BASE64LIB; then
+   AC_MSG_RESULT([using base64 library in $BASE64LIB])
+else
+   AC_MSG_ERROR(Base64 library directory not found)
+fi
+AC_SUBST(BASE64LIB)
+])
+
 
 AC_DEFUN([AX_TCLLOG],[
 AC_MSG_CHECKING(Tcl log dir)

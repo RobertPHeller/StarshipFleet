@@ -1,0 +1,214 @@
+ChangeLog for tcl.gd
+====================
+2013-04-01 karl
+    * Add new rewrite_color method to GD objects that will rewrite one
+      color to another.  Clean up manpage.
+      
+    * Add a "delete" method to the created GD objects. The result is the
+      same as doing a rename $object ""
+      
+    * Add argument count validation to the width and height methods.
+
+    * Version bump to 1.2.
+
+2012-10-31 karl
+    * Use interpreter-associated data for the next object number for
+      GD objects created with a name of "#auto" rather than a global.
+
+      Although this should not have caused any problems with multiple
+      threads using tclgd simultaneously, better safe than sorry.
+
+    * New function, tclgd_imageRewriteColor, rewrites one color to another
+      for indexed and truecolor images.  Not used yet.
+
+2012-06-17 bovine
+    * Fix possible memory leak in tclgd_channelNameToIOCtx
+
+    * Fix memory deallocations to use ckfree() instead of gdFree() (Issue 1)
+
+2011-10-26 karl
+    * Correct "rectangle" method to create a non-filled rectangle.  (We were
+      incorrectly calling gdImageFilledRectangle instead of gdImageRectangle.)
+
+2011-06-15 karl
+    * Expand docs.
+
+2011-01-18 karl
+    * Version bump to 1.1.  Tagging 1.1 for release.
+
+2010-12-07 karl
+    * Document the alpha_blending and save_alpha methods.
+
+2010-11-16 karl
+    * Make the "compare" method work.
+
+2010-11-15 karl
+    * Make the "get_alpha" method, which returns the alpha component of the
+      specified color index where 0 is completely opaque and 127 is
+      completely transparent, work properly.
+
+    * Make "set_brush" and "set_tile" methods work properly.
+
+    * Make the "style" method work.
+
+2010-11-08 karl
+    * Add compare_ratio method -- given a second image of identical dimensions,
+      returns the ratio of identical pixels between the images.
+
+2010-08-12 karl
+    * Upgrade to Tcl Extension Architecture (TEA) 3.8.
+
+2010-03-22 karl
+    * Upgrade to Tcl Extension Architecture (TEA) 3.7.
+
+2009-11-04 karl
+    * Add pixelrgb method -- given an x and a y in an image, returns the
+      red, green and blue components as a list.
+
+2009-11-02 karl
+    * Add rgb_components method -- given a color it returns a list of the
+      red, green and blue components.  This is the same as invoking the
+      red_component, blue_component and green_component methods and returning
+      the result as a list.
+
+2009-05-01 karl
+    * Add -lgd to link libraries -- that it worked before was due to the 
+      FreeBSD port modifying the output of "gdlib-config --libs".
+      (fix for googlecode issue 1).
+
+    * Remove autom4te.cache upon "make distclean".
+
+    * Version bump to 1.0.
+
+2009-03-31 karl
+    * Builds cleanly under Debian.  Added README.Debian that explains how
+      to configure.
+
+2009-02-23 karl
+    * Fixed potential buffer overflow problem and potential wraparound problem
+      with #auto object naming and thread safety problems as reported by 
+      George Peter Staplin:
+
+	* Folded tclgd_newObjName into tclgd_newGDObject.
+
+	* Removed static buffer used for object name construction and
+	  sized new one large enough to support long longs without overflow.
+
+	* It now tries as many object names as needed to find one that doesn't
+	  collide with any existing objects (usually only takes one).
+
+	* Made next object number variable into an unsigned long.
+
+    * Another bug reported by George Peter Staplin is that a crash can
+      by caused by passing the copy methods (copy, copy_resized, etc) 
+      a Tcl command that is not one of our GD objects.  Although not
+      a complete fix for the problem, we now insure when looking at
+      one of these names that its clientData pointer is not null before
+      dereferencing it to get to the frame buffer.
+
+    * Also at GPS's suggestion, change from getting the result object
+      with Tcl_GetObjResult and setting it with Tcl_SetIntOBj, etc, 
+      set the object result using newly created objects and Tcl_SetObjResult.
+
+    * Version bump to 0.7.
+
+2009-02-21 karl
+    * tcl.gd 0.6 released to the public.
+
+2008-05-22 karl
+    * Fixed problem with GD create_from_jpeg_data looking at the wrong argument
+      for the binary data.
+
+    * Fixed a thing where the GIF anim begin code could complain about a 
+      global color map problem when really it was a local color map problem.
+
+2007-08-16 karl
+    * Document that "font" in the text and text_bounds calls is the path
+      to a TrueType (.ttf or .ttc) file and that we do not support the
+      non-antialiased, non-TrueType built-in GD fonts.
+
+2007-04-04 karl
+    * Document the animated GIF support.
+
+2006-01-10 Karl Lehenbauer
+    * configure.in: Remove pkgIndex.tcl from list of files that are to
+      be deleted on "make clean" -- since it's now generated from 
+      pkgIndex.tcl.in (updated TEA), it should only be cleaned by
+      make distclean, not make clean.
+
+2006-01-10 Karl Lehenbauer
+    * generic/tclgd.c: Fix filled_arc to require the correct number of
+      parameters (it required one too many) and to handle optional
+      parameters correctly (it would only use the first one, when
+      multiple are allowed.)
+
+2005-12-18 Karl Lehenbauer
+
+    * generic/tclgdio.c: Use Tcl's ckalloc and ckfree instead of GD's
+      gdMalloc and gdFree -- it wasn't necessary to use GD's versions,
+      and this keeps us from needing to access GD functions that are
+      not declared in gd.h plus it lets us use Tcl's memory debugging
+      capabilities to determine if we're leaking anything here.
+
+    * doc/tclgd.n:  Added an admonition of the importance of configuring
+      channels for binary tranlation when loading and saving images.
+
+    * README, mapserver-patches/README: Improve docs, explain how to use
+      the C function to bring a GD image structure into Tcl from a C
+      program.  Better document the Mapserver patch.
+
+2005-12-14 Karl Lehenbauer
+    * Update to Tcl TEA build environment version 3.4.
+
+    * configure.in: Enforce GD version must be at least 2.0.33 (we need
+      features therein, like "gdlib-config --features" needs to work.)
+
+    * generic/tclgd.c: Compile properly when gd was built without GIF support.
+
+    * generic/tclgd.c: Compile properly when gd was built without JPEG support.
+
+2005-11-26 Karl Lehenbauer
+
+    * generic/tclgd.c: "text_bounds" method was still rendering into the
+      target image because we weren't passing a null target image when
+      we wanted the bounds.
+
+    * configure.in: Use TEA_ADD_HEADERS([generic/tclgd.h]) to cause tclgd.h
+      to get installed into the runtime include directory.  This is needed
+      for any C applications that link with tcl.gd, specifically our
+      patch to link us up with Mapserver.
+
+    * Release version 0.6
+
+2005-11-25 Karl Lehenbauer
+
+    * generic/tclgd.c: Make "handle transparent" return the current 
+      transparency color index if no color is specified.  Also when it 
+      is specified, require it to be a color number, not that or possibly 
+      one of the color aliases.
+
+    * generic/tclgdio.c: Panic if the size written doesn't equal the size
+      requested, but since we're using Tcl_Write I don't think that is
+      likely to happen.  If it does, we have to panic because GD's
+      ioctx stuff doesn't have a way to return an error.
+
+    * mapserver-patches/(README,mapscript-image.i.patch,pkgIndex.tcl.patch): 
+      Document and store the patch to Mapserver/Mapscript to allow us to 
+      bind one of our tclgd command objects to the gd buffer contained in 
+      Mapscript image object.
+
+    * created new tclgd_newGDObjectAttach API for external C programs that
+      have a gdImagePtr and want to have a new command object attached to 
+      that image pointer that will invoke all of our tclgd magic against it.
+
+    * doc/tclgd_newGDObjectAttach.3: Documentation for the above API.
+
+2005-11-22 Karl Lehenbauer
+
+    * Fix minor memory leak where tclgd_channelIOCtx structures weren't
+      being freed after writing images to Tcl channels.
+
+2005-11-01 Karl Lehenbauer
+
+    * Export 
+

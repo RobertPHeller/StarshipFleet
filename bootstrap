@@ -4,4 +4,6 @@
 aclocal -I m4
 automake --gnu --add-missing --copy --force
 autoconf
+pushd tcl.gd
+autoconf
 

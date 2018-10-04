@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = BuildData BuildScripts Docs Scripts UserManual po intl
+SUBDIRS = BuildData BuildScripts Docs tcl.gd Scripts UserManual po intl
 
 EXTRA_DIST = StarshipFleet.tcl bootstrap
 
@@ -26,6 +26,9 @@ PlanetarySystemScripts = Scripts/PlanetarySystem/pkgIndex.tcl \
 NetworkScripts = Scripts/Network/pkgIndex.tcl \
 		 Scripts/Network/Server.tcl \
 		 Scripts/Network/Client.tcl
+		 
+GDLibFiles = tcl.gd/pkgIndex.tcl tcl.gd/libtclgd1.2.so
+
 
 StarGenScripts = Scripts/StarGen/accrete.tcl \
                  Scripts/StarGen/const.tcl \
@@ -69,7 +72,7 @@ GUISupportScripts = Scripts/GUISupport/close.gif \
 
 StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		$(NetworkScripts) $(GUISupportScripts) \
-		$(StarGenScripts)
+		$(StarGenScripts)  $(GDLibFiles)
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarshipFleet.tcl
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit unwrap StarshipFleet.kit
@@ -80,6 +83,8 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		lib $(CONTROLLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarshipFleet \
 		lib $(STRUCTLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarshipFleet \
+	 	lib $(BASE64LIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
@@ -90,6 +95,8 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		StarshipFleet lib/GUISupport $(GUISupportScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit \
 		StarshipFleet GUISupport
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarshipFleet lib/tcl.gd $(GDLibFiles)
 	$(UNZIP) -qq -d StarshipFleet.vfs/lib \
 		$(top_srcdir)/BuildData/$(IMG_ZIP)
 	$(UNZIP) -qq -d StarshipFleet.vfs/lib \
@@ -101,7 +108,7 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 
 StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
 		$(PlanetarySystemNoGUIScripts) $(NetworkScripts) \
-		$(StarGenScripts)
+		$(StarGenScripts) $(GDLibFiles)
 	-rm -rf StarSystemServer.vfs StarSystemServer.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarSystemServer.tcl
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit unwrap StarSystemServer.kit
@@ -114,6 +121,8 @@ StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
 		lib $(TCLLOGLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
 		lib $(STRUCTLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit StarSystemServer \
+		lib $(BASE64LIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarSystemServer lib/ORSA_Port $(ORSA_PortScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
@@ -122,6 +131,8 @@ StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
 		StarSystemServer lib/PlanetarySystem $(PlanetarySystemScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarSystemServer lib/Network $(NetworkScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarSystemServer lib/tcl.gd $(GDLibFiles)
 	$(UNZIP) -qq -d StarSystemServer.vfs/lib \
 		$(top_srcdir)/BuildData/pdf4tcl05.zip
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit wrap \

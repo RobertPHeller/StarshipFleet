@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181002.2110>
+#  Last Modified : <181004.1238>
 #
 #  Description	
 #
@@ -44,6 +44,8 @@
 package require log
 package require snit
 package require PlanetarySystem
+package require base64
+package require tclgd
 
 namespace eval PlanetarySystemServer {
     snit::type clientobjects {
@@ -398,8 +400,40 @@ namespace eval PlanetarySystemServer {
                         }
                     }
                     ### Sensor logic: visible light, LIDAR, RADAR, etc.
-                    ### SENSOR SEQ -type {VISIBLE LIDAR RADAR} -direction DirVect
+                    ### SENSOR SEQ -type {IFRARED RADIO VISIBLE LIDAR RADAR} -direction DirVect -origin OrgVect -spread angle
                     ### Returns SEQ Sensor data (depends on type)
+                    SENSOR {
+                        set thetype   [from args -type VISIBLE]
+                        set direction [eval [list Vector create %AUTO%] [from args -direction [list 0 0 0]]]
+                        set origin    [eval [list Vector create %AUTO%] [from args -origin [list 0 0 0]]]
+                        set spread    [from args -spread 0.0]
+                        if {$spread <= 0.0 || $spread >= 45.0} {
+                            $self sendResponse 420 $sequence $command -message [format "Spread out of range (> 0.0 and < 45.0): %g" $spread]
+                            break
+                        }
+                        switch $thetype {
+                            IFRARED {
+                                set senseimage [infraredSense $direction $origin $spread]
+                            }
+                            RADIO {
+                                set senseimage [radioSense $direction $origin $spread]
+                            }
+                            VISIBLE {
+                                set senseimage [visibleSense $direction $origin $spread]
+                            }
+                            LIDAR {
+                                set senseimage [lidarSense $direction $origin $spread]
+                            }
+                            RADAR {
+                                set senseimage [radarSense $direction $origin $spread]
+                            }
+                            default {
+                                $self sendResponse 431 $sequence $command -message [format "Unknown Sensor %s" $thetype]
+                                return
+                            }
+                        }
+                        $self sendResponse 430 $sequence $command -message [format "Not Implemented yet %s" $command]
+                    }
                     default {
                         $self sendResponse 404 $sequence $command -message [format "Unknown command %s" $command]
                     }
@@ -407,7 +441,17 @@ namespace eval PlanetarySystemServer {
             }
         }
         method sendResponse {args} {
+            set binaryData [from args -data {}]
             puts $channel $args
+            if {$binaryData ne {}} {
+                set b64 [::base64::encode $binaryData]
+                puts $channel [format {DataLength: %d} [string length $b64]]
+                puts $channel {}
+                puts $channel $b64
+            } else {
+                puts $channel [format {DataLength: %d} 0]
+                puts $channel {}
+            }
         }
         destructor {
             #puts stderr "*** $self destroy"

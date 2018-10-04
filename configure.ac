@@ -72,6 +72,7 @@ AX_URI
 AX_CONTROL
 AX_TCLLOG
 AX_STRUCT
+AX_BASE64
 AC_PATH_PROGS(UNZIP,unzip)
 
 AC_MSG_CHECKING([Checking target Img and tclkit])
@@ -171,5 +172,6 @@ AC_CONFIG_FILES([Makefile \
                  intl/Makefile \
                  ])
 AC_CONFIG_COMMANDS([default],[chmod +x Docs/tcldoxyfilter.sh])
+AC_CONFIG_SUBDIRS([tcl.gd])
 AC_OUTPUT
 
