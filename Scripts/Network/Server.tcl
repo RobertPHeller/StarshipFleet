@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181004.1238>
+#  Last Modified : <181004.1726>
 #
 #  Description	
 #
@@ -261,14 +261,35 @@ namespace eval PlanetarySystemServer {
             fileevent $channel readable [mymethod _listener]
             
         }
+        proc infraredSense {direction origin spread} {
+            set resultImage [GD create #auto 128 128]
+            return $resultImage
+        }
+        proc radioSense {direction origin spread} {
+            set resultImage [GD create #auto 128 128]
+            return $resultImage
+        }
+        proc visibleSense {direction origin spread} {
+            set resultImage [GD create_truecolor #auto 128 128]
+            return $resultImage
+        }
+        proc lidarSense {direction origin spread} {
+            set resultImage [GD create #auto 128 128]
+            return $resultImage
+        }
+        proc radarSense {direction origin spread} {
+            set resultImage [GD create #auto 128 128]
+            return $resultImage
+        }
         method _listener {} {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
+                ::log::log debug "*** $self _listener: line is $line"
                 set message [split $line " "]
-                set command [lindex $response 0]
-                set sequence [lindex $response 1]
-                set args [lrange $response 3 end]
+                set command [lindex $message 0]
+                set sequence [lindex $message 1]
+                set args [lrange $message 3 end]
                 switch [string toupper $command] {
                     ADD {
                         incr _ID
@@ -399,43 +420,64 @@ namespace eval PlanetarySystemServer {
                             $object configure -mass $mass
                         }
                     }
-                    ### Sensor logic: visible light, LIDAR, RADAR, etc.
-                    ### SENSOR SEQ -type {IFRARED RADIO VISIBLE LIDAR RADAR} -direction DirVect -origin OrgVect -spread angle
-                    ### Returns SEQ Sensor data (depends on type)
                     SENSOR {
+                        ### Sensor logic: visible light, LIDAR, RADAR, etc.
+                        ### SENSOR SEQ -type {IFRARED RADIO VISIBLE LIDAR RADAR} -direction DirVect -origin OrgVect -spread angle
+                        ### Returns SEQ Sensor data (depends on type)
                         set thetype   [from args -type VISIBLE]
                         set direction [eval [list Vector create %AUTO%] [from args -direction [list 0 0 0]]]
                         set origin    [eval [list Vector create %AUTO%] [from args -origin [list 0 0 0]]]
                         set spread    [from args -spread 0.0]
                         if {$spread <= 0.0 || $spread >= 45.0} {
-                            $self sendResponse 420 $sequence $command -message [format "Spread out of range (> 0.0 and < 45.0): %g" $spread]
+                            $self sendResponse 420 $sequence $command \
+                                  -message [format \
+                                            "Spread out of range (> 0.0 and < 45.0): %g" \
+                                            $spread]
                             break
                         }
                         switch $thetype {
                             IFRARED {
-                                set senseimage [infraredSense $direction $origin $spread]
+                                set senseimage [infraredSense $direction \
+                                                $origin $spread]
                             }
                             RADIO {
-                                set senseimage [radioSense $direction $origin $spread]
+                                set senseimage [radioSense $direction \
+                                                $origin $spread]
                             }
                             VISIBLE {
-                                set senseimage [visibleSense $direction $origin $spread]
+                                set senseimage [visibleSense $direction \
+                                                $origin $spread]
                             }
                             LIDAR {
-                                set senseimage [lidarSense $direction $origin $spread]
+                                set senseimage [lidarSense $direction $origin \
+                                                $spread]
                             }
                             RADAR {
-                                set senseimage [radarSense $direction $origin $spread]
+                                set senseimage [radarSense $direction $origin \
+                                                $spread]
                             }
                             default {
-                                $self sendResponse 431 $sequence $command -message [format "Unknown Sensor %s" $thetype]
-                                return
+                                $self sendResponse 430 $sequence $command \
+                                      -message [format "Unknown Sensor %s" \
+                                                $thetype]
                             }
                         }
-                        $self sendResponse 430 $sequence $command -message [format "Not Implemented yet %s" $command]
+                        $self sendResponse 200 $sequence $command \
+                              -type $thetype \
+                              -direction [list [$direction GetX] \
+                                          [$direction GetY] \
+                                          [$direction GetZ]] \
+                              -origin [list [$origin GetX] \
+                                       [$origin GetY] \
+                                       [$origin GetZ]] \
+                              -spread $spread \
+                              -data [$senseimage gd_data]
+                        rename $senseimage {}
                     }
                     default {
-                        $self sendResponse 404 $sequence $command -message [format "Unknown command %s" $command]
+                        $self sendResponse 404 $sequence $command \
+                              -message [format "Unknown command %s" \
+                                        $command]
                     }
                 }
             }

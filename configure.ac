@@ -163,6 +163,8 @@ AC_CONFIG_FILES([Makefile \
                  Scripts/StarGen/Makefile \
                  Scripts/GUISupport/Makefile \
                  Scripts/Network/Makefile \
+                 Scripts/BridgeConsoles/Makefile \
+                 Scripts/ShipyardCommand/Makefile \
                  Docs/Makefile \
                  Docs/Doxyfile \
                  Docs/tcldoxyfilter.sh \

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <181004.1255>
+#  Last Modified : <181004.1732>
 #
 #  Description	
 #
@@ -81,6 +81,7 @@ namespace eval PlanetarySystemClient {
         variable channel
         option -port -readonly yes -default 5050
         option -host -readonly yes -default localhost
+        option -sensehandler -readonly yes -default {}
         constructor {args} {
             $self configurelist $args
             set channel [socket $options(-host) $options(-port)]
@@ -92,18 +93,18 @@ namespace eval PlanetarySystemClient {
         proc getHeaders {channel} {
             set result [list]
             while {[gets $channel line] > 0} {
-                if {[regexp {^([^:]+):[[:space:]]+(.*)$} => key value] > 0} {
+                puts stderr "*** getHeaders: line is $line"
+                if {[regexp {^([^:]+):[[:space:]]+(.*)$} $line => key value] > 0} {
                     lappend result $key $value
                 }
             }
+            puts stderr "*** getHeaders: result is $result"
+            return $result
+        }
         method _listener {} {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
-                array set headers [getHeaders $channel]
-                if {$headers(DataLength) > 0} {
-                    set data [::base64::decode [read $channel $headers(DataLength)]]
-                }
                 puts stderr "*** $self _listener: line = '$line'"
                 set response [split $line " "]
                 puts stderr "*** $self _listener: response is $response"
@@ -115,6 +116,11 @@ namespace eval PlanetarySystemClient {
                 puts stderr "*** $self _listener: command is $command"
                 set args [lrange $response 3 end]
                 puts stderr "*** $self _listener: args are $args"
+                array set headers [getHeaders $channel]
+                if {$headers(DataLength) > 0} {
+                    set data [::base64::decode [read $channel $headers(DataLength)]]
+                    lappend args -data $data
+                }
                 switch [expr {int($status / 100)}] {
                     2 {
                         $self processOKreponse $status $sequence $command $args
@@ -151,6 +157,18 @@ namespace eval PlanetarySystemClient {
                     set epoch [from arglist -epoch]
                     $objects($remoteid) updateposvel $newpos $newvel $myunits
                     $objects($remoteid) updateepoch $epoch
+                }
+                SENSOR {
+                    set thetype   [from arglist -type VISIBLE]
+                    set direction [eval [list Vector create %AUTO%] [from arglist -direction [list 0 0 0]]]
+                    set origin    [eval [list Vector create %AUTO%] [from arglist -origin [list 0 0 0]]]
+                    set spread    [from arglist -spread 0.0]
+                    set sensorImage [GD create_from_gd #auto [from arglist -data {}]]
+                    set sh [$self cget -sensehandler]
+                    if {$sh ne {}} {
+                        uplevel #0 $sh $thetype $direction $origin $spread $sensorImage
+                    }
+                    rename $sensorImage {}
                 }
                     
             }

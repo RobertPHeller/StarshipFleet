@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <160508.1452>
+#  Last Modified : <181004.2312>
 #
 #  Description	
 #
@@ -49,7 +49,9 @@
 package require snit
 #package require orsa
 package require PlanetarySystemClient
-
+package require BridgeConsoles
+package require ShipyardCommand
+package require tclgd
 
 namespace eval starships {
     ##
@@ -1036,26 +1038,13 @@ namespace eval starships {
         ## @privatesection @brief The planetary system.
         #option -system -type planetarysystem::PlanetarySystem \
         #      -configuremethod _setSystem -cgetmethod _getSystem
-        option -system -type ::PlanetarySystemClient::Client \
-              -configuremethod _setSystem -cgetmethod _getSystem
-        method _setSystem {option value} {
-            ## Set the planetary system.
-            #
-            # @param option Allways -system.
-            # @param value The planetary system.
-            #
-            
-            set system $value
-        }
-        method _getSystem {option} {
-            ## Get the planetary system.
-            #
-            # @param option Allways -system.
-            # @return The planetary system.
-            
-            return $system
-        }
-        
+        delgate option -port to system
+        delgate option -host to system
+        component bridgeconsole
+        ## @brief The starship's bridge console set.
+        # Includes all of the bridge stations: Captian's chair, 
+        # navigation w/ helm, sensors, tactical, engineering, and 
+        # communication. 
         component engine
         ## @brief The engine.
         # This is the engine, which provides thrust in the direction of travel.
@@ -1167,8 +1156,8 @@ namespace eval starships {
             # @arg -mass         The mass of the starship in metric tons. 
             #                    It has no default value and can only be set 
             #                    at creation time.
-            # @arg -system       The planetary system the starship is in. See
-            #                    PlantarySystem.
+            # @arg -port         The server port, defaults to 5050.
+            # @arg -host         The server host, defaults to localhost.
             # @arg -class The class of ship.  An Enum of StarshipClasses type.
             #      No default value, readonly, @b must be specified at 
             #      construct time.
@@ -1194,9 +1183,13 @@ namespace eval starships {
             if {[lsearch -exact $args -mass] < 0} {
                 error [_ "The -mass option must be specified!"]
             }
-            if {[lsearch -exact $args -system] < 0} {
-                error [_ "The -system option must be specified!"]
+            if {[lsearch -exact $args -start] < 0} {
+                error [_ "The -start option must be specified!"]
             }
+            install system using PlanetarySystemClient::Client %AUTO% \
+                  -port [from args -port 5050] \
+                  -host [from args -host localhost] \
+                  -sensehandler [mymethod _sensehandler]
             install engine using starships::StarshipEngine %AUTO% \
                   -maxdesignaccel [from args -maxdesignaccel 500]
             install shields using starships::StarshipShields %AUTO%
@@ -1205,6 +1198,9 @@ namespace eval starships {
                   -size [from args -sizeofmissle mark1]
             set position [starships::Coordinates copy %AUTO% \
                           [from args -start]]
+            install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]] \
+                  -ship $self -system $system -engine $engine \
+                  -shields $shields -misslelaunchers $misslelaunchers
             $self configurelist $args
             $system add $self
         }
@@ -1370,8 +1366,22 @@ namespace eval starships {
                     -maxdesignaccel 450 -numberoflaunchers 0 -start $start \
                     -mass 500000 -system $psystem]
         }
+        method _sensehandler {thetype direction origin spread sensorImage} {
+            ## @privatesection
+            #
+        }
+    }
+    snit::type Shipyard {
+        ## @brief A Shipyard space station: a place where starships are built.
+        #
+        # Defines a Shipyard object.
+        #
+        # Options:
+        
     }
 }
+
+
 
 proc print {v} {
     Vector validate $v
@@ -1403,5 +1413,4 @@ proc print {v} {
 #}
 #exit 0
 
-set client [PlanetarySystemClient::Client %AUTO%]
-vwait forever
+shipyardcommand::ShipyardCommand .shipyardcommand

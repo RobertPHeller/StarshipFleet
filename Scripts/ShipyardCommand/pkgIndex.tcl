@@ -1,4 +1,4 @@
-##-*- makefile -*-############################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Sat Apr 2 06:01:50 2016
-#  Last Modified : <181004.2114>
+#  Created       : Thu Oct 4 21:17:30 2018
+#  Last Modified : <181004.2142>
 #
 #  Description	
 #
@@ -16,11 +16,9 @@
 #
 #  History
 #	
-#  $Log$
+#*****************************************************************************
 #
-##############################################################################
-#
-#    Copyright (C) 2016  Robert Heller D/B/A Deepwoods Software
+#    Copyright (C) 2018  Robert Heller D/B/A Deepwoods Software
 #			51 Locke Hill Road
 #			Wendell, MA 01379-9728
 #
@@ -40,8 +38,8 @@
 #
 # 
 #
-##############################################################################
+#*****************************************************************************
 
 
-SUBDIRS = ORSA_Port PlanetarySystem GUISupport StarGen Network BridgeConsoles \
-	  ShipyardCommand
+package ifneeded ShipyardCommand 0.1 [list source  [file join $dir ShipyardCommand.tcl]]
+
