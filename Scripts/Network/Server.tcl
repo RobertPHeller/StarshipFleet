@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181004.1726>
+#  Last Modified : <181006.1818>
 #
 #  Description	
 #
@@ -46,6 +46,7 @@ package require snit
 package require PlanetarySystem
 package require base64
 package require tclgd
+package require orsa
 
 namespace eval PlanetarySystemServer {
     snit::type clientobjects {
@@ -60,6 +61,7 @@ namespace eval PlanetarySystemServer {
             $self configurelist $args
         }
     }
+    snit::enum OrbitType -values {SYNCRONIOUS LOW MEDIUM HIGH POLAR}
     snit::type Server {
         typecomponent system
         delegate typemethod * to system except {load destroy _generate _print
@@ -138,8 +140,19 @@ namespace eval PlanetarySystemServer {
                 Vector Interpolate [list $tpos $vel] 1.0 position perr
                 set orbiting [$object cget -orbiting]
                 set refbody [$object cget -refbody]
+                set oldpos [[$object cget -body] position]
                 [$object cget -body] SetPosition $position
                 [$object cget -body] SetVelocity $velocity
+                # Impact check line endpoints:
+                set oldabspos [$oldpos + [$refbody position]]
+                set newabspos [$position + [$refbody position]]
+                #*********************************************************
+                # Check for impact here!                                 *
+                # Other objects, then planetary bodies, etc.             *
+                # Check along the 3D line from $oldabspos to $newabspos  *
+                # Handle missle war heads, etc.                          *
+                #*********************************************************
+                
                 $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
                 if {$orbiting eq [$system GetSun]} {
                     set captureBody [$system PlantaryCapture $mass \
@@ -235,7 +248,8 @@ namespace eval PlanetarySystemServer {
                 $object configure -position $position
                 
                 # update pos: object
-                $self sendResponse 200 [$type SequenceNumber] UPDATE \
+                [$object cget -clientconnection] sendResponse 200 \
+                      [$type SequenceNumber] UPDATE \
                       -remoteid $serverid \
                       -position [list [$abspos GetX] [$abspos GetY] [$abspos GetZ]] \
                       -velocity [list [$absvel GetX] [$absvel GetY] [$absvel GetZ]] \
@@ -474,6 +488,80 @@ namespace eval PlanetarySystemServer {
                               -data [$senseimage gd_data]
                         rename $senseimage {}
                     }
+                    SUN {
+                        $self sendResponse 200 $sequence $command \
+                              -sun [namespace tail [$system GetSun]]
+                    }
+                    GOLDILOCKS {
+                        set p [$system GoldilocksPlanet]
+                        if {$p eq {}} {
+                            $self sendResponse 204 $sequence $command
+                        } else {
+                            $self sendResponse 200 $sequence $command \
+                                  -planetname [namespace tail $p]
+                        }
+                    }
+                    PLANET_INFO {
+                        set pname [from args -name]
+                        set p [$system PlanetByName $pname]
+                        if {$p eq {}} {
+                            $self sendResponse 204 $sequence $command
+                        } else {
+                            $self sendResponse 200 $sequence $command \
+                                  -name [namespace tail $p] \
+                                  -mass [$p cget -mass] \
+                                  -distance [$p cget -distance] \
+                                  -radius [$p cget -radius] \
+                                  -eccentricity [$p cget -eccentricity] \
+                                  -period [$p cget -period] \
+                                  -ptype [$p cget -ptype] \
+                                  -gasgiant [$p cget -gasgiant] \
+                                  -gravity [$p cget -gravity] \
+                                  -pressure [$p cget -pressure] \
+                                  -greenhouse [$p cget -greenhouse] \
+                                  -temperature [$p cget -temperature] \
+                                  -density [$p cget -density] \
+                                  -escapevelocity [$p cget -escapevelocity] \
+                                  -molweightretained [$p cget -molweightretained] \
+                                  -acceleration [$p cget -acceleration] \
+                                  -tilt [$p cget -tilt] \
+                                  -albedo [$p cget -albedo] \
+                                  -day [$p cget -day] \
+                                  -waterboils [$p cget -waterboils] \
+                                  -hydrosphere [$p cget -hydrosphere] \
+                                  -cloudcover [$p cget -cloudcover] \
+                                  -icecover [$p cget -icecover] \
+                                  -creationepoch [$p cget -creationepoch]
+                        }
+                    }
+                    PLANETARY_ORBIT {
+                        set pname [from args -name]
+                        set mass  [from args -mass]
+                        set orbittype [from args -type SYNCRONIOUS]
+                        if {[catch {OrbitType validate $orbittype} error]} {
+                            $self sendResponse 408 $sequence $command \
+                                  -message $error
+                            return
+                        }
+                        set p [$system PlanetByName $pname]
+                        if {$p eq {}} {
+                            $self sendResponse 204 $sequence $command
+                        } else {
+                            set planetBody [$p GetBody]
+                            set newbody    [::orsa::Body %AUTO% {} $mass]
+                            ComputeOrbit $orbittype $planetBody $newbody \
+                                  [$p cget -day] [$system getepoch] position \
+                                  velocity
+                            $newbody destroy
+                            $self sendResponse 200 $sequence $command \
+                                  -position [list [$position GetX] \
+                                             [$position GetY] \
+                                             [$position GetZ]] \
+                                  -velocity [list [$velocity GetX] \
+                                             [$velocity GetY] \
+                                             [$velocity GetZ]]
+                        }
+                    }
                     default {
                         $self sendResponse 404 $sequence $command \
                               -message [format "Unknown command %s" \
@@ -481,6 +569,56 @@ namespace eval PlanetarySystemServer {
                     }
                 }
             }
+        }
+        proc cuberoot {a} {
+            set x 1
+            while {true} {
+                set x1 [expr {(($a / ($x*$x))+(2*$x)) / 3.0}]
+                if {abs($x-$x1) < .000001} {
+                    return $x1
+                } else {
+                    set x $x1
+                }
+            }
+        }
+        proc ComputeOrbit {orbittype refbody body day epoch posvarname \
+                  velvarname} {
+            upvar $posvarname position
+            upvar $velvarname velocity
+            set day [$orsa::units FromUnits_time_unit $day HOUR 1]
+            set orbit [orsa::OrbitWithEpoch create %AUTO%]
+            $orbit configure -mu [expr {[orsa::GetG] * ([$body mass] + [$refbody mass])}]
+            
+            if {$orbittype eq "SYNCRONIOUS"} {
+                $orbit configure -i 0 -e 0.0
+                set p $day
+            } elseif {$orbittype eq "POLAR"} {
+                $orbit configure -i [expr {asin(1.0)}] -e [expr {rand()*.0625}]
+                set p [expr {$day * (rand()*.0312500000)+.06250}]
+            } else {
+                $orbit configure -i [expr {asin(rand()*.5-.25)}]
+                if {$orbittype eq "LOW"} {
+                    set p [expr {$day * ((rand()*.0446428571)+.0892857142)}]
+                    $orbit configure -e [expr {rand()*.25}]
+                } elseif {$orbittype eq "MEDIUM"} {
+                    set p [expr {$day * ((rand()*.25)+.5)}]
+                    $orbit configure -e [expr {rand()*.0625}]
+                } else {
+                    set p [expr {$day * ((rand()*4)+4)}]
+                    $orbit configure -e [expr {rand()*.5}]
+                }
+            }
+            $orbit configure -a \
+                  [cuberoot [expr {($p*$p)*([$orbit cget -mu]/(4*$orsa::pisq))}]]
+            $orbit configure \
+                  -omega_pericenter [expr {asin(rand()*.25-0.125)}] \
+                  -omega_node [expr {asin(rand()*.125-0.0625)}] \
+                  -m_ [expr {acos(rand()*2.0-1.0)*2.0}] \
+                  -epoch $epoch
+            $orbit RelativePosVelAtTime position velocity $epoch
+            $position += [$refbody position]
+            $velocity += [$refbody velocity]
+            $orbit destroy
         }
         method sendResponse {args} {
             set binaryData [from args -data {}]

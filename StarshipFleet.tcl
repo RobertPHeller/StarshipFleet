@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <181004.2312>
+#  Last Modified : <181006.1851>
 #
 #  Description	
 #
@@ -585,17 +585,10 @@ namespace eval starships {
         # @arg -missletype   The missle's type as an enum.
         # @arg -haswarhead   A boolean indicating if this missle has a 
         #                    warhead or an EW package.
-        # @arg -start        The starting position as a Coordinates object.
+        # @arg -start        The starting position as a orsa::Vector object.
         #                    This option can only be set at creation time.
         #                    It has no default value.
-        # @arg -cartesianposition The absolute position in cartesian 
-        #                    coordinates.   This option can only be 
-        #                    accessed, never set, even at creation time
-        #                    (see -start option).
-        # @arg -sphericalposition The absolute position in spherical 
-        #                    coordinates.   This option can only be 
-        #                    accessed, never set, even at creation time
-        #                    (see -start option).
+        # @arg -basevel      The base velocity (velocity of the starship at launch).
         # @arg -xang         The absolute X launch angle in radians, between 
         #                    \f$0\f$ and \f$\pi\f$.
         # @arg -yang         The absolute Y launch angle in radians, between 
@@ -636,49 +629,11 @@ namespace eval starships {
             return $system
         }
         
-        component position
-        ## Current position.
-        option -start -type starships::Coordinates -readonly yes
-        #delegate option -cartesianposition to position as -cartesian
-        #delegate option -sphericalposition to position as -spherical
-        option -cartesianposition -type starships::cartesiancoordtype \
-              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetcart \
-              -configuremethod _notsettable
-        method _cgetcart {option} {
-            ## Get the cartesian coordinates.
-            #
-            # @param option Allways -cartesianposition
-            # @return The cartesian coordinates.
-            
-            return [$position cget -cartesian]
-        }
-        method _configurecart {option value} {
-            ## Set the cartesian coordinates.
-            #
-            # @param option Allways -cartesianposition
-            # @param value The cartesian coordinates.
-            
-            $position configure -cartesian $value
-        }
-        option -sphericalposition -type starships::sphericalcoordtype \
-              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetsphere \
-              -configuremethod _notsettable
-        method _cgetsphere {option} {
-            ## Get the spherical coordinates.
-            #
-            # @param option Allways -sphericalposition
-            # @return The spherical coordinates.
-            
-            return [$position cget -spherical]
-        }
-        method _configuresphere {option value} {
-            ## Set the spherical coordinates.
-            #
-            # @param option Allways -sphericalposition
-            # @param value The spherical coordinates.
-            
-            $position configure -spherical $value
-        }
+        component queueable
+        ## Component to hold system updatable fields.
+        delegate method * to queueable
+        option -start -type orsa::Vector -readonly yes
+        option -basevel -type orsa::Vector -readonly yes
         method _notsettable {option value} {
             ## Generic method for non settable options.
             #
@@ -687,12 +642,6 @@ namespace eval starships {
             
             error [_ "Cannot set option %s!" $option]
         }
-        variable xspeed 0
-        ## Current X speed.
-        variable yspeed 0
-        ## Current Y speed.
-        variable zspeed 0
-        ## Current Z speed.
         typevariable misslespecs -array {
             mark1,acceleration 1000
             mark1,burntime 300
@@ -715,6 +664,9 @@ namespace eval starships {
         option -xang -readonly yes -default 0.0 -type starships::radians
         option -yang -readonly yes -default 0.0 -type starships::radians
         option -zang -readonly yes -default 0.0 -type starships::radians
+        variable launchepoch -1
+        variable burnout false
+        ## Launch time.
         constructor {args} {
             ## @publicsection @brief Construct a missle.
             # Create a new missle.  Missles are ``created'' when they are 
@@ -723,17 +675,9 @@ namespace eval starships {
             # @arg -missletype   The missle's type as an enum.
             # @arg -haswarhead   A boolean indicating if this missle has a 
             #                    warhead or an EW package.
-            # @arg -start        The starting position as a Coordinates object.
+            # @arg -start        The starting position as a orsa::Vector object.
             #                    This option can only be set at creation time.
             #                    It has no default value.
-            # @arg -cartesianposition The absolute position in cartesian 
-            #                    coordinates.  This option can only be 
-            #                    accessed, never set, even at creation time
-            #                    (see -start option).
-            # @arg -sphericalposition The absolute position in spherical 
-            #                    coordinates.  This option can only be 
-            #                    accessed, never set, even at creation time
-            #                    (see -start option).
             # @arg -xang         The absolute X launch angle in radians, between 
             #                    \f$0\f$ and \f$\pi\f$.
             # @arg -yang         The absolute Y launch angle in radians, between 
@@ -747,8 +691,6 @@ namespace eval starships {
             #                      PlantarySystem.
             # @par
             
-            set position [starships::Coordinates copy %AUTO% \
-                          [from args -start]]
             $self configurelist $args
             set mtype [$self cget -missletype]
             install thrustvector using ::starships::ThrustVector \
@@ -757,34 +699,30 @@ namespace eval starships {
                   -xang  [$self cget -xang] \
                   -yang  [$self cget -yang] \
                   -zang  [$self cget -zang]
-            set xspeed [$thrustvector DeltaX]
-            set yspeed [$thrustvector DeltaY]
-            set zspeed [$thrustvector DeltaZ]
             set thrusttime $misslespecs($mtype,burntime)
             set options(-mass) $misslespecs($mtype,mass)
+            install queueable using PlanetarySystemClient::QueueAbleObject \
+                  %AUTO% -updatecallback [mymethod _updatecallback]
+            $self setposition [$self cget -start]
+            $self setvelocity [$self cget -basevel]
+            $self setmass [$self cget -mass]
+            $self setthrustvector [orsa::Vector create %AUTO% \
+                                   [$thrustvector DeltaX] \
+                                   [$thrustvector DeltaY] \
+                                   [$thrustvector DeltaZ]]
         }
-        method update {} {
-            ## @brief Update the missle.
-            # The missle's x,y,z position is updated.
-            #
-            # @return A list containing the new X, Y, Z position of the missle.
-            
-            foreach {xpos ypos zpos} [$position cget -cartesian] {break}
-            set xpos [expr {$xpos + $xspeed}]
-            set ypos [expr {$ypos + $yspeed}]
-            set zpos [expr {$zpos + $zspeed}]
-            $position configure -cartesian [list $xpos $ypos $zpos]
-            if {$thrusttime > 0} {
-                set xspeed [expr {$xspeed + [$thrustvector DeltaX]}]
-                set yspeed [expr {$yspeed + [$thrustvector DeltaY]}]
-                set zspeed [expr {$zspeed + [$thrustvector DeltaZ]}]
-                incr thrusttime -1
+        method _updatecallback {} {
+            if {$launchepoch < 0} {
+                set launchepoch [$self epoch]
+                set burnout false
             }
-            return [list $xpos $ypos $zpos]
-        }
-        method _terminal {} {
-            while {$thrusttime > 0} {$self update}
-            return [list $xspeed $yspeed $zspeed]
+            if {!$burnout} {
+                if {([$self epoch] - $launchepoch) >= $thrusttime} {
+                    set burnout true
+                    $setthrustvector [orsa::Vector create %AUTO% 0 0 0]
+                    $system updatethrustvector $self
+                }
+            }
         }
     }
     snit::type StarshipMissleLaunchers {
@@ -875,7 +813,8 @@ namespace eval starships {
                     set missle [starships::missle %AUTO% \
                                 -missletype [$self cget -size] \
                                 -haswarhead $haswarhead \
-                                -start $position \
+                                -start  [$self position] \
+                                -basevel [$self velocity] \
                                 -xang   $xang \
                                 -yang   $yang \
                                 -zang   $zang]
@@ -1004,17 +943,20 @@ namespace eval starships {
         # Defines a Starship object.
         #
         # Options:
-        # @arg -start        The starting position as a Coordinates object.
+        # @arg -start        The starting position as a orsa::Vector object.
         #                    This option can only be set at creation time.
         #                    It has no default value.
+        # @arg -initvel      The starting velocity as a orsa::Vector object.
+        #                    This option can only be set at creation time.
+        #                    It has no default value.
+        # @arg -port         The server port, defaults to 5050.
+        # @arg -host         The server host, defaults to localhost.
         # @arg -class The class of ship.  An Enum of StarshipClasses type.
         #      No default value, readonly, @b must be specified at construct 
         #      time.
         # @arg -mass           The mass of the starship in metric tons.
         #                      It has no default value and can only be set 
         #                      at creation time.
-        # @arg -system         The planetary system the ship is in. See
-        #                      PlantarySystem.
         # @arg -maxdesignaccel Delegated to the starship's engine component.  
         #                      See the StarshipEngine type.
         # @arg -maxaccel       Delegated to the starship's engine component.
@@ -1034,12 +976,17 @@ namespace eval starships {
         
         option -class -readonly yes -type starships::StarshipClasses
         option -mass  -readonly yes -type starships::masstype
+        option -start -type orsa::Vector -readonly yes
+        option -initvel -type orsa::Vector -readonly yes
         component system
         ## @privatesection @brief The planetary system.
         #option -system -type planetarysystem::PlanetarySystem \
         #      -configuremethod _setSystem -cgetmethod _getSystem
         delgate option -port to system
         delgate option -host to system
+        component queueable
+        ## Component to hold system updatable fields.
+        delegate method * to queueable
         component bridgeconsole
         ## @brief The starship's bridge console set.
         # Includes all of the bridge stations: Captian's chair, 
@@ -1089,68 +1036,22 @@ namespace eval starships {
         # The marine is usually a small group meant to be used as boarding
         # parties and SAR.  A troop carrier would have a much larger 
         # complement intended for planetary occupation.
-        component position 
-        ## Current position.
-        option -start -type starships::Coordinates -readonly yes
-        #delegate option -cartesianposition to position as -cartesian
-        #delegate option -sphericalposition to position as -spherical
-        option -cartesianposition -type starships::cartesiancoordtype \
-              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetcart \
-              -configuremethod _configurecart
-        method _cgetcart {option} {
-            ## Get the cartesian coordinates.
-            #
-            # @param option Allways -cartesianposition
-            # @return The cartesian coordinates.
-            
-            return [$position cget -cartesian]
-        }
-        method _configurecart {option value} {
-            ## Set the cartesian coordinates.
-            #
-            # @param option Allways -cartesianposition
-            # @param value The cartesian coordinates.
-            
-            $position configure -cartesian $value
-        }
-        option -sphericalposition -type starships::sphericalcoordtype \
-              -default {0.0 0.0 0.0} -readonly yes -cgetmethod _cgetsphere \
-              -configuremethod _configuresphere
-        method _cgetsphere {option} {
-            ## Get the spherical coordinates.
-            #
-            # @param option Allways -sphericalposition
-            # @return The spherical coordinates.
-            
-            return [$position cget -spherical]
-        }
-        method _configuresphere {option value} {
-            ## Set the spherical coordinates.
-            #
-            # @param option Allways -sphericalposition
-            # @param value The spherical coordinates.
-            
-            $position configure -spherical $value
-        }
         variable xang [expr {acos(1)}]
         ## The ship's current X orientation.
         variable yang [expr {acos(0)}]
         ## The ship's current Y orientation.
         variable zang [expr {acos(0)}]
         ## The ship's current Z orientation.
-        variable xspeed 0.0
-        ## The ship's current X velocity.
-        variable yspeed 0.0
-        ## The ship's current Y velocity.
-        variable zspeed 0.0
-        ## The ship's current Z velocity.
         
         constructor {args} {
             ## @publicsection The constructor constructs a Starship object.
             #
             # @param name The name of the starship.
             # @param ... Options:
-            # @arg -start        The starting position as a Coordinates object.
+            # @arg -start        The starting position as a orsa::Vector object.
+            #                    This option can only be set at creation time.
+            #                    It has no default value.
+            # @arg -initvel      The starting velocity as a orsa::Vector object.
             #                    This option can only be set at creation time.
             #                    It has no default value.
             # @arg -mass         The mass of the starship in metric tons. 
@@ -1186,6 +1087,9 @@ namespace eval starships {
             if {[lsearch -exact $args -start] < 0} {
                 error [_ "The -start option must be specified!"]
             }
+            if {[lsearch -exact $args -initvel] < 0} {
+                error [_ "The -initvel option must be specified!"]
+            }
             install system using PlanetarySystemClient::Client %AUTO% \
                   -port [from args -port 5050] \
                   -host [from args -host localhost] \
@@ -1196,12 +1100,15 @@ namespace eval starships {
             install misslelaunchers using starships::StarshipMissleLaunchers \
                   %AUTO% -count [from args -numberoflaunchers 4] \
                   -size [from args -sizeofmissle mark1]
-            set position [starships::Coordinates copy %AUTO% \
-                          [from args -start]]
-            install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]] \
+            install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]]_bridge \
                   -ship $self -system $system -engine $engine \
                   -shields $shields -misslelaunchers $misslelaunchers
+            install queueable using PlanetarySystemClient::QueueAbleObject \
+                  %AUTO%
             $self configurelist $args
+            $self setpos [$self cget -start]
+            $self setvel [$self cget -initvel]
+            $self setmass [$self cget -mass]
             $system add $self
         }
         
@@ -1371,13 +1278,114 @@ namespace eval starships {
             #
         }
     }
-    snit::type Shipyard {
-        ## @brief A Shipyard space station: a place where starships are built.
+    snit::enum StationClasses -values {
+        ## @enum StationClasses
+        # Station classes
         #
-        # Defines a Shipyard object.
+        small
+        ## @brief Small station for "backwater" planets.
+        medium
+        ## @brief Medium sized station for intermediate planets.
+        large
+        ## @brief Large sized station for major planets.
+        smallyard
+        ## @brief Small sized yard station.
+        mediumyard
+        ## @brief Medium sized yard station.
+        largeyard
+        ## @brief Large sized yard station.
+        specialpurpose
+        ## @brief A special purpose station.
+    }
+    snit::type Station {
+        ## @brief A space station: a place where starships dock and/or are built.
+        #
+        # Defines a Station object.
         #
         # Options:
+        # @arg -port         The server port, defaults to 5050.
+        # @arg -host         The server host, defaults to localhost.
+        # @arg -mass         The mass of the starship in metric tons.
+        #                    It has no default value and can only be set 
+        #                    at creation time.
+        # @arg -class        The class of station. An Enum of StationClasses 
+        #                    type. No default value, readonly, @b must be 
+        #                    specified at construct time.
+        # @par
         
+        option -class -readonly yes -type starships::StationClasses
+        option -mass  -readonly yes -type starships::masstype
+        component system
+        ## @privatesection @brief The planetary system.
+        delgate option -port to system
+        delgate option -host to system
+        component stationcommand
+        ## @brief The station's command center.
+        component docks
+        ## @brief The station's (regular) docks.  Where starships dock to 
+        # load/unload cargo and passengers and crew.  Also where fuel and
+        # other supplies are taken on.  (Minor repairs might also be done
+        # here.)
+        component drydocks
+        ## @brief The station's shipbuilding docks. A "yard" station will have 
+        # these.  These are places where ships are built from the "keel" up.
+        delegate option -numberofdockingbays to docks as -count
+        delegate option -sizeofdockingbays to docks as -size
+        delegate option -numberofdrydocks to drydocks as -count
+        delegate option -sizeofdrydocks to drydocks as -size
+        component shuttlebays
+        ## @brief The station's shuttle bays.  Where planetary shuttles dock.
+        delegate option -numberofshuttlebays to shuttlebays as -count
+        component sensors
+        ## @brief The station's sensor suite
+        variable position
+        ## Current position.
+        variable velocity
+        ## Current velocity.
+        variable planet
+        ## Planet we are in orbit around.
+        variable sun
+        ## The system sun.
+        constructor {args} {
+            ## @publicsection The constructor constructs a Station object.
+            #
+            # Defines a Station object.
+            #
+            # Options:
+            # @arg -port         The server port, defaults to 5050.
+            # @arg -host         The server host, defaults to localhost.
+            # @arg -mass         The mass of the starship in metric tons.
+            #                    It has no default value and can only be set 
+            #                    at creation time.
+            # @arg -class        The class of station. An Enum of StationClasses 
+            #                    type. No default value, readonly, @b must be 
+            #                    specified at construct time.
+            # @par
+            if {[lsearch -exact $args -class] < 0} {
+                error [_ "The -class option must be specified!"]
+            }
+            if {[lsearch -exact $args -mass] < 0} {
+                error [_ "The -mass option must be specified!"]
+            }
+            install system using PlanetarySystemClient::Client %AUTO% \
+                  -port [from args -port 5050] \
+                  -host [from args -host localhost] \
+                  -sensehandler [mymethod _sensehandler]
+            install docks using starships::DockingBays  %AUTO% \
+                  -count [from args -numberofdockingbays 10] \
+                  -size  [from args -sizeofdockingbays   SMALL]
+            install drydocks using starships::DryDocks %AUTO% \
+                  -count [from args -numberofdrydocks 0] \
+                  -size  [from args -sizeofdrydocks SMALL]
+            install shuttlebays using starships::ShuttleBays %AUTO% \
+                  -count [from args -numberofshuttlebays 1]
+            install stationcommand using stationcommand::StationCommand .[string tolower [namespace tail $self]]_ControlCenter \
+                  -station $self -system $system -docks $docks \
+                  -drydocks $drydocks -shuttlebays $shuttlebays
+            $self configurelist $args
+            
+        }
+            
     }
 }
 

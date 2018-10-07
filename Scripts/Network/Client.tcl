@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <181004.1732>
+#  Last Modified : <181006.1850>
 #
 #  Description	
 #
@@ -47,6 +47,128 @@ package require base64
 package require tclgd
 
 namespace eval PlanetarySystemClient {
+    snit::type QueueAbleObject {
+        option -myunits -readonly yes -default $orsa::units -type orsa::Units
+        option -updatecallback -default {}
+        option -impactcallback -default {}
+        option -damagecallback -default {}
+        variable position
+        method position {} {
+            return $position
+        }
+        method setposition {newpos} {
+            $position set $newpos
+        }
+        method GetPositionXYZUnits {units} {
+            orsa::Units validate $units
+            set l_unit [[$self cget -myunits] GetLengthBaseUnit]
+            set x [$units FromUnits_length_unit [$position GetX] $l_unit 1]
+            set y [$units FromUnits_length_unit [$position GetY] $l_unit 1]
+            set z [$units FromUnits_length_unit [$position GetZ] $l_unit 1]
+            return [list $x $y $z]
+        }
+        variable velocity
+        method velocity {} {
+            return $velocity
+        }
+        method setvelocity {newvel} {
+            $velocity set $newvel
+        }
+        method GetVelocityXYZUnits {units} {
+            orsa::Units validate $units
+            set l_unit [[$self cget -myunits] GetLengthBaseUnit]
+            set x [$units FromUnits_length_unit [$velocity GetX] $l_unit 1]
+            set y [$units FromUnits_length_unit [$velocity GetY] $l_unit 1]
+            set z [$units FromUnits_length_unit [$velocity GetZ] $l_unit 1]
+            return [list $x $y $z]
+        }
+        variable thrustvector
+        method thrustvector {} {
+            return $thrustvector
+        }
+        method setthrustvector {newthrust} {
+            $thrustvector set $newthrust
+        }
+        method GetThustvectorXYZUnits {units} {
+            orsa::Units validate $units
+            set l_unit [[$self cget -myunits] GetLengthBaseUnit]
+            set x [$units FromUnits_length_unit [$thrustvector GetX] $l_unit 1]
+            set y [$units FromUnits_length_unit [$thrustvector GetY] $l_unit 1]
+            set z [$units FromUnits_length_unit [$thrustvector GetZ] $l_unit 1]
+            return [list $x $y $z]
+        }
+        variable mass 1
+        method mass {} {
+            return $mass
+        }
+        method setmass {newmass} {
+            set mass $newmass
+        }
+        method GetMassUnits {units} {
+            orsa::Units validate $units
+            set m_unit [[$self cget -myunits] GetMassBaseUnit]
+            return [$units FromUnits_mass_unit $mass $m_unit 1]
+        }
+        variable epoch 0
+        method epoch {} {
+            return $epoch
+        }
+        method setepoch {newepoch} {
+            set epoch $newepoch
+        }
+        method updateepoch {epoch units} {
+            orsa::Units validate $units
+            set t_unit [[$self cget -myunits] GetTimeBaseUnit]
+            $self setepoch [[$self cget -myunits] FromUnits_time_unit \
+                            $epoch [$units GetTimeBaseUnit] 1]
+            set callback [$self cget -updatecallback]
+            if {$callback ne {}} {
+                uplevel #0 $callback
+            }
+        }
+        method updateposvel {pos vel units} {
+            orsa::Units validate $units
+            set l_unit [$units GetLengthBaseUnit]
+            $position SetX [[$self cget -myunits] FromUnits_length_unit [$pos GetX] $l_unit 1]
+            $position SetY [[$self cget -myunits] FromUnits_length_unit [$pos GetY] $l_unit 1]
+            $position SetZ [[$self cget -myunits] FromUnits_length_unit [$pos GetZ] $l_unit 1]
+            $velocity SetX [[$self cget -myunits] FromUnits_length_unit [$vel GetX] $l_unit 1]
+            $velocity SetY [[$self cget -myunits] FromUnits_length_unit [$vel GetY] $l_unit 1]
+            $velocity SetZ [[$self cget -myunits] FromUnits_length_unit [$vel GetZ] $l_unit 1]
+            set callback [$self cget -updatecallback]
+            if {$callback ne {}} {
+                uplevel #0 $callback
+            }
+        }
+        variable damage 0
+        method impact {} {
+            set callback [$self cget -impactcallback]
+            if {$callback ne {}} {
+                return [uplevel #0 $callback]
+            } else {
+                set vellen [$velocity Length]
+                return [expr {$vellen * $mass}]
+            }
+        }
+        method damage {netimpactenergy} {
+            set callback [$self cget -damagecallback]
+            set effectivedamagepercent [expr {$mass / double($netimpactenergy)}]
+            if {$callback ne {}} {
+                set damage [expr {$damage + [uplevel #0 $callback $netimpactenergy]}]
+            } else {
+                set damage [expr {$damage + $effectivedamagepercent}]
+            }
+            return [expr {$damage * 100}]
+        }
+            
+                
+        constructor {args} {
+            $self configurelist $args
+            set position [orsa::Vector create %AUTO%]
+            set velocity [orsa::Vector create %AUTO%]
+            set thrustvector [orsa::Vector create %AUTO%]
+        }
+    }
     snit::type ObjectQueue {
         option -id -readonly yes
         option -object -readonly yes -default {}
@@ -166,11 +288,23 @@ namespace eval PlanetarySystemClient {
                     set sensorImage [GD create_from_gd #auto [from arglist -data {}]]
                     set sh [$self cget -sensehandler]
                     if {$sh ne {}} {
-                        uplevel #0 $sh $thetype $direction $origin $spread $sensorImage
+                        uplevel #0 $sh $thetype $direction $origin $spread \
+                              $sensorImage
                     }
                     rename $sensorImage {}
                 }
-                    
+                IMPACT {
+                    set remoteid [from arglist -remoteid]
+                    set otherimpact [from arglist -otherimpact]
+                    set myimpact [$objects($remoteid) impact]
+                    set mydamage [$objects($remoteid) damage \
+                                  [expr {$otherimpact - $myimpact}]]
+                    if {$mydamage >= 100} {
+                        $objects($remoteid) destroy
+                        unset objids($objects($remoteid))
+                        unset objects($remoteid)
+                    }
+                }
             }
         }
         method _sendmessage {command args} {

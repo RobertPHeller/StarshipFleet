@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <181002.1513>
+#  Last Modified : <181005.0846>
 #
 #  Description	
 #
@@ -982,6 +982,14 @@ namespace eval planetarysystem {
             }
             return [lindex $planetlist [expr {$i - 1}]]
         }
+        method PlanetByName {name} {
+            foreach p $planetlist {
+                if {[string tolower [namespace tail $name]] eq [string tolower [namespace tail $p]]} {
+                    return $p
+                }
+            }
+            return {}
+        }
         method GetPlanetCount {} {return [llength $planetlist]}
         method PlanetExtents {} {
             set MinX {}
@@ -1017,6 +1025,25 @@ namespace eval planetarysystem {
                 return [list $MinX $MaxX $MinY $MaxY $MinZ $MaxZ]
             }
         }
+        method GoldilocksPlanet {} {
+            if {[::tcl::mathfunc::rand] < .5} {
+                for p $planetlist {
+                    if {[$p cget -ptype] eq "Terrestrial"} {
+                        return $p
+                    }
+                }
+                return {}
+            } else {
+                for {set i [expr {[llength $planetlist] - 1}]} \
+                      {$i >= 0} {incr i -1} {
+                    set p [lindex $planetlist $i]
+                    if {[$p cget -ptype] eq "Terrestrial"} {
+                        return $p
+                    }
+                }
+                return {}
+            }
+        }            
         method ReportPDF {{filename {}}} {
             if {"$filename" eq ""} {
                 set filename [tk_getSaveFile -defaultextension .pdf \
