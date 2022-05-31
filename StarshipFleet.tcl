@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220531.1013>
+#  Last Modified : <220531.1323>
 #
 #  Description	
 #
@@ -1407,7 +1407,7 @@ proc print {v} {
 package require MainDisplay
 
 set maindisp [planetarysystem::MainScreen .main -generate yes \
-              -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
+              -stellarmass 1.0 -seed 1 -geometry =1100x650+0-0]
            pack $maindisp -fill both -expand yes
 #$maindisp save test.system
 #exit

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <220531.1201>
+#  Last Modified : <220531.1738>
 #
 #  Description	
 #
@@ -199,21 +199,18 @@ namespace eval planetarysystem {
         }
     }
     snit::widget SensorsDisplay {
-        component tabs
         component visible
         delegate method {visible *} to visible
         component lidar
         delegate method {lidar *} to lidar
         option -style -default SensorsDisplay
         constructor {args} {
-            install tabs using ttk::notebook $win.tabs
-            pack $tabs -fill both -expand yes
             install visible using planetarysystem::VisibleDisplay \
-                  $tabs.visible
-            $tabs add $visible  -sticky news -text {Visible}
+                  $win.visible
+            pack $visible -side left -expand yes -fill both
             install lidar using planetarysystem::LidarDisplay \
-                  $tabs.lidar
-            $tabs add $lidar -sticky news -text {LIDAR}
+                  $win.lidar
+            pack $lidar -side right -expand yes -fill both
             $self configurelist $args
         }
     }
@@ -253,7 +250,7 @@ static unsigned char home_bits[] = {
         component down
         delegate option -downcommand to down as -command
         component left
-        delegate option -leftcomand to left as -command
+        delegate option -leftcommand to left as -command
         component right
         delegate option -rightcommand to right as -command
         component home
@@ -283,43 +280,210 @@ static unsigned char home_bits[] = {
             $self configurelist $args
         }
     }
-    snit::widget VisibleDisplay {
+    snit::macro ::planetarysystem::SensorTools {} {
+        hulltype ttk::labelframe
         component canvas
         component tools
-        option -style -default VisibleDisplay
-        constructor {args} {
+        variable sensoraimThetaX 0.0
+        variable sensoraimThetaY 0.0
+        variable fieldofview 0
+        variable scalex
+        variable scaley
+        variable zoomfactor 1.0
+        variable zoomfactor_fmt [format "Zoom: %7.4f" 1.0]
+        variable labelfont
+        method _addtools {} {
+            $tools add ttk::label  currentzoom -textvariable [myvar zoomfactor_fmt]
+            $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
+            $tools add ttk::button zoom1 -text "Zoom 1.0" -command [mymethod _zoom1]
+            $tools add ttk::button zoomout -text "Zoom Out" -command [mymethod _zoomout]
+            $tools add planetarysystem::JoyButtons joybuttons \
+                  -upcommand [mymethod _cameraUp] \
+                  -downcommand [mymethod _cameraDown] \
+                  -leftcommand [mymethod _cameraLeft] \
+                  -rightcommand [mymethod _cameraRight] \
+                  -homecommand [mymethod _cameraHome]
+        }
+        method _zoomin {} {
+            if {$zoomfactor < 16.0} {
+                $self _DoZoom 2.0
+            }
+        }
+        method _zoom1 {} {
+            if {$zoomfactor != 1.0} {
+                $self _DoZoom [expr {1.0 / $zoomfactor}]
+            }
+        }
+        method _zoomout {} {
+            if {$zoomfactor > 1} {
+                $self _DoZoom .5
+            }
+        }
+        method _DoZoom {zoom} {
+            set scalex [expr {$scalex * $zoom}]
+            set scaley [expr {$scaley * $zoom}]
+            $canvas scale all 0.0 0.0 $zoom $zoom
+            set osr [$canvas cget -scrollregion]
+            foreach v $osr {
+                lappend nsr [expr {$v * $zoom}]
+            }
+            $canvas configure -scrollregion $nsr
+            set zoomfactor [expr {$zoomfactor * $zoom}]
+            font configure $labelfont -size [expr {int($zoomfactor * -10)}]
+            set zoomfactor_fmt [format "Zoom: %7.4f" $zoomfactor]
+            
+        }
+        method _cameraUp {} {
+            set sensoraimThetaX [expr {$sensoraimThetaX + ($::orsa::pi/18.0)}]
+            if {$sensoraimThetaX >= (2*$::orsa::pi)} {
+                set sensoraimThetaX [expr {$sensoraimThetaX - (2*$::orsa::pi)}]
+            }
+            $self _getSensorImage
+            $self _redrawScale
+        }
+        method _cameraDown {} {
+            set sensoraimThetaX [expr {$sensoraimThetaX - ($::orsa::pi/18.0)}]
+            if {$sensoraimThetaX < 0} {
+                set sensoraimThetaX [expr {$sensoraimThetaX + (2*$::orsa::pi)}]
+            }
+            $self _getSensorImage
+            $self _redrawScale
+        }
+        method _cameraLeft {} {
+            set sensoraimThetaY [expr {$sensoraimThetaY - ($::orsa::pi/18.0)}]
+            if {$sensoraimThetaY < 0} {
+                set sensoraimThetaY [expr {$sensoraimThetaY + (2*$::orsa::pi)}]
+            }
+            $self _getSensorImage
+            $self _redrawScale
+        }
+        method _cameraRight {} {
+            set sensoraimThetaY [expr {$sensoraimThetaY + ($::orsa::pi/18.0)}]
+            if {$sensoraimThetaY >= (2*$::orsa::pi)} {
+                set sensoraimThetaY [expr {$sensoraimThetaY - (2*$::orsa::pi)}]
+            }
+            $self _getSensorImage
+            $self _redrawScale
+        }
+        method _cameraHome {} {
+            set sensoraimThetaX 0.0
+            set sensoraimThetaY 0.0
+            $self _getSensorImage
+            $self _redrawScale
+        }
+        method _redrawScale {} {
+            if {[llength [$canvas find withtag _scale]] > 0} {
+                for {set r 0} {$r < 250} {incr r 50} {
+                    $canvas itemconfigure _scale_YLab_$r \
+                          -text [format "%7.3f" [expr {$sensoraimThetaY + (($r/256.0)*$fieldofview)}]]
+                    $canvas itemconfigure _scale_XLab_$r \
+                          -text [format "%7.3f" [expr {$sensoraimThetaX + (($r/256.0)*$fieldofview)}]]
+                    if {$r != 0} {
+                        $canvas itemconfigure _scale_YLab_-$r \
+                              -text [format "%7.3f" [expr {$sensoraimThetaY - (($r/256.0)*$fieldofview)}]]
+                        $canvas itemconfigure _scale_XLab_-$r \
+                              -text [format "%7.3f" [expr {$sensoraimThetaX - (($r/256.0)*$fieldofview)}]]
+                    }
+                }
+            } else {
+                for {set r 0} {$r < 250} {incr r 50} {
+                    if {$r > 0} {
+                        $canvas create oval -$r -$r $r $r -outline white \
+                              -tag [list _scale _scale_r$r]
+                    }
+                    $canvas create text 0 -$r \
+                          -text [format "%7.3f" [expr {$sensoraimThetaX + (($r/256.0)*$fieldofview)}]] \
+                          -fill white \
+                          -tag [list _scale _scale_XLab_$r] \
+                          -anchor nw
+                    $canvas create text $r 0 \
+                          -text [format "%7.3f" [expr {$sensoraimThetaY + (($r/256.0)*$fieldofview)}]] \
+                          -fill white \
+                          -tag [list _scale _scale_YLab_$r] \
+                          -anchor sw
+                    if {$r != 0} {
+                        $canvas create text 0 $r \
+                              -text [format "%7.3f" [expr {$sensoraimThetaX - (($r/256.0)*$fieldofview)}]] \
+                              -fill white \
+                              -tag [list _scale _scale_XLab_-$r] \
+                              -anchor nw
+                        $canvas create text -$r 0 \
+                              -text [format "%7.3f" [expr {$sensoraimThetaY - (($r/256.0)*$fieldofview)}]] \
+                              -fill white \
+                              -tag [list _scale _scale_YLab_-$r] \
+                              -anchor sw
+                    }
+                }
+                $canvas create line 0 -256 0 256 -fill white \
+                      -tag [list _scale _scale_X]
+                $canvas create line -256 0 256 0 -fill white \
+                      -tag [list _scale _scale_Y]
+            }
+        }
+        method _init {args} {
+            set options(-style) [from args -style]
+            $hull configure -style $options(-style)
             set scrollw [ScrolledWindow $win.scrollw \
                          -scrollbar both -auto none]
-            pack $scrollw -expand yes -fill both
+            pack $scrollw;# -expand yes -fill both
             install canvas using canvas [$scrollw getframe].canvas \
-                  -width 512 -height 512 -background black
+                  -width 512 -height 512 -background black \
+                  -scrollregion {-256 -256 256 256}
             $scrollw setwidget $canvas
             install tools using ButtonBox $win.tools -orient horizontal
             pack $tools -fill x
-            $tools add planetarysystem::JoyButtons joybuttons
+            $canvas delete all
+            set labelfont [font create -size [expr {int($zoomfactor * -10)}] \
+                           -family Courier]
+            set sensoraimThetaX 0.0
+            set sensoraimThetaY 0.0
+            set maxXabs 256
+            set maxYabs 256
+            set scalex [expr {2000.0 / double($maxXabs)}]
+            set scaley [expr {2000.0 / double($maxYabs)}]
+            set fieldofview [expr {$::orsa::pi/18.0}]
+            $self _addtools
             $self configurelist $args
+            $self _getSensorImage
+            $self _redrawScale
+        }
+    }
+
+    snit::widget VisibleDisplay {
+        option -style -default VisibleDisplay
+        typeconstructor {
+            ttk::style layout VisibleDisplay {
+                VisibleDisplay.border -sticky nswe
+                VisibleDisplay.scrollw -sticky nswe
+                VisibleDisplay.tools -sticky nswe
+            }
+            ttk::style configure VisibleDisplay -relief flat
+        }
+        ::planetarysystem::SensorTools
+        constructor {args} {
+            $self _init {*}$args
+            $hull configure  -text "Visible Light" -labelanchor n
+        }
+        method _getSensorImage {} {
         }
     }
     snit::widget LidarDisplay {
+        ::planetarysystem::SensorTools
         typeconstructor {
             ttk::style layout LidarDisplay {
-                LidarDisplay.head -side top -sticky nswe -children {
-                    LidarDisplay.outoforder -side top -sticky nswe}}
-            ttk::style layout LidarDisplay.OutOfOrder \
-                  [ttk::style layout TLabel]
-            eval [list ttk::style configure LidarDisplay.OutOfOrder] [ttk::style configure TLabel]
-            ttk::style configure LidarDisplay.OutOfOrder \
-                  -font [list Courier -72 bold] \
-                  -foreground red \
-                  -background black
+                LidarDisplay.border -sticky nswe
+                LidarDisplay.scrollw -sticky nswe
+                LidarDisplay.tools -sticky nswe
+            }
+            ttk::style configure LidarDisplay -relief flat
         }
         component outoforder
         option -style -default LidarDisplay
         constructor {args} {
-            set options(-style) [from args -style]
-            install outoforder using ttk::label $win.outoforder \
-                  -style ${options(-style)}.OutOfOrder -text "Out Of Order"
-            pack $outoforder -fill both -expand yes
+            $self _init {*}$args
+            $hull configure  -text "LIDAR" -labelanchor n
+        }
+        method _getSensorImage {} {
         }
     }
     snit::widget CommunicationsPanel {
