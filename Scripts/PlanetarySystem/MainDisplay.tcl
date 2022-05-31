@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <160505.1301>
+#  Last Modified : <220531.1201>
 #
 #  Description	
 #
@@ -46,6 +46,8 @@ package require tile
 package require MainFrame
 package require snitStdMenuBar
 package require SystemDisplay
+package require ScrollWindow
+package require ButtonBox
 
 namespace eval planetarysystem {
     snit::widgetadaptor MainScreen {
@@ -97,8 +99,8 @@ namespace eval planetarysystem {
         component   systemdisplay
         delegate method {systemdisplay *} to systemdisplay
         delegate option * to systemdisplay
-        component   lidar
-        delegate method {lidar *} to lidar
+        component   sensors
+        delegate method {sensors *} to sensors
         component   communication
         delegate method {communication *} to communication
         component   weaponsystem
@@ -143,9 +145,9 @@ namespace eval planetarysystem {
                   -generate [from args -generate yes] \
                   -filename [from args -filename PlanetarySystem.system]
             $tabs add $systemdisplay -sticky news -text {System Schematic}
-            install lidar using planetarysystem::LidarDisplay \
-                  $tabs.lidar
-            $tabs add $lidar  -sticky news -text {LIDAR}
+            install sensors using planetarysystem::SensorsDisplay \
+                  $tabs.sensors
+            $tabs add $sensors  -sticky news -text {Sensors}
             install communication using planetarysystem::CommunicationsPanel \
                   $tabs.communication
             $tabs add $communication -sticky news -text {Communications Panel}
@@ -196,7 +198,108 @@ namespace eval planetarysystem {
                   -message [format "Output saved in %s" $pdffile]
         }
     }
-    
+    snit::widget SensorsDisplay {
+        component tabs
+        component visible
+        delegate method {visible *} to visible
+        component lidar
+        delegate method {lidar *} to lidar
+        option -style -default SensorsDisplay
+        constructor {args} {
+            install tabs using ttk::notebook $win.tabs
+            pack $tabs -fill both -expand yes
+            install visible using planetarysystem::VisibleDisplay \
+                  $tabs.visible
+            $tabs add $visible  -sticky news -text {Visible}
+            install lidar using planetarysystem::LidarDisplay \
+                  $tabs.lidar
+            $tabs add $lidar -sticky news -text {LIDAR}
+            $self configurelist $args
+        }
+    }
+    snit::widget JoyButtons {
+        typevariable _Up {
+#define up_width 8
+#define up_height 4
+static unsigned char up_bits[] = {
+   0x18, 0x3c, 0x7e, 0xff};
+        }
+        typevariable _Down {
+#define down_width 8
+#define down_height 4
+static unsigned char down_bits[] = {
+   0xff, 0x7e, 0x3c, 0x18};
+        }
+        typevariable _Left {
+#define left_width 4
+#define left_height 8
+static unsigned char left_bits[] = {
+   0x08, 0x0c, 0x0e, 0x0f, 0x0f, 0x0e, 0x0c, 0x08};
+        }
+        typevariable _Right {
+#define right_width 4
+#define right_height 8
+static unsigned char right_bits[] = {
+   0x01, 0x03, 0x07, 0x0f, 0x0f, 0x07, 0x03, 0x01};
+        }
+        typevariable _Home {
+#define home_width 8
+#define home_height 8
+static unsigned char home_bits[] = {
+   0x3c, 0x7e, 0xff, 0xff, 0xff, 0xff, 0x7e, 0x3c};
+        }
+        component up
+        delegate option -upcommand to up as -command
+        component down
+        delegate option -downcommand to down as -command
+        component left
+        delegate option -leftcomand to left as -command
+        component right
+        delegate option -rightcommand to right as -command
+        component home
+        delegate option -homecommand to home as -command
+        option -style -default JoyButtons
+        typeconstructor {
+            ttk::style configure JoyButton -relief flat -padding 0
+            ttk::style layout JoyButton [ttk::style layout Toolbutton]
+        }
+        constructor {args} {
+            install up using ttk::button $win.up -image [image create bitmap -data $_Up] -style JoyButton
+            install down using ttk::button $win.down -image [image create bitmap -data $_Down] -style JoyButton
+            install left using ttk::button $win.left -image [image create bitmap -data $_Left] -style JoyButton
+            install right using ttk::button $win.right -image [image create bitmap -data $_Right] -style JoyButton
+            install home using ttk::button $win.home -image [image create bitmap -data $_Home] -style JoyButton
+            grid $up -column 1 -row 0
+            grid $down -column 1 -row 2
+            grid $left -column 0 -row 1
+            grid $right -column 2 -row 1
+            grid $home -column 1 -row 1
+            grid columnconfigure $win 0 -weight 0 -uniform yes
+            grid columnconfigure $win 1 -weight 0 -uniform yes
+            grid columnconfigure $win 2 -weight 0 -uniform yes
+            grid rowconfigure $win 0 -weight 0 -uniform yes
+            grid rowconfigure $win 1 -weight 0 -uniform yes
+            grid rowconfigure $win 2 -weight 0 -uniform yes
+            $self configurelist $args
+        }
+    }
+    snit::widget VisibleDisplay {
+        component canvas
+        component tools
+        option -style -default VisibleDisplay
+        constructor {args} {
+            set scrollw [ScrolledWindow $win.scrollw \
+                         -scrollbar both -auto none]
+            pack $scrollw -expand yes -fill both
+            install canvas using canvas [$scrollw getframe].canvas \
+                  -width 512 -height 512 -background black
+            $scrollw setwidget $canvas
+            install tools using ButtonBox $win.tools -orient horizontal
+            pack $tools -fill x
+            $tools add planetarysystem::JoyButtons joybuttons
+            $self configurelist $args
+        }
+    }
     snit::widget LidarDisplay {
         typeconstructor {
             ttk::style layout LidarDisplay {

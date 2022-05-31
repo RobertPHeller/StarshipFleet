@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <181006.1850>
+#  Last Modified : <220530.1601>
 #
 #  Description	
 #
@@ -46,9 +46,13 @@ package require orsa
 package require base64
 package require tclgd
 
+puts [package present orsa]
+puts [namespace children]
+puts $::orsa::units
+
 namespace eval PlanetarySystemClient {
     snit::type QueueAbleObject {
-        option -myunits -readonly yes -default $orsa::units -type orsa::Units
+        option -myunits -readonly yes -type ::orsa::Units
         option -updatecallback -default {}
         option -impactcallback -default {}
         option -damagecallback -default {}

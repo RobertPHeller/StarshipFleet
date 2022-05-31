@@ -75,79 +75,88 @@ AX_STRUCT
 AX_BASE64
 AC_PATH_PROGS(UNZIP,unzip)
 
-AC_MSG_CHECKING([Checking target Img and tclkit])
+AC_MSG_CHECKING([Checking target tclkit])
 case $target_os in 
-  macos | darwin*)
-    AC_SUBST(IMG_ZIP, Img-1.4-Mac-Universalx86.zip)
-    AC_SUBST(TCLKITRUN, tclkit-darwin-univ-aqua)
+  macos | darwin*) 
+    AC_SUBST(TCLKITRUN, tclkit-8.6.11-Darwin-Img1.4.13)
     AC_SUBST(NEED_APP_BUNDLE,[true])
     ;;
   linux-gnu*)
-    case $build_cpu in
+    case $target_cpu in
       x86_64)
-        AC_SUBST(IMG_ZIP, Img-1.4-Linux64.zip)
-        AC_SUBST(TCLKITRUN, tclkit-linux-x86_64)
-        ;;
+	AC_SUBST(TCLKITRUN, tclkit-8.6.11-x86_64-Img1.4.7)
+	;;
       i*86)
-        AC_SUBST(IMG_ZIP, Img-1.4-Linux32.zip)
-        AC_SUBST(TCLKITRUN, tclkit-linux-x86)
-        ;;
+	AC_SUBST(TCLKITRUN, tclkit-8.6.11-i386-Img1.4.7)
+	;;
       arm*)
-        AC_SUBST(IMG_ZIP, Img-1.3-Linuxarmv7l.zip)
-        AC_SUBST(TCLKITRUN, tclkit-linux-armv7l)
+        AC_SUBST(TCLKITRUN, tclkit-8.6.11-armv7l-Img1.4.8)
+        ;;
+      aarch64)
+        AC_SUBST(TCLKITRUN, tclkit-8.6.10-aarch64-Img1.4.9)
         ;;
       *)
-        AC_MSG_ERROR([Unsupported Linux arch: $target_cpu])
-        ;;
-    esac
-    AC_SUBST(NEED_APP_BUNDLE,[false])
-    ;;
-  mingw32 | winnt | windows* | cygwin)
-    AC_SUBST(IMG_ZIP, Img-1.4-win32.zip)
-    AC_SUBST(TCLKITRUN, tclkit-win32.exe)
-    AC_SUBST(EXEEXT, .exe)
-    AC_SUBST(NEED_APP_BUNDLE,[false])
-    ;;
-  *)
-    AC_MSG_ERROR([Unsupported Operating System: $target_os])
-    ;;
+	AC_MSG_ERROR([Unsupported Linux arch: $target_cpu])
+	;;
+     esac
+     AC_SUBST(NEED_APP_BUNDLE,[false])
+     ;;
+
+   mingw* | winnt | windows* | cygwin)
+     AC_SUBST(TCLKITRUN, tclkit-8.6.11-WIN64-Img1.4.13.exe)
+     AC_MSG_NOTICE([Only supporting 64-bit!])
+     AC_SUBST(NEED_APP_BUNDLE,[false])
+     AC_SUBST(EXEEXT, .exe)
+     ;;
+   *) 
+     AC_MSG_ERROR([Unsupported Operating System: $target_os])
+     ;;
 esac
-AC_MSG_RESULT([IMG_ZIP is $IMG_ZIP and TCLKITRUN is $TCLKITRUN])
+
+AC_MSG_RESULT(TCLKITRUN is [$TCLKITRUN])
+
 AM_CONDITIONAL(MACOSX, test x${NEED_APP_BUNDLE} = xtrue)
+AC_PATH_PROG(CONVERT,convert,/bin/true)
+
 
 AC_MSG_CHECKING([Checking build tclkit])
 case $build_os in 
   macos | darwin*) 
-    AC_SUBST(TCLKITBSRC, tclkit-darwin-univ-aqua)
+    AC_SUBST(TCLKITBSRC, tclkit-8.6.11-Darwin-Img1.4.13)
     AC_SUBST(BEXEEXT, )
     ;;
-  linux-gnu*)
+  linux-gnu)
     AC_SUBST(BEXEEXT, )
     case $build_cpu in
       x86_64)
-        AC_SUBST(TCLKITBSRC, tclkit-linux-x86_64)
-        ;;
+	AC_SUBST(TCLKITBSRC, tclkit-8.6.11-x86_64-Img1.4.7)
+	;;
       i*86)
-        AC_SUBST(TCLKITBSRC, tclkit-linux-x86)
-        ;;
+	AC_SUBST(TCLKITBSRC, tclkit-8.6.11-i386-Img1.4.7)
+	;;
       arm*)
-        AC_SUBST(TCLKITBSRC, tclkit-linux-armv7l)
+        AC_SUBST(TCLKITBSRC, tclkit-8.6.11-armv7l-Img1.4.8)
+        ;;
+      aarch64)
+        AC_SUBST(TCLKITBSRC, tclkit-8.6.10-aarch64-Img1.4.9)
         ;;
       *)
-        AC_MSG_ERROR([Unsupported Linux arch: $build_cpu])
-        ;;
+	AC_MSG_ERROR([Unsupported Linux arch: $build_cpu])
+	;;
      esac
      ;;
 
-   mingw32 | winnt | windows* | cygwin)
+   mingw* | winnt | windows* | cygwin)
      AC_SUBST(BEXEEXT, .exe)
-     AC_SUBST(TCLKITBSRC, tclkit-win32.exe)
+     AC_SUBST(TCLKITBSRC, tclkit-8.6.11-WIN64-Img1.4.13.exe)
+     AC_MSG_NOTICE([Only supporting 64-bit])
      ;;
    *) 
      AC_MSG_ERROR([Unsupported Operating System: $build_os])
      ;;
 esac
 AC_MSG_RESULT([TCLKITBSRC is $TCLKITBSRC])
+
 AC_PATH_PROG(SED,sed)
 
 AC_SUBST(TCL_DBGX)

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <181006.1851>
+#  Last Modified : <220531.1013>
 #
 #  Description	
 #
@@ -47,8 +47,9 @@
 
 
 package require snit
-#package require orsa
+package require orsa
 package require PlanetarySystemClient
+package require PlanetarySystem
 package require BridgeConsoles
 package require ShipyardCommand
 package require tclgd
@@ -63,8 +64,8 @@ namespace eval starships {
     # @author Robert Heller \<heller\@deepsoft.com\>
     #
     
-    #namespace import ::orsa::*
-    #namespace import ::planetarysystem::*
+    namespace import ::orsa::*
+    namespace import ::planetarysystem::*
     namespace import ::PlanetarySystemClient::*
     
     snit::double radians -max [expr {acos(-1)}] -min [expr {-acos(-1)}]
@@ -982,8 +983,8 @@ namespace eval starships {
         ## @privatesection @brief The planetary system.
         #option -system -type planetarysystem::PlanetarySystem \
         #      -configuremethod _setSystem -cgetmethod _getSystem
-        delgate option -port to system
-        delgate option -host to system
+        delegate option -port to system
+        delegate option -host to system
         component queueable
         ## Component to hold system updatable fields.
         delegate method * to queueable
@@ -1317,8 +1318,8 @@ namespace eval starships {
         option -mass  -readonly yes -type starships::masstype
         component system
         ## @privatesection @brief The planetary system.
-        delgate option -port to system
-        delgate option -host to system
+        delegate option -port to system
+        delegate option -host to system
         component stationcommand
         ## @brief The station's command center.
         component docks
@@ -1403,11 +1404,11 @@ proc print {v} {
 #set pd [planetarysystem::PlanetaryDisplay .pd  -generate no -filename test.system]
 #pack $pd -fill both -expand yes
 
-#package require MainDisplay
-#
-#set maindisp [planetarysystem::MainScreen .main -generate yes \
-#              -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
-#pack $maindisp -fill both -expand yes
+package require MainDisplay
+
+set maindisp [planetarysystem::MainScreen .main -generate yes \
+              -stellarmass 1.0 -seed 1 -geometry =1280x700+0-0]
+           pack $maindisp -fill both -expand yes
 #$maindisp save test.system
 #exit
 
@@ -1421,4 +1422,5 @@ proc print {v} {
 #}
 #exit 0
 
-shipyardcommand::ShipyardCommand .shipyardcommand
+#shipyardcommand::ShipyardCommand .shipyardcommand
+#pack .shipyardcommand

@@ -78,7 +78,7 @@ ShipyardCommandScripts = Scripts/ShipyardCommand/ShipyardCommand.tcl \
 StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		$(NetworkScripts) $(GUISupportScripts) \
 		$(StarGenScripts)  $(GDLibFiles) $(BridgeConsolesScripts) \
-		$(ShipyardCommandScripts)
+		$(ShipyardCommandScripts) $(PlanetarySystemScripts)
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarshipFleet.tcl
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit unwrap StarshipFleet.kit
@@ -98,6 +98,8 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/Network $(NetworkScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
+		StarshipFleet lib/PlanetarySystem $(PlanetarySystemScripts)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/GUISupport $(GUISupportScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit \
 		StarshipFleet GUISupport
@@ -107,8 +109,6 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 		StarshipFleet lib/BridgeConsoles $(BridgeConsolesScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/ShipyardCommand $(ShipyardCommandScripts)
-	$(UNZIP) -qq -d StarshipFleet.vfs/lib \
-		$(top_srcdir)/BuildData/$(IMG_ZIP)
 	$(UNZIP) -qq -d StarshipFleet.vfs/lib \
 		$(top_srcdir)/BuildData/pdf4tcl05.zip
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit wrap \
