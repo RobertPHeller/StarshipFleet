@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220531.1323>
+#  Last Modified : <220601.1326>
 #
 #  Description	
 #
@@ -981,8 +981,6 @@ namespace eval starships {
         option -initvel -type orsa::Vector -readonly yes
         component system
         ## @privatesection @brief The planetary system.
-        #option -system -type planetarysystem::PlanetarySystem \
-        #      -configuremethod _setSystem -cgetmethod _getSystem
         delegate option -port to system
         delegate option -host to system
         component queueable
@@ -1093,22 +1091,21 @@ namespace eval starships {
             }
             install system using PlanetarySystemClient::Client %AUTO% \
                   -port [from args -port 5050] \
-                  -host [from args -host localhost] \
-                  -sensehandler [mymethod _sensehandler]
+                  -host [from args -host localhost]
             install engine using starships::StarshipEngine %AUTO% \
                   -maxdesignaccel [from args -maxdesignaccel 500]
             install shields using starships::StarshipShields %AUTO%
             install misslelaunchers using starships::StarshipMissleLaunchers \
                   %AUTO% -count [from args -numberoflaunchers 4] \
                   -size [from args -sizeofmissle mark1]
-            install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]]_bridge \
-                  -ship $self -system $system -engine $engine \
-                  -shields $shields -misslelaunchers $misslelaunchers
             install queueable using PlanetarySystemClient::QueueAbleObject \
                   %AUTO%
             $self configurelist $args
-            $self setpos [$self cget -start]
-            $self setvel [$self cget -initvel]
+            install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]]_bridge \
+                  -ship $self -system $system -engine $engine \
+                  -shields $shields -misslelaunchers $misslelaunchers
+            $self setposition [$self cget -start]
+            $self setvelocity [$self cget -initvel]
             $self setmass [$self cget -mass]
             $system add $self
         }
@@ -1173,30 +1170,33 @@ namespace eval starships {
             $position configure -cartesian [list $xpos $ypos $zpos]
             return [list $xpos $ypos $zpos]
         }
-        typemethod destroyer {name start psystem} {
+        typemethod destroyer {name start initvel} {
             ## Create a destroyer.  Destroyer accelerate at up to 500 
             # gravities, and have 4 Mark1 launchers.
             #
             # @param name The name of the destroyer.
-            # @param start The starting position as a Coordinates object.
+            # @param start The starting position as a orsa::Vector
+            # @param initvel The starting velocity as a orsa::Vector
             # @return A destroyer class starship.
             
             return [$type create $name -class destroyer -maxdesignaccel 500 \
                     -numberoflaunchers 4 -sizeofmissle mark1 -start $start \
-                    -mass 75000 -system $psystem]
+                    -mass 75000 \
+                    -initvel $initvel]
         }
-        typemethod lightcrusier {name start psystem} {
+        typemethod lightcrusier {name start initvel} {
             ## Create a lightcrusier.  Lightcrusiers accelerate at up to 
             # 500 gravities, and have 6 Mark1 launchers.
             #
             # @param name The name of the lightcrusier.
-            # @param start The starting position as a Coordinates object.
+            # @param start The starting position as a orsa::Vector
+            # @param initvel The starting velocity as a orsa::Vector
             # @return A lightcrusier class starship.
             
             return [$type create $name -class lightcrusier \
                     -maxdesignaccel 500 -numberoflaunchers 6 \
                     -sizeofmissle mark1 -start $start \
-                    -mass 200000 -system $psystem]
+                    -mass 200000 -initvel $initvel]
         }
         typemethod heavycrusier {name start psystem} {
             ## Create a heavycrusier.  Heavycrusiers accelerate at up to 
@@ -1250,7 +1250,7 @@ namespace eval starships {
                     -sizeofmissle mark4 -start $start \
                     -mass 8000000 -system $psystem]
         }
-        typemethod ammunition {name start psystem} {
+        typemethod ammunition {name start} {
             ## Create an ammunition ship.  Ammunition ships accelerate at up 
             # to 400 gravities, and have no missle launchers.
             #
@@ -1262,7 +1262,7 @@ namespace eval starships {
                     -maxdesignaccel 400  -numberoflaunchers 0 -start $start \
                     -mass 5000000 -system $psystem]
         }
-        typemethod troopcarrier {name start psystem} {
+        typemethod troopcarrier {name start} {
             ## Create a troop carrier.  Troop Carriers accelerate at up to 
             # 450 gravities, and have no missle launchers.
             #
@@ -1273,10 +1273,6 @@ namespace eval starships {
             return [$type create $name -class troopcarrier \
                     -maxdesignaccel 450 -numberoflaunchers 0 -start $start \
                     -mass 500000 -system $psystem]
-        }
-        method _sensehandler {thetype direction origin spread sensorImage} {
-            ## @privatesection
-            #
         }
     }
     snit::enum StationClasses -values {
@@ -1403,12 +1399,12 @@ proc print {v} {
 #set maindisp [planetarysystem::MainScreen .main -generate no -filename test.system]
 #set pd [planetarysystem::PlanetaryDisplay .pd  -generate no -filename test.system]
 #pack $pd -fill both -expand yes
-
-package require MainDisplay
-
-set maindisp [planetarysystem::MainScreen .main -generate yes \
-              -stellarmass 1.0 -seed 1 -geometry =1100x650+0-0]
-           pack $maindisp -fill both -expand yes
+#
+#package require MainDisplay
+#
+#set maindisp [planetarysystem::MainScreen .main -generate yes \
+#              -stellarmass 1.0 -seed 1 -geometry =1100x650+0-0]
+#           pack $maindisp -fill both -expand yes
 #$maindisp save test.system
 #exit
 
@@ -1424,3 +1420,10 @@ set maindisp [planetarysystem::MainScreen .main -generate yes \
 
 #shipyardcommand::ShipyardCommand .shipyardcommand
 #pack .shipyardcommand
+
+::starships::Starship destroyer \
+      test \
+      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
+      [::orsa::Vector %AUTO% 0 [$::orsa::units GetLengthScale KM] 0]
+
+      

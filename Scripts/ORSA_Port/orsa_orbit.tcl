@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <181002.1209>
+#  Last Modified : <220601.1646>
 #
 #  Description	
 #
@@ -50,6 +50,8 @@ namespace import control::*
 namespace eval orsa {
     snit::enum OrbitType -values {normal capture escape unknown}
     snit::type Orbit {
+        typevariable _orbitCount 0
+        typemethod OrbitCount {} {return $_orbitCount}
         #typevariable epsilon 1e-323
         typevariable epsilon 1e-17
         option -a -default 0.0 -type snit::double
@@ -60,7 +62,23 @@ namespace eval orsa {
         option -m_ -default 0.0 -type snit::double
         option -mu -default 0.0  -type snit::double;# G*(m+M)
         variable orbittype unknown
-        constructor {args} {$self configurelist $args}
+        constructor {args} {
+            #puts stderr "*** $type create $self $args"
+            #puts stderr "*** $type create $self: Level is [info level]"
+            #for {set l [info level]} {$l > 0} {incr l -1} {
+            #    puts stderr "*** $type create $self: [info frame $l]"
+            #}
+            $self configurelist $args
+            incr _orbitCount
+        }
+        destructor {
+            #puts stderr "*** $self destroy"
+            #puts stderr "*** $self destroy: Level is [info level]"
+            #for {set l [info level]} {$l > 0} {incr l -1} {
+            #    puts stderr "*** $self destroy: [info frame $l]"
+            #}
+            incr _orbitCount -1
+        }
         method Period {} {
             set mu [$self cget -mu]
             set a  [$self cget -a]
@@ -356,8 +374,22 @@ namespace eval orsa {
                 
             }
             
-            $relative_position = [[$d1 * $xfac1] + [$d2 * $xfac2]]
-            $relative_velocity = [[$d1 * $vfac1] + [$d2 * $vfac2]]
+            set temp1 [$d1 * $xfac1]
+            set temp2 [$d2 * $xfac2]
+            set temp3 [$temp1 + $temp2]
+            $relative_position = $temp3
+            $temp1 destroy
+            $temp2 destroy
+            $temp3 destroy
+            set temp1 [$d1 * $vfac1]
+            set temp2 [$d2 * $vfac2]
+            set temp3 [$temp1 + $temp2]
+            $relative_velocity = $temp3
+            $temp1 destroy
+            $temp2 destroy
+            $temp3 destroy
+            $d1 destroy
+            $d2 destroy
         }
         method {Compute Body} {b ref_b} {
             orsa::Body validate $b
@@ -579,6 +611,9 @@ namespace eval orsa {
             install orbit using Orbit %AUTO%
             $self configurelist $args
         }
+        destructor {
+            $orbit destroy
+        }
         method {Compute Vector} {relative_position relative_velocity mu epoch_in} {
             $self configure -epoch $epoch_in
             return [$orbit Compute Vector $relative_position $relative_velocity $mu]
@@ -626,6 +661,7 @@ namespace eval orsa {
             #puts stderr "*** $self RelativePosVelAtTime: fmod'd M = $M"
             $o configure -m_ $M
             $o RelativePosVel relative_position relative_velocity
+            $o destroy
         }
         method print {{fp stdout} {tabs ""}} {
             foreach orec [$self configure] {
@@ -639,4 +675,5 @@ namespace eval orsa {
     }
     namespace export Orbit OrbitWithEpoch
 }
+
 

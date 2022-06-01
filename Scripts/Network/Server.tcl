@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <181006.1818>
+#  Last Modified : <220601.1614>
 #
 #  Description	
 #
@@ -51,14 +51,30 @@ package require orsa
 namespace eval PlanetarySystemServer {
     snit::type clientobjects {
         option -serverid -readonly yes -default 0
-        option -position -default {0 0 0}
-        option -velocity -default {0 0 0}
-        option -thustvector -default {0 0 0}
+        option -position -configuremethod _garbageCollect
+        option -velocity  -configuremethod _garbageCollect
+        option -thustvector  -configuremethod _garbageCollect
+        method _garbageCollect {option value} {
+            if {![catch {$options(-option) info type} thetype]} {
+                catch {$options(-option) destroy}
+            }
+            set $options(-option) $value
+        }
         option -clientconnection -readonly yes -default {}
         option -mass -default 0
         option -orbiting -default {}
+        option -body -default {} -readonly yes
+        option -orbit -default {} -readonly yes
+        option -refbody -default {}
         constructor {args} {
             $self configurelist $args
+        }
+        destructor {
+            foreach option {-position -velocity -thustvector} {
+                if {![catch {$options(-option) info type} thetype]} {
+                    catch {$options(-option) destroy}
+                }
+            }
         }
     }
     snit::enum OrbitType -values {SYNCRONIOUS LOW MEDIUM HIGH POLAR}
@@ -124,27 +140,45 @@ namespace eval PlanetarySystemServer {
         typevariable _ID 0
         typemethod update {epoch} {
             ::log::log debug "*** $type update $epoch"
+            ::log::log debug "*** $type update (before loop): Vector Count is [::orsa::Vector VectorCount]"
+            ::log::log debug "*** $type update (before loop): Body Count is [::orsa::Body BodyCount]"
+            ::log::log debug "*** $type update (before loop): Orbit Count is [::orsa::Orbit OrbitCount]"
             foreach serverid [array names objects] {
+                ::log::log debug "*** $type update: serverid is $serverid"
                 set object $objects($serverid)
+                ::log::log debug "*** $type update: object is $object"
                 set orbit [$object cget -orbit]
                 $orbit RelativePosVelAtTime pos vel $epoch
                 set tv [$object cget -thustvector]
-                set tvel [Vector copy [$object cget -velocity]]
+                set tvel [Vector copy %AUTO% [$object cget -velocity]]
                 $tvel += $tv
                 $tvel configure -par 1
                 $vel configure -par 0
                 Vector Interpolate [list $tvel $vel] 1.0 velocity verr
                 $pos configure -par 0
-                set tpos [Vector copy [$object cget -position]]
+                set tpos [Vector copy %AUTO% [$object cget -position]]
                 $tpos += $tvel
+                $tvel destroy
+                unset tvel
                 Vector Interpolate [list $tpos $vel] 1.0 position perr
+                $tpos destroy
+                unset tpos
+                $vel destroy
+                unset vel
+                $pos destroy
+                unset pos
+                $verr destroy
+                unset verr
+                $perr destroy
+                unset perr
                 set orbiting [$object cget -orbiting]
                 set refbody [$object cget -refbody]
-                set oldpos [[$object cget -body] position]
+                set oldpos [::orsa::Vector copy %AUTO%[[$object cget -body] position]]
                 [$object cget -body] SetPosition $position
                 [$object cget -body] SetVelocity $velocity
                 # Impact check line endpoints:
                 set oldabspos [$oldpos + [$refbody position]]
+                $oldpos destroy
                 set newabspos [$position + [$refbody position]]
                 #*********************************************************
                 # Check for impact here!                                 *
@@ -240,10 +274,10 @@ namespace eval PlanetarySystemServer {
                         }
                     }
                 }
-                set absvel [Vector copy $velocity]
+                set absvel [Vector copy %AUTO% $velocity]
                 $absvel += [$refbody velocity]
                 $object configure -velocity $velocity
-                set abspos [Vector copy $position]
+                set abspos [Vector copy %AUTO% $position]
                 $abspos += [$refbody position]
                 $object configure -position $position
                 
@@ -255,7 +289,12 @@ namespace eval PlanetarySystemServer {
                       -velocity [list [$absvel GetX] [$absvel GetY] [$absvel GetZ]] \
                       -epoch $epoch \
                       -orbiting $orbiting
+                $abspos destroy
+                $absvel destroy
             }
+            ::log::log debug "*** $type update (after loop): Vector Count is [::orsa::Vector VectorCount]"
+            ::log::log debug "*** $type update (after loop): Body Count is [::orsa::Body BodyCount]"
+            ::log::log debug "*** $type update (after loop): Orbit Count is [::orsa::Orbit OrbitCount]"
         }
         variable channel 
         variable address 
@@ -309,10 +348,10 @@ namespace eval PlanetarySystemServer {
                         incr _ID
                         set serverid $_ID
                         set clientid [from args -id 0]
-                        set position [eval [list Vector create %AUTO%] [from args -position [list 0 0 0]]]
-                        set velocity [eval [list Vector create %AUTO%] [from args -velocity [list 0 0 0]]]
+                        set position [Vector create %AUTO% {*}[from args -position [list 0 0 0]]]
+                        set velocity [Vector create %AUTO% {*}[from args -velocity [list 0 0 0]]]
                         set mass     [from args -mass 0]
-                        set thustvector [eval [list Vector create %AUTO%] [from args -thustvector [list 0 0 0]]]
+                        set thustvector [Vector create %AUTO% {*}[from args -thustvector [list 0 0 0]]]
                         set orbiting [from args -orbiting [$system GetSun]]
                         set refbody [$orbiting GetBody]
                         $position -= [$refbody position]
@@ -334,9 +373,9 @@ namespace eval PlanetarySystemServer {
                                 set refbody [$orbiting GetBody]
                                 $velocity -= [$refbody velocity]
                                 $position -= [$refbody velocity]
-                                [$object cget -body] SetPosition $position
-                                [$object cget -body] SetVelocity $velocity
-                                $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                                $body SetPosition $position
+                                $body SetVelocity $velocity
+                                $orbit Compute Body $body  $refbody [$system getepoch]
                             }
                         } elseif {[$orbit OrbitalType] eq "escape"} {
                             set planet $orbiting
@@ -362,9 +401,9 @@ namespace eval PlanetarySystemServer {
                                 set refbody [$orbiting GetBody]
                                 $velocity -= [$refbody velocity]
                                 $position -= [$refbody velocity]
-                                [$object cget -body] SetPosition $position
-                                [$object cget -body] SetVelocity $velocity
-                                $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                                $body SetPosition $position
+                                $body SetVelocity $velocity
+                                $orbit Compute Body $body  $refbody [$system getepoch]
                             } else {
                                 set captureBody [$system PlantaryCapture $mass \
                                                  [$position + [$refbody position]] \
@@ -379,9 +418,9 @@ namespace eval PlanetarySystemServer {
                                     set refbody [$orbiting GetBody]
                                     $velocity -= [$refbody velocity]
                                     $position -= [$refbody velocity]
-                                    [$object cget -body] SetPosition $position
-                                    [$object cget -body] SetVelocity $velocity
-                                    $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                                    $body SetPosition $position
+                                    $body SetVelocity $velocity
+                                    $orbit Compute Body $body  $refbody [$system getepoch]
                                 } else {
                                     ### object is now in a solar orbit
                                     ### Update: orbiting, refbody, body, orbit; 
@@ -392,9 +431,9 @@ namespace eval PlanetarySystemServer {
                                     set refbody [$orbiting GetBody]
                                     $velocity -= [$refbody velocity]
                                     $position -= [$refbody velocity]
-                                    [$object cget -body] SetPosition $position
-                                    [$object cget -body] SetVelocity $velocity
-                                    $orbit Compute Body [$object cget -body]  [$object cget -refbody] [$system getepoch]
+                                    $body SetPosition $position
+                                    $body SetVelocity $velocity
+                                    $orbit Compute Body $body  $refbody [$system getepoch]
                                 }
                             }
                         }

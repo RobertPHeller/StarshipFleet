@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 1 22:16:30 2016
-#  Last Modified : <160511.1444>
+#  Last Modified : <220601.1556>
 #
 #  Description	
 #
@@ -48,6 +48,8 @@ namespace eval orsa {
     snit::listtype Vector_list -type Vector
 
     snit::type Vector {
+        typevariable _vectorCount 0
+        typemethod VectorCount {} {return $_vectorCount}
         variable x 0.0
         variable y 0.0
         variable z 0.0
@@ -89,8 +91,8 @@ namespace eval orsa {
             set y [expr {$y / $f}]
             set z [expr {$z / $f}]
         }
-        method + {} {return [$type create %AUTO% $x $y $z]}
-        method - {} {return [$type create %AUTO% [expr {-$x}] [expr {-$y}] [expr {-$z}] ]}
+        method U+ {} {return [$type create %AUTO% $x $y $z]}
+        method U- {} {return [$type create %AUTO% [expr {-$x}] [expr {-$y}] [expr {-$z}] ]}
         method Length {} {
             return [expr {sqrt(($x*$x) + ($y*$y) + ($z*$z))}]
         }
@@ -185,6 +187,10 @@ namespace eval orsa {
             set y $_y
             set z $_z
             $self configurelist $args
+            incr _vectorCount
+        }
+        destructor {
+            incr _vectorCount -1
         }
         typemethod copy {name other} {
             $type validate $other
@@ -255,9 +261,19 @@ namespace eval orsa {
                         error "interpolate() --> Error: divide by zero"
                         return
                     }
-                    set w [[lindex $c [expr {$i + 1}]] + [lindex $d $i]]
-                    lset d $i [[$w / $denom] * $hp]
-                    lset c $i [[$w / $denom] * $ho]
+                    set trash [[lindex $c [expr {$i + 1}]] + [lindex $d $i]]
+                    $w Set $trash
+                    $trash destroy
+                    set trash1 [$w / $denom]
+                    set trash2 [$trash1 * $hp]
+                    $trash1 destroy
+                    [lindex $d $i] Set $trash2
+                    $trash2 destroy
+                    set trash1 [$w / $denom]
+                    set trash2 [$trash1 * $ho]
+                    $trash1 destroy
+                    [lindex $c $i] Set $trash2
+                    $trash2 destroy
                 }
                 if { (2*$i_closest) < ($n_points-$m) } {
                     $err_v_out Set [lindex $c [expr {$i_closest + 1}]]

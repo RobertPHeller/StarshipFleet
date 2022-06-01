@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 20:44:55 2016
-#  Last Modified : <160507.1708>
+#  Last Modified : <220601.1608>
 #
 #  Description	
 #
@@ -231,6 +231,8 @@ namespace eval orsa {
         method Users {} {return $users}
     }
     snit::type Body {
+        typevariable _bodyCount 0
+        typemethod BodyCount {} {return $_bodyCount}
         component bc
         delegate method * to bc except {AddUser RemoveUser}
         variable _position 
@@ -316,6 +318,11 @@ namespace eval orsa {
                 }
             }
             #puts stderr "*** $type create $self: bc = \{$bc\}"
+            incr _bodyCount
+        }
+        destructor {
+            $bc destroy
+            incr _bodyCount -1
         }
         method = {b} {
             $type validate $b
@@ -330,8 +337,8 @@ namespace eval orsa {
                 set bc [set $b_bc]
                 $bc AddUser
             }
-            set _position [$b position]
-            set _velocity [$b velocity]
+            $_position = [$b position]
+            $_velocity = [$b velocity]
             return $self
         }
         destructor {
@@ -360,7 +367,10 @@ namespace eval orsa {
         }
         method distance {b} {
             $type validate $b
-            return [[$self distanceVector $b] Length]
+            set dvect [$self distanceVector $b]
+            set l [$dvect Length]
+            $dvect destroy
+            return $l
         }
         method DistanceVector {b} {return [$self distanceVector $b]}
         method Distance {b} {return [$self distance $b]}

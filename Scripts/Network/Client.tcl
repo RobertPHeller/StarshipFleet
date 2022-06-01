@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220530.1601>
+#  Last Modified : <220601.1320>
 #
 #  Description	
 #
@@ -52,7 +52,22 @@ puts $::orsa::units
 
 namespace eval PlanetarySystemClient {
     snit::type QueueAbleObject {
-        option -myunits -readonly yes -type ::orsa::Units
+        typevariable _defaultUnits
+        typeconstructor {
+            set _defaultUnits $::orsa::units
+        }
+        option -myunits -readonly yes -validatemethod _validateUnits \
+              -configuremethod _configureUnits
+        method _validateUnits {option value} {
+            if {$value eq {}} {
+                set value $_defaultUnits
+            }
+            ::orsa::Units validate $value
+        }
+        method _configureUnits {option value} {
+            if {$value eq {}} {set value $_defaultUnits}
+            set options($option) $value
+        }
         option -updatecallback -default {}
         option -impactcallback -default {}
         option -damagecallback -default {}
@@ -168,9 +183,12 @@ namespace eval PlanetarySystemClient {
                 
         constructor {args} {
             $self configurelist $args
-            set position [orsa::Vector create %AUTO%]
-            set velocity [orsa::Vector create %AUTO%]
-            set thrustvector [orsa::Vector create %AUTO%]
+            if {$options(-myunits) eq {}} {
+                set options(-myunits) $_defaultUnits
+            }
+            set position [orsa::Vector create %AUTO% 0 0 0]
+            set velocity [orsa::Vector create %AUTO% 0 0 0]
+            set thrustvector [orsa::Vector create %AUTO% 0 0 0]
         }
     }
     snit::type ObjectQueue {

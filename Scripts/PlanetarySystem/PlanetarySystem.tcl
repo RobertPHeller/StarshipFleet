@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <181005.0846>
+#  Last Modified : <220601.1600>
 #
 #  Description	
 #
@@ -744,11 +744,14 @@ namespace eval planetarysystem {
             $vel += [[$self cget -refbody] velocity]
             $body SetPosition $pos
             $body SetVelocity $vel
+            set result [list [$pos GetX] [$pos GetY] [$pos GetY]]
+            $pos destroy
+            $vel destroy
             #puts stderr "*** $self update: pos: \{[$pos GetX] [$pos GetY] [$pos GetY]\} val: \{[$vel GetX] [$vel GetY] [$vel GetY]\}"
             foreach m $moons {
                 $m update $epoch
             }
-            return [list [$pos GetX] [$pos GetY] [$pos GetY]]
+            return $result
         }
         typemethod namegenerator {starname} {
             namespace eval $starname {}
