@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220601.1320>
+#  Last Modified : <220601.2140>
 #
 #  Description	
 #
@@ -52,10 +52,6 @@ puts $::orsa::units
 
 namespace eval PlanetarySystemClient {
     snit::type QueueAbleObject {
-        typevariable _defaultUnits
-        typeconstructor {
-            set _defaultUnits $::orsa::units
-        }
         option -myunits -readonly yes -validatemethod _validateUnits \
               -configuremethod _configureUnits
         method _validateUnits {option value} {
@@ -76,7 +72,7 @@ namespace eval PlanetarySystemClient {
             return $position
         }
         method setposition {newpos} {
-            $position set $newpos
+            $position Set $newpos
         }
         method GetPositionXYZUnits {units} {
             orsa::Units validate $units
@@ -91,7 +87,7 @@ namespace eval PlanetarySystemClient {
             return $velocity
         }
         method setvelocity {newvel} {
-            $velocity set $newvel
+            $velocity Set $newvel
         }
         method GetVelocityXYZUnits {units} {
             orsa::Units validate $units
@@ -106,7 +102,7 @@ namespace eval PlanetarySystemClient {
             return $thrustvector
         }
         method setthrustvector {newthrust} {
-            $thrustvector set $newthrust
+            $thrustvector Set $newthrust
         }
         method GetThustvectorXYZUnits {units} {
             orsa::Units validate $units
@@ -182,10 +178,10 @@ namespace eval PlanetarySystemClient {
             
                 
         constructor {args} {
+            puts stderr "*** $type create $self $args"
+            set options(-myunits) [from args -myunits $::orsa::units]
             $self configurelist $args
-            if {$options(-myunits) eq {}} {
-                set options(-myunits) $_defaultUnits
-            }
+            puts stderr "*** $type create $self: options(-myunits) is '$options(-myunits)'"
             set position [orsa::Vector create %AUTO% 0 0 0]
             set velocity [orsa::Vector create %AUTO% 0 0 0]
             set thrustvector [orsa::Vector create %AUTO% 0 0 0]
@@ -221,6 +217,17 @@ namespace eval PlanetarySystemClient {
         variable objids -array {}
         typemethod SequenceNumber {} {
             return [clock milliseconds]
+        }
+        typemethod validate {o} {
+            puts stderr "*** $type validate $o"
+            if {[catch {$o info type} thetype]} {
+                error "Not a $type: $o"
+            } elseif {$thetype ne $type} {
+                puts stderr "*** $type validate: thetype is $thetype"
+                error "Not a $type: $o"
+            } else {
+                return $o
+            }
         }
         variable channel
         option -port -readonly yes -default 5050
@@ -267,7 +274,7 @@ namespace eval PlanetarySystemClient {
                 }
                 switch [expr {int($status / 100)}] {
                     2 {
-                        $self processOKreponse $status $sequence $command $args
+                        $self processOKresponse $status $sequence $command $args
                     }
                     4 -
                     5 {
@@ -277,7 +284,7 @@ namespace eval PlanetarySystemClient {
             }
         }
         variable myunits {}
-        method processOKreponse {status sequence command arglist} {
+        method processOKresponse {status sequence command arglist} {
             switch [string toupper $command] {
                 INIT {
                     set myunits [orsa::Units %AUTO% \
@@ -330,7 +337,7 @@ namespace eval PlanetarySystemClient {
             }
         }
         method _sendmessage {command args} {
-            set seq [SequenceNumber]
+            set seq [$type SequenceNumber]
             set cmdlist [linsert $args 0 $command $seq]
             puts $channel $cmdlist
         }
@@ -339,7 +346,7 @@ namespace eval PlanetarySystemClient {
             catch {close $channel}
         }
         method add {object} {
-            set o [$ObjectQueue create %AUTO% -object $object]
+            set o [ObjectQueue create %AUTO% -object $object]
             $self _sendmessage ADD -id [$o cget -id] \
                   -position [$object GetPositionXYZUnits $myunits] \
                   -velocity [$object GetVelocityXYZUnits $myunits] \

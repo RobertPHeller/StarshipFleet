@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220601.1326>
+#  Last Modified : <220601.2142>
 #
 #  Description	
 #
@@ -321,6 +321,17 @@ namespace eval starships {
         #                      drifting).
         # @par
         
+        typemethod validate {o} {
+            puts stderr "*** $type validate $o"
+            if {[catch {$o info type} thetype]} {
+                error "Not a $type: $o"
+            } elseif {$thetype ne $type} {
+                puts stderr "*** $type validate: thetype is $thetype"
+                error "Not a $type: $o"
+            } else {
+                return $o
+            }
+        }
         option -maxdesignaccel -readonly yes -default 500 \
               -type starships::StarshipAcceleration
         option -maxaccel -type starships::StarshipAcceleration \
@@ -404,6 +415,17 @@ namespace eval starships {
         #                      maximum strength. The default is 1.0.
         # @par
         
+        typemethod validate {o} {
+            puts stderr "*** $type validate $o"
+            if {[catch {$o info type} thetype]} {
+                error "Not a $type: $o"
+            } elseif {$thetype ne $type} {
+                puts stderr "*** $type validate: thetype is $thetype"
+                error "Not a $type: $o"
+            } else {
+                return $o
+            }
+        }
         option -shieldstrength -type starships::ShieldStrength -default 1.0
         constructor {args} {
             ## The constructor constructs a shield array.
@@ -742,6 +764,17 @@ namespace eval starships {
         # @arg -size  The size class of the launchers, as an enumerated type.
         #             This is a readonly option. The default is mark1.
         # @par
+        typemethod validate {o} {
+            puts stderr "*** $type validate $o"
+            if {[catch {$o info type} thetype]} {
+                error "Not a $type: $o"
+            } elseif {$thetype ne $type} {
+                puts stderr "*** $type validate: thetype is $thetype"
+                error "Not a $type: $o"
+            } else {
+                return $o
+            }
+        }
         
         option -count -readonly yes -default 4 -type starships::LauncherCount
         option -size  -readonly yes -default mark1 \
@@ -974,6 +1007,17 @@ namespace eval starships {
         #                      StarshipMissleLaunchers type.
         # @par
         
+        typemethod validate {o} {
+            puts stderr "*** $type validate $o"
+            if {[catch {$o info type} thetype]} {
+                error "Not a $type: $o"
+            } elseif {$thetype ne $type} {
+                puts stderr "*** $type validate: thetype is $thetype"
+                error "Not a $type: $o"
+            } else {
+                return $o
+            }
+        }
         
         option -class -readonly yes -type starships::StarshipClasses
         option -mass  -readonly yes -type starships::masstype
@@ -1107,6 +1151,7 @@ namespace eval starships {
             $self setposition [$self cget -start]
             $self setvelocity [$self cget -initvel]
             $self setmass [$self cget -mass]
+            update 
             $system add $self
         }
         
