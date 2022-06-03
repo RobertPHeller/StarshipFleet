@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <220601.1600>
+#  Last Modified : <220602.2207>
 #
 #  Description	
 #
@@ -1162,19 +1162,29 @@ namespace eval planetarysystem {
                     -filename [from args -filename PlanetarySystem.system]]
         }
         method PlantaryCapture {mass absposition absvelocity} {
-            set tempbody [Body create %AUTO% "" $mass 0 0]
+            #puts stderr "*** $self PlantaryCapture enter: Vector Count is [::orsa::Vector VectorCount]"
+            set tempbody [Body create %AUTO% "" $mass]
             set temporbit [OrbitWithEpoch create %AUTO%]
             foreach planet $planetlist {
+                #puts stderr "*** $self PlantaryCapture top of planet loop: Vector Count is [::orsa::Vector VectorCount]"
                 set planetBody [$planet cget -refbody]
-                $tempbody SetPositon [$absposition - [$planetBody position]]
-                $tempbody SetVelocity [$absvelocity - [$planetBody velocity]]
-                if {[$temporbit Compute Body $tempbody $planetBody $epoch] eq "escape"} {continue}
-                $tempbody destroy
-                $temporbit destroy
-                return $planet
+                set tempposition [$absposition - [$planetBody position]]
+                $tempbody SetPosition $tempposition
+                $tempposition destroy;unset tempposition
+                set tempvelocity [$absvelocity - [$planetBody velocity]]
+                $tempbody SetVelocity $tempvelocity
+                $tempvelocity destroy;unset tempvelocity
+                if {[$temporbit Compute Body $tempbody $planetBody $epoch] ne "escape"} {
+                    $tempbody destroy
+                    $temporbit destroy
+                    #puts stderr "*** $self PlantaryCapture returning $planet: Vector Count is [::orsa::Vector VectorCount]"
+                    return $planet
+                }
+                #puts stderr "*** $self PlantaryCapture bottom of planet loop: Vector Count is [::orsa::Vector VectorCount]"
             }
             $tempbody destroy
             $temporbit destroy
+            #puts stderr "*** $self PlantaryCapture returning {}: Vector Count is [::orsa::Vector VectorCount]"
             return {}
         }
         destructor {

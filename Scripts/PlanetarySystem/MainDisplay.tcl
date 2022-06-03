@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Apr 21 09:30:02 2016
-#  Last Modified : <220601.0848>
+#  Last Modified : <220602.1050>
 #
 #  Description	
 #
@@ -95,16 +95,9 @@ namespace eval planetarysystem {
         delegate option -width  to hull
         delegate method {mainframe *} to hull except {getframe addtoobar 
             gettoolbar showtoolbar}
-        component tabs
         component   systemdisplay
         delegate method {systemdisplay *} to systemdisplay
         delegate option * to systemdisplay
-        component   sensors
-        delegate method {sensors *} to sensors
-        component   communication
-        delegate method {communication *} to communication
-        component   weaponsystem
-        delegate method {weaponsystem *} to weaponsystem
         variable progress 0
         variable status {}
         constructor {args} {
@@ -129,7 +122,7 @@ namespace eval planetarysystem {
             bind $toplevel <Control-q> [mymethod _exit]
             bind $toplevel <Control-Q> [mymethod _exit]
             wm protocol $toplevel WM_DELETE_WINDOW [mymethod _exit]
-            wm title    $toplevel "Main Starship Display"
+            wm title    $toplevel "Main Planetary Display"
             set frame [$hull getframe]
             install systemdisplay using planetarysystem::PlanetaryDisplay \
                   $frame.pd -seed [from args -seed 0] \

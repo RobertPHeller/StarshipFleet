@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 13 14:24:47 2013
-#  Last Modified : <150811.0825>
+#  Last Modified : <220602.1542>
 #
 #  Description	
 #
@@ -69,6 +69,7 @@ snit::widget MainFrame {
     variable mbfnt {}
     variable mefnt {}
     constructor {args} {
+        #puts stderr "*** $type create $self $args"
         set top  [winfo parent $win]
         if { [winfo toplevel $win] ne $top } {
             destroy $win
@@ -456,6 +457,7 @@ snit::widget MainFrame {
         }
     }
     method showstatusbar { name } {
+        #puts stderr "*** $self showstatusbar $name"
         if { [string equal $name "none"] } {
             pack forget $status
         } else {

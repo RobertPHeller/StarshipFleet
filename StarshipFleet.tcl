@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220601.2142>
+#  Last Modified : <220602.2015>
 #
 #  Description	
 #
@@ -322,11 +322,11 @@ namespace eval starships {
         # @par
         
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
                 error "Not a $type: $o"
             } elseif {$thetype ne $type} {
-                puts stderr "*** $type validate: thetype is $thetype"
+                #puts stderr "*** $type validate: thetype is $thetype"
                 error "Not a $type: $o"
             } else {
                 return $o
@@ -416,11 +416,11 @@ namespace eval starships {
         # @par
         
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
                 error "Not a $type: $o"
             } elseif {$thetype ne $type} {
-                puts stderr "*** $type validate: thetype is $thetype"
+                #puts stderr "*** $type validate: thetype is $thetype"
                 error "Not a $type: $o"
             } else {
                 return $o
@@ -765,11 +765,11 @@ namespace eval starships {
         #             This is a readonly option. The default is mark1.
         # @par
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
                 error "Not a $type: $o"
             } elseif {$thetype ne $type} {
-                puts stderr "*** $type validate: thetype is $thetype"
+                #puts stderr "*** $type validate: thetype is $thetype"
                 error "Not a $type: $o"
             } else {
                 return $o
@@ -1008,11 +1008,11 @@ namespace eval starships {
         # @par
         
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
                 error "Not a $type: $o"
             } elseif {$thetype ne $type} {
-                puts stderr "*** $type validate: thetype is $thetype"
+                #puts stderr "*** $type validate: thetype is $thetype"
                 error "Not a $type: $o"
             } else {
                 return $o
@@ -1143,7 +1143,11 @@ namespace eval starships {
                   %AUTO% -count [from args -numberoflaunchers 4] \
                   -size [from args -sizeofmissle mark1]
             install queueable using PlanetarySystemClient::QueueAbleObject \
-                  %AUTO%
+                  %AUTO% \
+                  -updatecallback [mymethod _updateCallback] \
+                  -impactcallback [mymethod _impactCallback] \
+                  -damagecallback [mymethod _damageCallback] \
+                  -sensorcallback [mymethod _sensorCallback]
             $self configurelist $args
             install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]]_bridge \
                   -ship $self -system $system -engine $engine \
@@ -1151,8 +1155,9 @@ namespace eval starships {
             $self setposition [$self cget -start]
             $self setvelocity [$self cget -initvel]
             $self setmass [$self cget -mass]
-            update 
-            $system add $self
+            update
+            after idle $system add $self
+            pack $bridgeconsole -fill both -expand yes
         }
         
         method statusreport {} {
@@ -1192,7 +1197,21 @@ namespace eval starships {
             }
             return $launched
         }
-            
+        
+        method _updateCallback {} {
+            #puts stderr "*** $self _updateCallback"
+            $bridgeconsole update [$self epoch]
+        }
+        method _impactCallback {} {
+            #puts stderr "*** $self _impactCallback"
+        }
+        method _damageCallback {netimpactenergy} {
+            #puts stderr "*** $self _damageCallback $netimpactenergy"
+        }
+        method _sensorCallback {epoch thetype direction origin spread sensorImage} {
+            $bridgeconsole updatesensor $epoch $thetype $direction $origin $spread $sensorImage
+        }
+        
         method update {} {
             ## @brief Update the starship.
             # The starchip's x,y,z position is updated.
@@ -1446,7 +1465,7 @@ proc print {v} {
 #pack $pd -fill both -expand yes
 #
 #package require MainDisplay
-#
+
 #set maindisp [planetarysystem::MainScreen .main -generate yes \
 #              -stellarmass 1.0 -seed 1 -geometry =1100x650+0-0]
 #           pack $maindisp -fill both -expand yes
@@ -1469,6 +1488,6 @@ proc print {v} {
 ::starships::Starship destroyer \
       test \
       [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
-      [::orsa::Vector %AUTO% 0 [$::orsa::units GetLengthScale KM] 0]
+      [::orsa::Vector %AUTO% 0 [expr {50 * [$::orsa::units GetLengthScale KM]}] 0]
 
       

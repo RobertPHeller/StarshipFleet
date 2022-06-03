@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat Apr 2 20:44:55 2016
-#  Last Modified : <220601.1608>
+#  Last Modified : <220602.2204>
 #
 #  Description	
 #
@@ -257,6 +257,7 @@ namespace eval orsa {
                     } else {
                         install bc using BodyConstants %AUTO% "" $arg 0
                     }
+                    
                 }
                 2 {
                     foreach {name mass} $args {break}
@@ -320,10 +321,6 @@ namespace eval orsa {
             #puts stderr "*** $type create $self: bc = \{$bc\}"
             incr _bodyCount
         }
-        destructor {
-            $bc destroy
-            incr _bodyCount -1
-        }
         method = {b} {
             $type validate $b
             set b_bc [$b info vars bc]
@@ -343,11 +340,15 @@ namespace eval orsa {
         }
         destructor {
             #puts stderr "*** $self destroy: bc = \{$bc\}"
-            $bc RemoveUser
-            if {[$bc Users] == 0} {
-                $bc destroy
-                unset bc
+            catch {
+                $bc RemoveUser
+                if {[$bc Users] == 0} {
+                    $bc destroy
+                    unset bc
+                }
             }
+            catch {$_position destroy}
+            catch {$_velocity destroy}
         }
         method position {} {return $_position}
         method velocity {} {return $_velocity}
@@ -355,11 +356,15 @@ namespace eval orsa {
         method AddToVelocity {v} {$_velocity += $v}
         method SetPosition {v} {$_position = $v}
         method SetPositionXYZ {x y z} {
-            $self SetPosition [orsa::Vector %AUTO% $x $y $z]
+            set tempV [orsa::Vector %AUTO% $x $y $z]
+            $self SetPosition $tempV
+            $tempV destroy
         }
         method SetVelocity {v} {$_velocity = $v}
         method SetVelocityXYZ {x y z} {
-            $self SetVelocity [orsa::Vector %AUTO% $x $y $z]
+            set tempV [orsa::Vector %AUTO% $x $y $z]
+            $self SetVelocity $tempV
+            $tempV destroy
         }
         method distanceVector {b} {
             $type validate $b
@@ -438,7 +443,12 @@ namespace eval orsa {
             $err_b_out  = [lindex $b_in 0]
             $err_b_out SetPosition $err_p_interpolated
             $err_b_out SetVelocity $err_v_interpolated
-            
+            $p_interpolate destroy
+            $v_interpolated destroy
+            $err_p_interpolated destroy
+            $err_v_interpolated
+            foreach p $pp {$p destroy}
+            foreach v $vv {$v destroy}
         }
         
         typemethod print {b {fp stdout} {tabs ""}} {

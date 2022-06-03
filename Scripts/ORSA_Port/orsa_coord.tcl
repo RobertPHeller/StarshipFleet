@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri Apr 1 22:16:30 2016
-#  Last Modified : <220601.1556>
+#  Last Modified : <220602.2048>
 #
 #  Description	
 #
@@ -60,6 +60,11 @@ namespace eval orsa {
         method SetY {_y} {set y $_y}
         method GetZ {} {return $z}
         method SetZ {_z} {set z $_z}
+        method Zero {} {
+            set x 0
+            set y 0
+            set z 0
+        }
         method Set {v} {
             $type validate $v
             set x [$v GetX]
@@ -212,22 +217,22 @@ namespace eval orsa {
             orsa::Vector_list validate $vx_in
             snit::double validate $x
             if {[catch {orsa::Vector validate $v_out}]} {
-                set v_out [orsa::Vector %AUTO% 0 0 0]
+                set v_out [orsa::Vector %AUTO% 0 0 0];       #+1
             }
             if {[catch {orsa::Vector validate $err_v_out}]} {
-                set err_v_out [orsa::Vector %AUTO% 0 0 0] 
+                set err_v_out [orsa::Vector %AUTO% 0 0 0];   #+1 
             }
             
             set n_points [llength $vx_in]
             if {$n_points < 2} {
                 puts stderr "too few points..."
                 $v_out = [lindex $vx_in 0]
-                $err_v_out = [orsa::Vector %AUTO% 0 0 0]
+                $err_v_out Zero
                 return
             }
             set c [list]
             set d [list]
-            set w [orsa::Vector %AUTO% 0 0 0]
+            set w [orsa::Vector %AUTO% 0 0 0];              #+1
             set diff [expr {abs($x - [[lindex $vx_in 0] cget -par])}]
             set i_closest 0
             set j 0
@@ -261,28 +266,27 @@ namespace eval orsa {
                         error "interpolate() --> Error: divide by zero"
                         return
                     }
-                    set trash [[lindex $c [expr {$i + 1}]] + [lindex $d $i]]
-                    $w Set $trash
-                    $trash destroy
-                    set trash1 [$w / $denom]
-                    set trash2 [$trash1 * $hp]
-                    $trash1 destroy
-                    [lindex $d $i] Set $trash2
-                    $trash2 destroy
-                    set trash1 [$w / $denom]
-                    set trash2 [$trash1 * $ho]
-                    $trash1 destroy
-                    [lindex $c $i] Set $trash2
-                    $trash2 destroy
+                    set trash [[lindex $c [expr {$i + 1}]] + [lindex $d $i]]; #+1
+                    $w = $trash
+                    $trash destroy;                                           #-1
+                    set trash [$w / $denom];               #+1
+                    $trash *= $hp]
+                    [lindex $d $i] = $trash
+                    $trash destroy;                        #-1
+                    set trash [$w / $denom];               #+1
+                    $trash *= $ho]
+                    [lindex $c $i] = $trash
+                    $trash destroy;                        #-1
                 }
                 if { (2*$i_closest) < ($n_points-$m) } {
-                    $err_v_out Set [lindex $c [expr {$i_closest + 1}]]
+                    $err_v_out = [lindex $c [expr {$i_closest + 1}]]
                 } else {
-                    $err_v_out Set [lindex $d $i_closest]
+                    $err_v_out = [lindex $d $i_closest]
                     incr i_closest -1
                 }
                 $v_out += $err_v_out
             }
+            $w destroy;                                    #-1
         }
     }
     namespace export Vector_list Vector

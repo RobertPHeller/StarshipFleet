@@ -1,4 +1,3 @@
-#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -8,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220601.2135>
+#  Last Modified : <220602.1842>
 #
 #  Description	
 #
@@ -56,7 +55,12 @@ namespace eval bridgeconsole {
         component lidar
         delegate method {lidar *} to lidar
         option -style -default SensorsDisplay
+        option -ship -readonly yes -default {} -type ::starships::Starship
         constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
             install visible using ::bridgeconsole::VisibleDisplay \
                   $win.visible
             pack $visible -side left -expand yes -fill both
@@ -64,6 +68,10 @@ namespace eval bridgeconsole {
                   $win.lidar
             pack $lidar -side right -expand yes -fill both
             $self configurelist $args
+        }
+        method update {epoch} {
+        }
+        method updatesensor {epoch thetype direction origin spread sensorImage} {
         }
     }
     snit::widget JoyButtons {
@@ -183,7 +191,6 @@ static unsigned char home_bits[] = {
             set zoomfactor [expr {$zoomfactor * $zoom}]
             font configure $labelfont -size [expr {int($zoomfactor * -10)}]
             set zoomfactor_fmt [format "Zoom: %7.4f" $zoomfactor]
-            
         }
         method _cameraUp {} {
             set sensoraimThetaX [expr {$sensoraimThetaX + ($::orsa::pi/18.0)}]
@@ -300,7 +307,6 @@ static unsigned char home_bits[] = {
             $self _redrawScale
         }
     }
-
     snit::widget VisibleDisplay {
         option -style -default VisibleDisplay
         typeconstructor {
@@ -345,7 +351,7 @@ static unsigned char home_bits[] = {
                     CommunicationsPanel.outoforder -side top -sticky nswe}}
             ttk::style layout CommunicationsPanel.OutOfOrder \
                   [ttk::style layout TLabel]
-            eval [list ttk::style configure CommunicationsPanel.OutOfOrder] [ttk::style configure TLabel]
+            eval ttk::style configure CommunicationsPanel.OutOfOrder {*}[ttk::style configure TLabel]
             ttk::style configure CommunicationsPanel.OutOfOrder \
                   -font [list Courier -72 bold] \
                   -foreground red \
@@ -353,11 +359,19 @@ static unsigned char home_bits[] = {
         }
         component outoforder
         option -style -default CommunicationsPanel
+        option -ship -readonly yes -default {} -type ::starships::Starship
         constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
             set options(-style) [from args -style]
             install outoforder using ttk::label $win.outoforder \
                   -style ${options(-style)}.OutOfOrder -text "Out Of Order"
             pack $outoforder -fill both -expand yes
+            $self configurelist $args
+        }
+        method update {epoch} {
         }
     }
     snit::widget TacticalSystem {
@@ -367,7 +381,7 @@ static unsigned char home_bits[] = {
                     TacticalSystem.outoforder -side top -sticky nswe}}
             ttk::style layout TacticalSystem.OutOfOrder \
                   [ttk::style layout TLabel]
-            eval [list ttk::style configure TacticalSystem.OutOfOrder] [ttk::style configure TLabel]
+            ttk::style configure TacticalSystem.OutOfOrder {*}[ttk::style configure TLabel]
             ttk::style configure TacticalSystem.OutOfOrder \
                   -font [list Courier -72 bold] \
                   -foreground red \
@@ -375,21 +389,184 @@ static unsigned char home_bits[] = {
         }
         component outoforder
         option -style -default TacticalSystem
+        option -ship -readonly yes -default {} -type ::starships::Starship
+        option -shields -readonly yes -default {} -type ::starships::StarshipShields
+        option -misslelaunchers -readonly yes -default {} -type ::starships::StarshipMissleLaunchers
         constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
+            if {[lsearch -exact $args -shields] < 0} {
+                error [_ "The -shields option must be specified!"]
+            }
+            set options(-shields) [from args -shields]
+            if {[lsearch -exact $args -misslelaunchers] < 0} {
+                error [_ "The -misslelaunchers option must be specified!"]
+            }
+            set options(-misslelaunchers) [from args -misslelaunchers]
             set options(-style) [from args -style]
             install outoforder using ttk::label $win.outoforder \
                   -style ${options(-style)}.OutOfOrder -text "Out Of Order"
             pack $outoforder -fill both -expand yes
+            $self configurelist $args
+        }
+        method update {epoch} {
         }
     }
     snit::widget CaptiansChair {
+        widgetclass CaptiansChair
+        hulltype ttk::frame
+        option -ship -readonly yes -default {} -type ::starships::Starship
+        option -style -default CaptiansChair
+        typeconstructor {
+            ttk::style layout CaptiansChair {
+                CaptiansChair.head -side top -sticky nswe -children {
+                    CaptiansChair.status -side left -sticky ns 
+                    CaptiansChair.status.position -side top -sticky we
+                    CaptiansChair.status.position.label -side top -sticky we
+                    CaptiansChair.status.position.x -side left -sticky ns
+                    CaptiansChair.status.position.y -side left -sticky ns
+                    CaptiansChair.status.position.z -side left -sticky ns
+                    CaptiansChair.status.velocity  -side top -sticky we
+                    CaptiansChair.status.velocity.label -side top -sticky we
+                    CaptiansChair.status.velocity.x -side left -sticky ns
+                    CaptiansChair.status.velocity.y -side left -sticky ns
+                    CaptiansChair.status.velocity.z -side left -sticky ns
+                    CaptiansChair.status.filler    -side bottom -sticky we
+                    CaptiansChair.controls -side right -sticky we
+                    
+                }
+            }
+            ttk::style layout CaptiansChairHeading [ttk::style layout TLabel]
+            ttk::style configure CaptiansChairHeading \
+                  -font [list Courier -72 bold] -foreground white \
+                  -background black
+            ttk::style layout CaptiansChairPositionLabel [ttk::style layout TLabel]
+            ttk::style configure CaptiansChairPositionLabel \
+                  -font [list Courier -36 bold] -foreground green \
+                  -background black
+            ttk::style layout CaptiansChair.status.position.label [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.position.label \
+                  -font [list Courier -36 bold] -foreground green \
+                  -background black
+            ttk::style layout CaptiansChair.status.position.x [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.position.y \
+                  -font [list Courier -36 bold] -foreground green \
+                  -background black
+            ttk::style layout CaptiansChair.status.position.y [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.position.y \
+                  -font [list Courier -36 bold] -foreground green \
+                  -background black
+            ttk::style layout CaptiansChair.status.position.z [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.position.z \
+                  -font [list Courier -36 bold] -foreground green \
+                  -background black
+            ttk::style layout CaptiansChairVelocityLabel [ttk::style layout TLabel]
+            ttk::style configure CaptiansChairVelocityLabel \
+                  -font [list Courier -36 bold] -foreground yellow \
+                  -background black
+            ttk::style layout CaptiansChair.status.velocity.label [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.velocity.label \
+                  -font [list Courier -36 bold] -foreground yellow \
+                  -background black
+            ttk::style layout CaptiansChair.status.velocity.x [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.velocity.x \
+                  -font [list Courier -36 bold] -foreground yellow \
+                  -background black
+            ttk::style layout CaptiansChair.status.velocity.y [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.velocity.y \
+                  -font [list Courier -36 bold] -foreground yellow \
+                  -background black
+            ttk::style layout CaptiansChair.status.velocity.z [ttk::style layout TLabel]
+            ttk::style configure CaptiansChair.status.velocity.z \
+                  -font [list Courier -36 bold] -foreground yellow \
+                  -background black
+        }
+        variable _posX
+        variable _posY
+        variable _posZ
+        variable _velX
+        variable _velY
+        variable _velZ
+        variable _epoch
+        constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
+            set options(-style) [from args -style]
+            set head [ttk::label $win.head -textvariable [myvar _epoch] -style CaptiansChairHeading]
+            pack $head -fill x
+            set status [ttk::frame $win.status]
+            pack $status -side left -fill y
+            set position [ttk::frame $status.position]
+            pack $position -fill x
+            set poslabel [ttk::label $position.label -text Position -style CaptiansChairPositionLabel]
+            grid $poslabel -row 0 -columnspan 3 -column 0 -sticky news
+            set posx [ttk::label $position.x -textvariable [myvar _posX] -style CaptiansChairPositionLabel]
+            grid $posx -row 1 -column 0 -sticky news
+            set posy [ttk::label $position.y -textvariable [myvar _posY] -style CaptiansChairPositionLabel]
+            grid $posy -row 1 -column 1 -sticky news
+            set posz [ttk::label $position.z -textvariable [myvar _posZ] -style CaptiansChairPositionLabel]
+            grid $posz -row 1 -column 2 -sticky news
+            set velocity [ttk::frame $status.velocity]
+            pack $velocity -fill x
+            set poslabel [ttk::label $velocity.label -text Velocity -style CaptiansChairVelocityLabel]
+            grid $poslabel -row 0 -columnspan 3 -column 0 -sticky news
+            set posx [ttk::label $velocity.x -textvariable [myvar _velX] -style CaptiansChairVelocityLabel]
+            grid $posx -row 1 -column 0 -sticky news
+            set posy [ttk::label $velocity.y -textvariable [myvar _velY] -style CaptiansChairVelocityLabel]
+            grid $posy -row 1 -column 1 -sticky news
+            set posz [ttk::label $velocity.z -textvariable [myvar _velZ] -style CaptiansChairVelocityLabel]
+            grid $posz -row 1 -column 2 -sticky news
+            pack [ttk::frame $status.filler] -side bottom -expand yes -fill both
+            set controls [ttk::frame $win.controls]
+            pack $controls  -side right -fill y -expand yes
+            $self configurelist $args
+        }
+        method update {epoch} {
+            set _epoch [format {%20lld} [expr {wide($epoch)}]]
+            set position [$options(-ship) position]
+            set _posX [format {%10.3g} [$position GetX]]
+            set _posY [format {%10.3g} [$position GetY]]
+            set _posZ [format {%10.3g} [$position GetZ]]
+            set velocity [$options(-ship) velocity]
+            set _velX [format {%10.3g} [$velocity GetX]]
+            set _velY [format {%10.3g} [$velocity GetY]]
+            set _velZ [format {%10.3g} [$velocity GetZ]]
+        }
     }
     snit::widget NavigationHelm {
+        option -ship -readonly yes -default {} -type ::starships::Starship
+        constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
+            $self configurelist $args
+        }
+        method update {epoch} {
+        }
     }
     snit::widget EngineeringDisplay {
+        option -ship -readonly yes -default {} -type ::starships::Starship
+        option -engine -readonly yes -default {} -type ::starships::StarshipEngine
+        constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
+            if {[lsearch -exact $args -engine] < 0} {
+                error [_ "The -engine option must be specified!"]
+            }
+            set options(-engine) [from args -engine]
+            $self configurelist $args
+        }
+        method update {epoch} {
+        }
     }
-    snit::widget FullConsole {
-        hulltype tk::toplevel
+    snit::widgetadaptor FullConsole {
         option -menu \
               -readonly yes \
               -default {
@@ -429,13 +606,12 @@ static unsigned char home_bits[] = {
         option {-extramenus extraMenus ExtraMenus} \
               -readonly yes \
               -default {}
-        option -geometry -readonly yes -default 640x480
-        delegate option -height to main
-        delegate option -width  to main
-        delegate method {mainframe *} to main except {getframe addtoobar 
+        option -geometry -readonly yes -default 1100x650
+        delegate option -height to hull
+        delegate option -width  to hull
+        delegate method {mainframe *} to hull except {getframe addtoobar 
             gettoolbar showtoolbar}
         
-        component main
         component   tabs
         component     captianschair -public captianschair -inherit yes
         component     navigationhelm -public navigationhelm -inherit yes
@@ -451,6 +627,26 @@ static unsigned char home_bits[] = {
         variable progress 0
         variable status {}
         constructor {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
+            if {[lsearch -exact $args -system] < 0} {
+                error [_ "The -system option must be specified!"]
+            }
+            set options(-system) [from args -system]
+            if {[lsearch -exact $args -engine] < 0} {
+                error [_ "The -engine option must be specified!"]
+            }
+            set options(-engine) [from args -engine]
+            if {[lsearch -exact $args -shields] < 0} {
+                error [_ "The -shields option must be specified!"]
+            }
+            set options(-shields) [from args -shields]
+            if {[lsearch -exact $args -misslelaunchers] < 0} {
+                error [_ "The -misslelaunchers option must be specified!"]
+            }
+            set options(-misslelaunchers) [from args -misslelaunchers]
             set options(-menu) [from args -menu]
             set options(-extramenus) [from args -extramenus]
             if {[llength $options(-extramenus)] > 0} {
@@ -461,39 +657,42 @@ static unsigned char home_bits[] = {
                 set menudesc $options(-menu)
             }
             set menudesc [subst $menudesc]
-            install main using MainFrame $win.main -menu $menudesc -separator none \
+            installhull using MainFrame  -menu $menudesc -separator none \
                   -textvariable [myvar status] \
                   -progressvar [myvar progress] \
                   -progressmax 100 \
                   -progresstype normal
-            pack $main -expand yes -fill both
-            $main showstatusbar progression
+            $hull showstatusbar progression
             set toplevel [winfo toplevel $win]
             wm withdraw $toplevel
             bind $toplevel <Control-q> [mymethod _exit]
             bind $toplevel <Control-Q> [mymethod _exit]
             wm protocol $toplevel WM_DELETE_WINDOW [mymethod _exit]
             wm title    $toplevel "Starship Bridge"
-            set frame [$main getframe]
+            set frame [$hull getframe]
+            #puts stderr "*** $type create $self: frame is $frame"
             install tabs using ttk::notebook $frame.tabs
             pack $tabs -fill both -expand yes
             install captianschair using ::bridgeconsole::CaptiansChair \
-                  $tabs.captianschair
+                  $tabs.captianschair -ship $options(-ship)
             $tabs add $captianschair -sticky news -text {Captian's Chair}
             install navigationhelm using ::bridgeconsole::NavigationHelm \
-                  $tabs.navigationhelm
+                  $tabs.navigationhelm -ship $options(-ship)
             $tabs add $navigationhelm -sticky news -text {Navigation and Helm}
             install sensors using ::bridgeconsole::SensorsDisplay \
-                  $tabs.sensors
+                  $tabs.sensors -ship $options(-ship)
             $tabs add $sensors  -sticky news -text {Sensors}
             install tactical using ::bridgeconsole::TacticalSystem \
-                  $tabs.tactical
+                  $tabs.tactical -ship $options(-ship) \
+                  -shields $options(-shields) \
+                  -misslelaunchers $options(-misslelaunchers)
             $tabs add $tactical -sticky news -text {Tactical}
             install engineering using ::bridgeconsole::EngineeringDisplay \
-                  $tabs.engineering
+                  $tabs.engineering -ship $options(-ship) \
+                  -engine $options(-engine)
             $tabs add $engineering -sticky news -text {Engineering}
             install communication using ::bridgeconsole::CommunicationsPanel \
-                  $tabs.communication
+                  $tabs.communication -ship $options(-ship)
             $tabs add $communication -sticky news -text {Communications Panel}
             $self configurelist $args
             update idletasks
@@ -502,6 +701,17 @@ static unsigned char home_bits[] = {
         }
         method _exit {} {
             exit
+        }
+        method update {epoch} {
+            $captianschair update $epoch
+            $navigationhelm update $epoch
+            $sensors update $epoch
+            $tactical update $epoch
+            $engineering update $epoch
+            $communication update $epoch
+        }
+        method updatesensor {epoch thetype direction origin spread sensorImage} {
+            $sensors updatesensor $epoch $thetype $direction $origin $spread $sensorImage
         }
     }
 }

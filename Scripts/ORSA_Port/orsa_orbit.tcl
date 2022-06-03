@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 13:06:27 2016
-#  Last Modified : <220601.1646>
+#  Last Modified : <220602.2112>
 #
 #  Description	
 #
@@ -313,13 +313,13 @@ namespace eval orsa {
                     set local_M [expr {$local_M - $orsa::twopi}]
                 }
                 
-                // begin with a guess proposed by Danby	
+                # // begin with a guess proposed by Danby	
                 if {$local_M < 0.0} {
                     set tmp [expr {-2.0*$local_M/$e + 1.8}]
                     set x   [expr {-secure_log($tmp)}]
                 } else {
                     set tmp [expr {+2.0*$local_M/$e + 1.8}]
-                    set x   [expr { secure_log(tmp)}]
+                    set x   [expr { secure_log($tmp)}]
                 }
                 
                 set capf $x
@@ -347,7 +347,7 @@ namespace eval orsa {
                 
                 set sqe [expr {secure_sqrt($e*$e - 1.0)}]
                 set sqgma [expr {secure_sqrt($mu*$a)}]
-                set xfac1 [expr {$a*(e - chcap)}]
+                set xfac1 [expr {$a*($e - $chcap)}]
                 set xfac2 [expr {$a*$sqe*$shcap}]
                 set ri [expr {1.0/($a*($e*$chcap - 1.0))}]
                 set vfac1 [expr {-$ri * $sqgma * $shcap}]
@@ -397,7 +397,10 @@ namespace eval orsa {
             set dr [[$b position] - [$ref_b position]]
             set dv [[$b velocity] - [$ref_b velocity]]
             set mu [expr {[orsa::GetG] * ([$b mass] + [$ref_b mass])}]
-            return [$self Compute Vector $dr $dv $mu]
+            set result [$self Compute Vector $dr $dv $mu]
+            $dr destroy;unset dr
+            $dv destroy;unset dv
+            return $result
         }
         method {Compute Vector} {relative_position relative_velocity mu_in} {
             orsa::Vector validate $relative_position
@@ -427,7 +430,7 @@ namespace eval orsa {
             set ialpha 0
     
             # angular momentum
-            set  h [$relative_position ExternalProduct $relative_velocity]
+            set  h [$relative_position ExternalProduct $relative_velocity]; #+1
     
             set h2 [$h LengthSquared]
             set hh [$h Length]
@@ -443,7 +446,7 @@ namespace eval orsa {
             if {$fac < $tiny} {
                 set omega_node 0.0
                 set u [expr {secure_atan2([$relative_position GetY], [$relative_position GetX])}]
-                if { fabs($i-$orsa::pi) < 10.0 * $tiny } {
+                if { abs($i-$orsa::pi) < 10.0 * $tiny } {
                     set u [expr {-$u}] 
                 }
             } else {
@@ -599,6 +602,7 @@ namespace eval orsa {
             } else { ## ellipse/circular
                 set orbittype normal
             }
+            $h destroy;unset h; #-1
             return $orbittype
         }
     }

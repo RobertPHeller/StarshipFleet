@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sun Apr 3 08:50:05 2016
-#  Last Modified : <220601.2100>
+#  Last Modified : <220602.0955>
 #
 #  Description	
 #
@@ -357,11 +357,11 @@ namespace eval orsa {
         variable r_moon_base
         variable parsec_base
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
                 error "Not a $type: $o"
             } elseif {$thetype ne $type} {
-                puts stderr "*** $type validate: thetype is $thetype"
+                #puts stderr "*** $type validate: thetype is $thetype"
                 error "Not a $type: $o"
             } else {
                 return $o

@@ -117,7 +117,7 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 	-rm -rf StarshipFleet.vfs StarshipFleet.kit
 
 StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
-		$(PlanetarySystemNoGUIScripts) $(NetworkScripts) \
+		$(PlanetarySystemScripts) $(NetworkScripts) \
 		$(StarGenScripts) $(GDLibFiles)
 	-rm -rf StarSystemServer.vfs StarSystemServer.kit
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit qwrap $(srcdir)/StarSystemServer.tcl

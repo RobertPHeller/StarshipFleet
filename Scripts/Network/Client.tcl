@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220601.2140>
+#  Last Modified : <220602.1616>
 #
 #  Description	
 #
@@ -46,9 +46,9 @@ package require orsa
 package require base64
 package require tclgd
 
-puts [package present orsa]
-puts [namespace children]
-puts $::orsa::units
+#puts [package present orsa]
+#puts [namespace children]
+#puts $::orsa::units
 
 namespace eval PlanetarySystemClient {
     snit::type QueueAbleObject {
@@ -67,6 +67,7 @@ namespace eval PlanetarySystemClient {
         option -updatecallback -default {}
         option -impactcallback -default {}
         option -damagecallback -default {}
+        option -sensorcallback -default {}
         variable position
         method position {} {
             return $position
@@ -131,11 +132,11 @@ namespace eval PlanetarySystemClient {
         method setepoch {newepoch} {
             set epoch $newepoch
         }
-        method updateepoch {epoch units} {
+        method updateepoch {epoch_ units} {
             orsa::Units validate $units
             set t_unit [[$self cget -myunits] GetTimeBaseUnit]
             $self setepoch [[$self cget -myunits] FromUnits_time_unit \
-                            $epoch [$units GetTimeBaseUnit] 1]
+                            $epoch_ [$units GetTimeBaseUnit] 1]
             set callback [$self cget -updatecallback]
             if {$callback ne {}} {
                 uplevel #0 $callback
@@ -144,15 +145,15 @@ namespace eval PlanetarySystemClient {
         method updateposvel {pos vel units} {
             orsa::Units validate $units
             set l_unit [$units GetLengthBaseUnit]
-            $position SetX [[$self cget -myunits] FromUnits_length_unit [$pos GetX] $l_unit 1]
-            $position SetY [[$self cget -myunits] FromUnits_length_unit [$pos GetY] $l_unit 1]
-            $position SetZ [[$self cget -myunits] FromUnits_length_unit [$pos GetZ] $l_unit 1]
-            $velocity SetX [[$self cget -myunits] FromUnits_length_unit [$vel GetX] $l_unit 1]
-            $velocity SetY [[$self cget -myunits] FromUnits_length_unit [$vel GetY] $l_unit 1]
-            $velocity SetZ [[$self cget -myunits] FromUnits_length_unit [$vel GetZ] $l_unit 1]
+            $position SetX [[$self cget -myunits] FromUnits_length_unit [lindex $pos 0] $l_unit 1]
+            $position SetY [[$self cget -myunits] FromUnits_length_unit [lindex $pos 1] $l_unit 1]
+            $position SetZ [[$self cget -myunits] FromUnits_length_unit [lindex $pos 2] $l_unit 1]
+            $velocity SetX [[$self cget -myunits] FromUnits_length_unit [lindex $vel 0] $l_unit 1]
+            $velocity SetY [[$self cget -myunits] FromUnits_length_unit [lindex $vel 1] $l_unit 1]
+            $velocity SetZ [[$self cget -myunits] FromUnits_length_unit [lindex $vel 2] $l_unit 1]
             set callback [$self cget -updatecallback]
             if {$callback ne {}} {
-                uplevel #0 $callback
+                uplevel #0 $callback 
             }
         }
         variable damage 0
@@ -175,13 +176,17 @@ namespace eval PlanetarySystemClient {
             }
             return [expr {$damage * 100}]
         }
-            
-                
+        method updatesensor {epoch thetype direction origin spread sensorImage} {
+            set callback [$self cget -sensorcallback]
+            if {$callback ne {}} {
+                uplevel #0 $callback $epoch $thetype $direction $origin $spread $sensorImage
+            }
+        }
         constructor {args} {
-            puts stderr "*** $type create $self $args"
+            #puts stderr "*** $type create $self $args"
             set options(-myunits) [from args -myunits $::orsa::units]
             $self configurelist $args
-            puts stderr "*** $type create $self: options(-myunits) is '$options(-myunits)'"
+            #puts stderr "*** $type create $self: options(-myunits) is '$options(-myunits)'"
             set position [orsa::Vector create %AUTO% 0 0 0]
             set velocity [orsa::Vector create %AUTO% 0 0 0]
             set thrustvector [orsa::Vector create %AUTO% 0 0 0]
@@ -193,16 +198,21 @@ namespace eval PlanetarySystemClient {
         typevariable pendingobjects [list]
         typevariable _ID 0
         constructor {args} {
+            #puts stderr "*** $type create $self $args"
             $self configurelist $args
             incr _ID
+            #puts stderr "*** $type create $self: _ID is $_ID"
             set options(-id) $_ID
             lappend pendingobjects $self
         }
         destructor {
+            #puts stderr "*** $self destroy"
+            #puts stderr "*** $self destroy: options(-id) is $options(-id)"
             set index [lsearch -exact $pendingobjects $self]
             set pendingobjects [lreplace $pendingobjects $index $index]
         }
         typemethod findbyid {id} {
+            #puts stderr "*** $type findbyid $id"
             foreach o $pendingobjects {
                 if {[$o cget -id] == $id} {
                     return $o
@@ -219,11 +229,11 @@ namespace eval PlanetarySystemClient {
             return [clock milliseconds]
         }
         typemethod validate {o} {
-            puts stderr "*** $type validate $o"
+            #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
                 error "Not a $type: $o"
             } elseif {$thetype ne $type} {
-                puts stderr "*** $type validate: thetype is $thetype"
+                #puts stderr "*** $type validate: thetype is $thetype"
                 error "Not a $type: $o"
             } else {
                 return $o
@@ -232,41 +242,40 @@ namespace eval PlanetarySystemClient {
         variable channel
         option -port -readonly yes -default 5050
         option -host -readonly yes -default localhost
-        option -sensehandler -readonly yes -default {}
         constructor {args} {
             $self configurelist $args
             set channel [socket $options(-host) $options(-port)]
-            puts stderr "*** $type create $self: channel = $channel"
+            #puts stderr "*** $type create $self: channel = $channel"
             fconfigure $channel  -buffering line
-            puts stderr "*** $type create $self: fconfigure $channel = [fconfigure $channel]"
+            #puts stderr "*** $type create $self: fconfigure $channel = [fconfigure $channel]"
             fileevent $channel readable [mymethod _listener]
         }
         proc getHeaders {channel} {
             set result [list]
             while {[gets $channel line] > 0} {
-                puts stderr "*** getHeaders: line is $line"
+                #puts stderr "*** getHeaders: line is $line"
                 if {[regexp {^([^:]+):[[:space:]]+(.*)$} $line => key value] > 0} {
                     lappend result $key $value
                 }
             }
-            puts stderr "*** getHeaders: result is $result"
+            #puts stderr "*** getHeaders: result is $result"
             return $result
         }
         method _listener {} {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
-                puts stderr "*** $self _listener: line = '$line'"
-                set response [split $line " "]
-                puts stderr "*** $self _listener: response is $response"
+                #puts stderr "*** $self _listener: line = '$line'"
+                set response $line
+                #puts stderr "*** $self _listener: response is $response"
                 set status [lindex $response 0]
-                puts stderr "*** $self _listener: status is $status"
+                #puts stderr "*** $self _listener: status is $status"
                 set sequence [lindex $response 1]
-                puts stderr "*** $self _listener: sequence is $sequence"
+                #puts stderr "*** $self _listener: sequence is $sequence"
                 set command [lindex $response 2]
-                puts stderr "*** $self _listener: command is $command"
+                #puts stderr "*** $self _listener: command is $command"
                 set args [lrange $response 3 end]
-                puts stderr "*** $self _listener: args are $args"
+                #puts stderr "*** $self _listener: args are $args"
                 array set headers [getHeaders $channel]
                 if {$headers(DataLength) > 0} {
                     set data [::base64::decode [read $channel $headers(DataLength)]]
@@ -297,7 +306,8 @@ namespace eval PlanetarySystemClient {
                     set remoteid [from arglist -remoteid]
                     set epoch [from arglist -epoch]
                     set o [ObjectQueue findbyid $id]
-                    set objects($remoteid) [$o cget -object]
+                    set object [$o cget -object]
+                    set objects($remoteid) $object
                     set objids($object) $remoteid
                     $object updateepoch $epoch $myunits
                 }
@@ -307,19 +317,17 @@ namespace eval PlanetarySystemClient {
                     set newvel   [from arglist -velocity]
                     set epoch [from arglist -epoch]
                     $objects($remoteid) updateposvel $newpos $newvel $myunits
-                    $objects($remoteid) updateepoch $epoch
+                    $objects($remoteid) updateepoch $epoch $myunits
                 }
                 SENSOR {
+                    set remoteid  [from arglist -remoteid] 
                     set thetype   [from arglist -type VISIBLE]
-                    set direction [eval [list Vector create %AUTO%] [from arglist -direction [list 0 0 0]]]
-                    set origin    [eval [list Vector create %AUTO%] [from arglist -origin [list 0 0 0]]]
+                    set direction [Vector create %AUTO% {*}[from arglist -direction [list 0 0 0]]]
+                    set origin    [Vector create %AUTO% {*}[from arglist -origin [list 0 0 0]]]
                     set spread    [from arglist -spread 0.0]
+                    set epoch [from arglist -epoch]
                     set sensorImage [GD create_from_gd #auto [from arglist -data {}]]
-                    set sh [$self cget -sensehandler]
-                    if {$sh ne {}} {
-                        uplevel #0 $sh $thetype $direction $origin $spread \
-                              $sensorImage
-                    }
+                    $objects($remoteid) updatesensor $epoch $thetype $direction $origin $spread $sensorImage
                     rename $sensorImage {}
                 }
                 IMPACT {
@@ -346,7 +354,9 @@ namespace eval PlanetarySystemClient {
             catch {close $channel}
         }
         method add {object} {
+            #puts stderr "*** $self add $object"
             set o [ObjectQueue create %AUTO% -object $object]
+            #puts stderr "*** $self add: $o: [$o cget -id]"
             $self _sendmessage ADD -id [$o cget -id] \
                   -position [$object GetPositionXYZUnits $myunits] \
                   -velocity [$object GetVelocityXYZUnits $myunits] \
