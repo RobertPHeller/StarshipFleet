@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <220602.2136>
+#  Last Modified : <220604.1525>
 #
 #  Description	
 #
@@ -531,13 +531,13 @@ namespace eval PlanetarySystemServer {
                         ### SENSOR SEQ -type {IFRARED RADIO VISIBLE LIDAR RADAR} -direction DirVect -origin OrgVect -spread angle
                         ### Returns SEQ Sensor data (depends on type)
                         set thetype   [from args -type VISIBLE]
-                        set direction [eval [list Vector create %AUTO%] [from args -direction [list 0 0 0]]]
-                        set origin    [eval [list Vector create %AUTO%] [from args -origin [list 0 0 0]]]
+                        set direction [Vector create %AUTO% {*}[from args -direction [list 0 0 0]]]
+                        set origin    [Vector create %AUTO% {*}[from args -origin [list 0 0 0]]]
                         set spread    [from args -spread 0.0]
-                        if {$spread <= 0.0 || $spread >= 45.0} {
+                        if {$spread <= 0.0 || $spread >= [expr {$::orsa::pi / 4.0}]} {
                             $self sendResponse 420 $sequence $command \
                                   -message [format \
-                                            "Spread out of range (> 0.0 and < 45.0): %g" \
+                                            "Spread out of range (> 0.0 and < PI/4): %g" \
                                             $spread]
                             break
                         }
@@ -569,6 +569,7 @@ namespace eval PlanetarySystemServer {
                             }
                         }
                         $self sendResponse 200 $sequence $command \
+                              -epoch [$system getepoch] \
                               -type $thetype \
                               -direction [list [$direction GetX] \
                                           [$direction GetY] \
@@ -579,6 +580,8 @@ namespace eval PlanetarySystemServer {
                               -spread $spread \
                               -data [$senseimage gd_data]
                         rename $senseimage {}
+                        $direction destroy
+                        $origin destroy
                     }
                     SUN {
                         $self sendResponse 200 $sequence $command \

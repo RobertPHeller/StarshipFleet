@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220602.1616>
+#  Last Modified : <220604.1525>
 #
 #  Description	
 #
@@ -67,7 +67,6 @@ namespace eval PlanetarySystemClient {
         option -updatecallback -default {}
         option -impactcallback -default {}
         option -damagecallback -default {}
-        option -sensorcallback -default {}
         variable position
         method position {} {
             return $position
@@ -102,6 +101,7 @@ namespace eval PlanetarySystemClient {
         method thrustvector {} {
             return $thrustvector
         }
+        method setclient {client} {set _myclient $client}
         method setthrustvector {newthrust} {
             $thrustvector Set $newthrust
         }
@@ -176,12 +176,6 @@ namespace eval PlanetarySystemClient {
             }
             return [expr {$damage * 100}]
         }
-        method updatesensor {epoch thetype direction origin spread sensorImage} {
-            set callback [$self cget -sensorcallback]
-            if {$callback ne {}} {
-                uplevel #0 $callback $epoch $thetype $direction $origin $spread $sensorImage
-            }
-        }
         constructor {args} {
             #puts stderr "*** $type create $self $args"
             set options(-myunits) [from args -myunits $::orsa::units]
@@ -191,6 +185,7 @@ namespace eval PlanetarySystemClient {
             set velocity [orsa::Vector create %AUTO% 0 0 0]
             set thrustvector [orsa::Vector create %AUTO% 0 0 0]
         }
+        
     }
     snit::type ObjectQueue {
         option -id -readonly yes
@@ -228,6 +223,7 @@ namespace eval PlanetarySystemClient {
         typemethod SequenceNumber {} {
             return [clock milliseconds]
         }
+        option -callback {}
         typemethod validate {o} {
             #puts stderr "*** $type validate $o"
             if {[catch {$o info type} thetype]} {
@@ -320,15 +316,16 @@ namespace eval PlanetarySystemClient {
                     $objects($remoteid) updateepoch $epoch $myunits
                 }
                 SENSOR {
-                    set remoteid  [from arglist -remoteid] 
-                    set thetype   [from arglist -type VISIBLE]
-                    set direction [Vector create %AUTO% {*}[from arglist -direction [list 0 0 0]]]
-                    set origin    [Vector create %AUTO% {*}[from arglist -origin [list 0 0 0]]]
-                    set spread    [from arglist -spread 0.0]
                     set epoch [from arglist -epoch]
-                    set sensorImage [GD create_from_gd #auto [from arglist -data {}]]
-                    $objects($remoteid) updatesensor $epoch $thetype $direction $origin $spread $sensorImage
-                    rename $sensorImage {}
+                    set thetype [from arglist -type]
+                    set direction [from arglist -direction]
+                    set origin [from arglist -origin]
+                    set spread [from arglist -spread]
+                    set data [from arglist -data]
+                    set sensordata GD create_from_gd_data #auto $data
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) SENSOR $epoch $thetype $direction $origin $spread $sensordata
+                    }
                 }
                 IMPACT {
                     set remoteid [from arglist -remoteid]
@@ -349,7 +346,6 @@ namespace eval PlanetarySystemClient {
             set cmdlist [linsert $args 0 $command $seq]
             puts $channel $cmdlist
         }
-            
         destructor {
             catch {close $channel}
         }
@@ -362,6 +358,8 @@ namespace eval PlanetarySystemClient {
                   -velocity [$object GetVelocityXYZUnits $myunits] \
                   -thustvector [$object GetThustvectorXYZUnits $myunits] \
                   -mass [$object GetMassUnits $myunits]
+        }
+        method getsun {} {
         }
         method updatethrustvector {object} {
             if {[catch {set objids($object)} remoteid]} {
@@ -379,6 +377,10 @@ namespace eval PlanetarySystemClient {
                       -mass [$object GetMassUnits $myunits]
             }
         }
+        method getsensorimage {thetype direction origin spread} {
+            $self _sendmessage SENSOR -type $thetype -direction $direction -origin $origin -spread $spread
+        }
+        
     }
     namespace export Client
 }

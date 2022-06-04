@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220602.2015>
+#  Last Modified : <220604.1532>
 #
 #  Description	
 #
@@ -1135,7 +1135,8 @@ namespace eval starships {
             }
             install system using PlanetarySystemClient::Client %AUTO% \
                   -port [from args -port 5050] \
-                  -host [from args -host localhost]
+                  -host [from args -host localhost] \
+                  -callback [mymethod _clientCallback]
             install engine using starships::StarshipEngine %AUTO% \
                   -maxdesignaccel [from args -maxdesignaccel 500]
             install shields using starships::StarshipShields %AUTO%
@@ -1146,8 +1147,7 @@ namespace eval starships {
                   %AUTO% \
                   -updatecallback [mymethod _updateCallback] \
                   -impactcallback [mymethod _impactCallback] \
-                  -damagecallback [mymethod _damageCallback] \
-                  -sensorcallback [mymethod _sensorCallback]
+                  -damagecallback [mymethod _damageCallback]
             $self configurelist $args
             install bridgeconsole using bridgeconsole::FullConsole .[string tolower [namespace tail $self]]_bridge \
                   -ship $self -system $system -engine $engine \
@@ -1155,9 +1155,9 @@ namespace eval starships {
             $self setposition [$self cget -start]
             $self setvelocity [$self cget -initvel]
             $self setmass [$self cget -mass]
-            update
             after idle $system add $self
             pack $bridgeconsole -fill both -expand yes
+            #set sun [$system 
         }
         
         method statusreport {} {
@@ -1208,8 +1208,12 @@ namespace eval starships {
         method _damageCallback {netimpactenergy} {
             #puts stderr "*** $self _damageCallback $netimpactenergy"
         }
-        method _sensorCallback {epoch thetype direction origin spread sensorImage} {
-            $bridgeconsole updatesensor $epoch $thetype $direction $origin $spread $sensorImage
+        method _clientCallback {cmd epoch args} {
+            switch $cmd {
+                SENSOR {
+                    $bridgeconsole updatesensor $epoch {*}$args
+                }
+            }
         }
         
         method update {} {
@@ -1380,6 +1384,9 @@ namespace eval starships {
         ## @privatesection @brief The planetary system.
         delegate option -port to system
         delegate option -host to system
+        component queueable
+        ## Component to hold system updatable fields.
+        delegate method * to queueable
         component stationcommand
         ## @brief The station's command center.
         component docks
@@ -1431,7 +1438,7 @@ namespace eval starships {
             install system using PlanetarySystemClient::Client %AUTO% \
                   -port [from args -port 5050] \
                   -host [from args -host localhost] \
-                  -sensehandler [mymethod _sensehandler]
+                  -callback [mymethod _clientCallback]
             install docks using starships::DockingBays  %AUTO% \
                   -count [from args -numberofdockingbays 10] \
                   -size  [from args -sizeofdockingbays   SMALL]
@@ -1440,13 +1447,33 @@ namespace eval starships {
                   -size  [from args -sizeofdrydocks SMALL]
             install shuttlebays using starships::ShuttleBays %AUTO% \
                   -count [from args -numberofshuttlebays 1]
+            install queueable using PlanetarySystemClient::QueueAbleObject \
+                  %AUTO% \
+                  -updatecallback [mymethod _updateCallback] \
+                  -impactcallback [mymethod _impactCallback] \
+                  -damagecallback [mymethod _damageCallback]
+            $self configurelist $args
             install stationcommand using stationcommand::StationCommand .[string tolower [namespace tail $self]]_ControlCenter \
                   -station $self -system $system -docks $docks \
                   -drydocks $drydocks -shuttlebays $shuttlebays
-            $self configurelist $args
-            
+            $self setmass [$self cget -mass]
+            pack $stationcommand -fill both -expand yes
+            $system getsun
         }
-            
+        method _updateCallback {} {
+            $stationcommand update [$self epoch]
+        }
+        method _impactCallback {} {
+        }
+        method _damageCallback {netimpactenergy} {
+        }
+        method _clientCallback {cmd epoch args} {
+            switch $cmd {
+                SENSOR {
+                    $stationcommand updatesensor $epoch {*}$args
+                }
+            }
+        }
     }
 }
 
@@ -1482,12 +1509,13 @@ proc print {v} {
 #}
 #exit 0
 
-#shipyardcommand::ShipyardCommand .shipyardcommand
-#pack .shipyardcommand
 
-::starships::Starship destroyer \
-      test \
-      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
-      [::orsa::Vector %AUTO% 0 [expr {50 * [$::orsa::units GetLengthScale KM]}] 0]
+#::starships::Starship destroyer \
+#      test \
+#      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
+#      [::orsa::Vector %AUTO% 0 [expr {50 * [$::orsa::units GetLengthScale KM]}] 0]
 
-      
+
+shipyardcommand::ShipyardCommand .shipyardcommand
+pack .shipyardcommand
+
