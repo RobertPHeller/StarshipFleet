@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220602.1842>
+#  Last Modified : <220605.1609>
 #
 #  Description	
 #
@@ -46,7 +46,7 @@ package require ScrollWindow
 package require ButtonBox
 package require MainFrame
 package require snitStdMenuBar
-
+package require ROText
 
 namespace eval bridgeconsole {
     snit::widget SensorsDisplay {
@@ -72,6 +72,12 @@ namespace eval bridgeconsole {
         method update {epoch} {
         }
         method updatesensor {epoch thetype direction origin spread sensorImage} {
+        }
+        method setorbiting {orbiting} {
+        }
+        method setsun {sun args} {
+        }
+        method setplanetinfo {args} {
         }
     }
     snit::widget JoyButtons {
@@ -413,6 +419,12 @@ static unsigned char home_bits[] = {
         }
         method update {epoch} {
         }
+        method setorbiting {orbiting} {
+        }
+        method setsun {sun args} {
+        }
+        method setplanetinfo {args} {
+        }
     }
     snit::widget CaptiansChair {
         widgetclass CaptiansChair
@@ -420,121 +432,148 @@ static unsigned char home_bits[] = {
         option -ship -readonly yes -default {} -type ::starships::Starship
         option -style -default CaptiansChair
         typeconstructor {
-            ttk::style layout CaptiansChair {
-                CaptiansChair.head -side top -sticky nswe -children {
-                    CaptiansChair.status -side left -sticky ns 
-                    CaptiansChair.status.position -side top -sticky we
-                    CaptiansChair.status.position.label -side top -sticky we
-                    CaptiansChair.status.position.x -side left -sticky ns
-                    CaptiansChair.status.position.y -side left -sticky ns
-                    CaptiansChair.status.position.z -side left -sticky ns
-                    CaptiansChair.status.velocity  -side top -sticky we
-                    CaptiansChair.status.velocity.label -side top -sticky we
-                    CaptiansChair.status.velocity.x -side left -sticky ns
-                    CaptiansChair.status.velocity.y -side left -sticky ns
-                    CaptiansChair.status.velocity.z -side left -sticky ns
-                    CaptiansChair.status.filler    -side bottom -sticky we
-                    CaptiansChair.controls -side right -sticky we
-                    
-                }
-            }
-            ttk::style layout CaptiansChairHeading [ttk::style layout TLabel]
-            ttk::style configure CaptiansChairHeading \
-                  -font [list Courier -72 bold] -foreground white \
+            ttk::style layout CaptiansChairLabelFrame [ttk::style layout TLabelframe]
+            ttk::style layout CaptiansChairLabelFrame.Label [ttk::style layout TLabelframe.Label]
+            ttk::style configure CaptiansChairLabelFrame \
+                  {*}[ttk::style configure TLabelframe]
+            ttk::style configure CaptiansChairLabelFrame  -background black
+            ttk::style configure CaptiansChairLabelFrame.Label \
+                  {*}[ttk::style configure TLabelframe.Label]
+            ttk::style configure CaptiansChairLabelFrame.Label \
+                  -font [list Courier -18 bold] -foreground white \
                   -background black
-            ttk::style layout CaptiansChairPositionLabel [ttk::style layout TLabel]
-            ttk::style configure CaptiansChairPositionLabel \
-                  -font [list Courier -36 bold] -foreground green \
+            ttk::style layout CaptiansChairLabel [ttk::style layout TLabel]
+            ttk::style configure CaptiansChairLabel \
+                  {*}[ttk::style configure TLabel]
+            ttk::style configure CaptiansChairLabel \
+                  -font [list Courier -18 bold] -foreground white \
                   -background black
-            ttk::style layout CaptiansChair.status.position.label [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.position.label \
-                  -font [list Courier -36 bold] -foreground green \
-                  -background black
-            ttk::style layout CaptiansChair.status.position.x [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.position.y \
-                  -font [list Courier -36 bold] -foreground green \
-                  -background black
-            ttk::style layout CaptiansChair.status.position.y [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.position.y \
-                  -font [list Courier -36 bold] -foreground green \
-                  -background black
-            ttk::style layout CaptiansChair.status.position.z [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.position.z \
-                  -font [list Courier -36 bold] -foreground green \
-                  -background black
-            ttk::style layout CaptiansChairVelocityLabel [ttk::style layout TLabel]
-            ttk::style configure CaptiansChairVelocityLabel \
-                  -font [list Courier -36 bold] -foreground yellow \
-                  -background black
-            ttk::style layout CaptiansChair.status.velocity.label [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.velocity.label \
-                  -font [list Courier -36 bold] -foreground yellow \
-                  -background black
-            ttk::style layout CaptiansChair.status.velocity.x [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.velocity.x \
-                  -font [list Courier -36 bold] -foreground yellow \
-                  -background black
-            ttk::style layout CaptiansChair.status.velocity.y [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.velocity.y \
-                  -font [list Courier -36 bold] -foreground yellow \
-                  -background black
-            ttk::style layout CaptiansChair.status.velocity.z [ttk::style layout TLabel]
-            ttk::style configure CaptiansChair.status.velocity.z \
-                  -font [list Courier -36 bold] -foreground yellow \
-                  -background black
+            ttk::style configure CaptiansChairROText \
+                  {*}[ttk::style configure ROText]
+            ttk::style configure CaptiansChairROText \
+                  -background black -foreground white \
+                  -font [list {DejaVu Sans Mono} -10 bold] \
+                  -relief flat -borderwidth 0 \
+                  -selectbackground white -selectforeground black
         }
-        variable _posX
-        variable _posY
-        variable _posZ
-        variable _velX
-        variable _velY
-        variable _velZ
-        variable _epoch
+        component time
+        component position
+        component velocity
+        component sunname
+        component sunprops
+        component planetname
+        component planetprops
+        component orbiting
+        
+        component units
+        method formatEpoch {epoch} {
+            return [format {%10.3g %s} \
+                    [$units FromUnits_time_unit $epoch SECOND] \
+                    [$units TimeLabel]]
+        }
+        method formatPosition {} {
+            return [format {%10.3g %10.3g %10.3g %s} \
+                    {*}[$options(-ship) GetPositionXYZUnits $units] \
+                    [$units LengthLabel]]
+        }
+        method formatVelocity {} {
+            return [format {%10.3g %10.3g %10.3g %s/%s} \
+                    {*}[$options(-ship) GetVelocityXYZUnits $units] \
+                    [$units LengthLabel] SECOND]
+        }
+        proc formatName {what} {
+            return [format {%-30s} [namespace tail $what]]
+        }
+        method formatSunOpts {} {
+            return [format {SM: %7.3f Lum: %7.3f Age: %7.3f} \
+                    $_sunOpts(-mass) $_sunOpts(-luminosity) $_sunOpts(-age)]
+        }
+        variable _sun
+        variable _sunOpts -array {-mass 0 -luminosity 0 -age 0}
+        variable _orbiting
+        variable _planet
+        variable _planetprops -array {}
         constructor {args} {
             if {[lsearch -exact $args -ship] < 0} {
                 error [_ "The -ship option must be specified!"]
             }
             set options(-ship) [from args -ship]
             set options(-style) [from args -style]
-            set head [ttk::label $win.head -textvariable [myvar _epoch] -style CaptiansChairHeading]
-            pack $head -fill x
+            install units using ::orsa::Units %AUTO% DAY KM MEARTH
             set status [ttk::frame $win.status]
             pack $status -side left -fill y
-            set position [ttk::frame $status.position]
-            pack $position -fill x
-            set poslabel [ttk::label $position.label -text Position -style CaptiansChairPositionLabel]
-            grid $poslabel -row 0 -columnspan 3 -column 0 -sticky news
-            set posx [ttk::label $position.x -textvariable [myvar _posX] -style CaptiansChairPositionLabel]
-            grid $posx -row 1 -column 0 -sticky news
-            set posy [ttk::label $position.y -textvariable [myvar _posY] -style CaptiansChairPositionLabel]
-            grid $posy -row 1 -column 1 -sticky news
-            set posz [ttk::label $position.z -textvariable [myvar _posZ] -style CaptiansChairPositionLabel]
-            grid $posz -row 1 -column 2 -sticky news
-            set velocity [ttk::frame $status.velocity]
-            pack $velocity -fill x
-            set poslabel [ttk::label $velocity.label -text Velocity -style CaptiansChairVelocityLabel]
-            grid $poslabel -row 0 -columnspan 3 -column 0 -sticky news
-            set posx [ttk::label $velocity.x -textvariable [myvar _velX] -style CaptiansChairVelocityLabel]
-            grid $posx -row 1 -column 0 -sticky news
-            set posy [ttk::label $velocity.y -textvariable [myvar _velY] -style CaptiansChairVelocityLabel]
-            grid $posy -row 1 -column 1 -sticky news
-            set posz [ttk::label $velocity.z -textvariable [myvar _velZ] -style CaptiansChairVelocityLabel]
-            grid $posz -row 1 -column 2 -sticky news
+            pack [ttk::labelframe $status.timeframe \
+                  -style CaptiansChairLabelFrame -text Time] -fill x
+            install time using ttk::label $status.timeframe.time \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $time -expand yes -fill x
+            pack [ttk::labelframe $status.posframe \
+                  -style CaptiansChairLabelFrame -text Position] -fill x
+            install position using ttk::label $status.posframe.position \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $position -expand yes -fill x
+            pack [ttk::labelframe $status.velframe \
+                  -style CaptiansChairLabelFrame -text Velocity] -fill x
+            install velocity using ttk::label $status.velframe.velocity \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $velocity -expand yes -fill x
+            pack [ttk::labelframe $status.orbitframe \
+                  -style CaptiansChairLabelFrame -text Orbiting] -fill x
+            install orbiting using ttk::label $status.orbitframe.orbiting \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $orbiting -expand yes -fill x
+            pack [ttk::labelframe $status.sunframe \
+                  -style CaptiansChairLabelFrame -text Sun] -fill x
+            install sunname using ttk::label $status.sunframe.sunname \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $sunname -expand yes -fill x
+            install sunprops using ttk::label $status.sunframe.sunprops \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $sunprops -expand yes -fill x
+            pack [ttk::labelframe $status.planetframe \
+                  -style CaptiansChairLabelFrame -text Planet] -fill x
+            install planetname using ttk::label $status.planetframe.planetname \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $planetname -expand yes -fill x
+            install planetprops using ROText $status.planetframe.planetprops \
+                  -style CaptiansChairROText -width 80 
+            pack $planetprops -expand yes -fill both
             pack [ttk::frame $status.filler] -side bottom -expand yes -fill both
             set controls [ttk::frame $win.controls]
             pack $controls  -side right -fill y -expand yes
             $self configurelist $args
         }
         method update {epoch} {
-            set _epoch [format {%20lld} [expr {wide($epoch)}]]
-            set position [$options(-ship) position]
-            set _posX [format {%10.3g} [$position GetX]]
-            set _posY [format {%10.3g} [$position GetY]]
-            set _posZ [format {%10.3g} [$position GetZ]]
-            set velocity [$options(-ship) velocity]
-            set _velX [format {%10.3g} [$velocity GetX]]
-            set _velY [format {%10.3g} [$velocity GetY]]
-            set _velZ [format {%10.3g} [$velocity GetZ]]
+            $time configure -text [$self formatEpoch $epoch]
+            $position configure -text [$self formatPosition]
+            $velocity configure -text [$self formatVelocity]
+        }
+        method setorbiting {orbiting_} {
+            set _orbiting $orbiting_
+            $orbiting configure -text [formatName $_orbiting]
+        }
+        method setsun {sun args} {
+            set _sun $sun
+            array set _sunOpts $args
+            $sunname configure -text [formatName $_sun]
+            $sunprops configure -text [$self formatSunOpts]
+        }
+        method setplanetinfo {args} {
+            #puts stderr "*** $self setplanetinfo $args"
+            set _planet [from args -planet]
+            $planetname configure -text [formatName $_planet]
+            array set _planetprops $args
+            $planetprops delete 1.0 end
+            foreach {a b} [lsort [array names _planetprops]] {
+                $planetprops insert end [format {%18s: %19s|} \
+                                         [string range $a 1 end] \
+                                         $_planetprops($a)]
+                $planetprops insert end [format {%18s: %19s} \
+                                         [string range $b 1 end] \
+                                         $_planetprops($b)]
+                
+                $planetprops insert end "\n"
+            }
         }
     }
     snit::widget NavigationHelm {
@@ -547,6 +586,12 @@ static unsigned char home_bits[] = {
             $self configurelist $args
         }
         method update {epoch} {
+        }
+        method setorbiting {orbiting} {
+        }
+        method setsun {sun args} {
+        }
+        method setplanetinfo {args} {
         }
     }
     snit::widget EngineeringDisplay {
@@ -712,6 +757,25 @@ static unsigned char home_bits[] = {
         }
         method updatesensor {epoch thetype direction origin spread sensorImage} {
             $sensors updatesensor $epoch $thetype $direction $origin $spread $sensorImage
+        }
+        method setorbiting {orbiting} {
+            $sensors setorbiting $orbiting
+            $tactical setorbiting $orbiting
+            $captianschair setorbiting $orbiting
+            $navigationhelm setorbiting $orbiting
+        }
+        method setsun {sun args} {
+            $sensors setsun $sun {*}$args
+            $tactical setsun $sun {*}$args
+            $captianschair setsun $sun {*}$args
+            $navigationhelm setsun $sun {*}$args
+        }
+        method setplanetinfo {args} {
+            #puts stderr "*** $self setplanetinfo $args"
+            $sensors setplanetinfo {*}$args
+            $tactical setplanetinfo {*}$args
+            $captianschair setplanetinfo {*}$args
+            $navigationhelm setplanetinfo {*}$args
         }
     }
 }

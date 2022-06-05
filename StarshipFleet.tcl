@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220604.1532>
+#  Last Modified : <220605.1608>
 #
 #  Description	
 #
@@ -1155,9 +1155,7 @@ namespace eval starships {
             $self setposition [$self cget -start]
             $self setvelocity [$self cget -initvel]
             $self setmass [$self cget -mass]
-            after idle $system add $self
             pack $bridgeconsole -fill both -expand yes
-            #set sun [$system 
         }
         
         method statusreport {} {
@@ -1209,10 +1207,66 @@ namespace eval starships {
             #puts stderr "*** $self _damageCallback $netimpactenergy"
         }
         method _clientCallback {cmd epoch args} {
+            #puts stderr "*** $self _clientCallback $cmd $epoch $args"
             switch $cmd {
                 SENSOR {
                     $bridgeconsole updatesensor $epoch {*}$args
                 }
+                ADD {
+                    $self added $epoch {*}$args
+                }
+                INIT {
+                    $system getsun
+                }
+                SUN {
+                    $self setsun {*}$args
+                }
+                UPDATE {
+                    $self updateorbiting {*}$args
+                }
+                GOLDILOCKS {
+                    $self setgoldilocks {*}$args
+                }
+                PLANET_INFO {
+                    $self setplanetinfo {*}$args
+                }
+                PLANETARY_ORBIT {
+                    #$self setposval {*}$args
+                }
+            }
+        }
+        variable _sun {}
+        method setsun {sun args} {
+            set _sun $sun
+            $bridgeconsole setsun $_sun {*}$args
+            $system add $self
+        }
+        variable _planet {}
+        method setgoldilocks {planet} {
+            set _planet $planet
+            #$bridgeconsole setgoldilocks $_planet
+            $system planetinfo $_planet
+        }
+        method setplanetinfo {args} {
+            #puts stderr "*** $self setplanetinfo $args"
+            $bridgeconsole setplanetinfo {*}$args
+        }
+        variable _id -1
+        variable _remoteid -1
+        variable _orbiting {}
+        method added {epoch id remoteid orbiting} {
+            set _id $id
+            set _remoteid $remoteid
+            $self updateorbiting $orbiting
+        }
+        method updateorbiting {orbiting} {
+            if {$_orbiting eq $orbiting} {return}
+            set _orbiting $orbiting
+            $bridgeconsole setorbiting $_orbiting
+            if {[namespace tail $_orbiting] ne [namespace tail $_sun]} {
+                $system planetinfo $_orbiting
+            } else {
+                $system goldilocks
             }
         }
         
@@ -1458,7 +1512,6 @@ namespace eval starships {
                   -drydocks $drydocks -shuttlebays $shuttlebays
             $self setmass [$self cget -mass]
             pack $stationcommand -fill both -expand yes
-            $system getsun
         }
         method _updateCallback {} {
             $stationcommand update [$self epoch]
@@ -1472,6 +1525,61 @@ namespace eval starships {
                 SENSOR {
                     $stationcommand updatesensor $epoch {*}$args
                 }
+                INIT {
+                    $system getsun
+                }
+                ADD {
+                    $self added $epoch {*}$args
+                }
+                SUN {
+                    $self setsun {*}$args
+                }
+                GOLDILOCKS {
+                    $self setgoldilocks {*}$args
+                }
+                PLANET_INFO {
+                    $self setplanetinfo {*}$args
+                }
+                PLANETARY_ORBIT {
+                    $self setposval {*}$args
+                }
+            }
+        }
+        variable _sun {}
+        method setsun {sun args} {
+            set _sun $sun
+            $stationcommand setsun $_sun {*}$args
+            $system goldilocks
+        }
+        variable _planet {}
+        method setgoldilocks {planet} {
+            set _planet $planet
+            $stationcommand setgoldilocks $_planet
+            $system planetaryorbit $planet [$self getmass] SYNCRONIOUS
+        }
+        method setplanetinfo {args} {
+            $stationcommand setplanetinfo {*}$args
+        }
+        variable _id -1
+        variable _remoteid -1
+        variable _orbiting {}
+        method added {epoch id remoteid orbiting} {
+            set _id $id
+            set _remoteid $remoteid
+            set _orbiting $orbiting
+            $stationcommand setorbiting $_orbiting
+            if {$_orbiting ne $_sun} {
+                $system planetinfo $_orbiting
+            }
+            
+        }
+        method setposval {pos vel} {
+            if {$_id == -1} {
+                $self setpositionXYZ {*}$pos
+                $self setvelocityXYZ {*}$vel
+                $system add $self
+            } else {
+                error "Already in orbit about $_orbiting!"
             }
         }
     }
@@ -1510,12 +1618,12 @@ proc print {v} {
 #exit 0
 
 
-#::starships::Starship destroyer \
-#      test \
-#      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
-#      [::orsa::Vector %AUTO% 0 [expr {50 * [$::orsa::units GetLengthScale KM]}] 0]
+::starships::Starship destroyer \
+      test \
+      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
+      [::orsa::Vector %AUTO% 0 [expr {50 * [$::orsa::units GetLengthScale KM]}] 0]
 
 
-shipyardcommand::ShipyardCommand .shipyardcommand
-pack .shipyardcommand
+#shipyardcommand::ShipyardCommand .shipyardcommand
+#pack .shipyardcommand
 

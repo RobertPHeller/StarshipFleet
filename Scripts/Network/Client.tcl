@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220604.1525>
+#  Last Modified : <220605.1620>
 #
 #  Description	
 #
@@ -74,6 +74,11 @@ namespace eval PlanetarySystemClient {
         method setposition {newpos} {
             $position Set $newpos
         }
+        method setpositionXYZ {X Y Z} {
+            $position SetX $X
+            $position SetY $Y
+            $position SetZ $Z
+        }
         method GetPositionXYZUnits {units} {
             orsa::Units validate $units
             set l_unit [[$self cget -myunits] GetLengthBaseUnit]
@@ -88,6 +93,11 @@ namespace eval PlanetarySystemClient {
         }
         method setvelocity {newvel} {
             $velocity Set $newvel
+        }
+        method setvelocityXYZ {X Y Z} {
+            $velocity SetX $X
+            $velocity SetY $Y
+            $velocity SetZ $Z
         }
         method GetVelocityXYZUnits {units} {
             orsa::Units validate $units
@@ -143,6 +153,7 @@ namespace eval PlanetarySystemClient {
             }
         }
         method updateposvel {pos vel units} {
+            #puts stderr [list *** $self updateposvel $pos $vel $units]
             orsa::Units validate $units
             set l_unit [$units GetLengthBaseUnit]
             $position SetX [[$self cget -myunits] FromUnits_length_unit [lindex $pos 0] $l_unit 1]
@@ -290,22 +301,31 @@ namespace eval PlanetarySystemClient {
         }
         variable myunits {}
         method processOKresponse {status sequence command arglist} {
+            #puts stderr "*** $self processOKresponse $status $sequence $command $arglist"
             switch [string toupper $command] {
                 INIT {
                     set myunits [orsa::Units %AUTO% \
                                  [from arglist -timeunits] \
                                  [from arglist -lengthunits] \
                                  [from arglist -massunits]]
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) INIT \
+                              [from arglist -epoch]
+                    }
                 }
                 ADD {
                     set id [from arglist -id]
                     set remoteid [from arglist -remoteid]
                     set epoch [from arglist -epoch]
+                    set orbiting [from arglist -orbiting]
                     set o [ObjectQueue findbyid $id]
                     set object [$o cget -object]
                     set objects($remoteid) $object
                     set objids($object) $remoteid
                     $object updateepoch $epoch $myunits
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) ADD $epoch $id $remoteid $orbiting
+                    }
                 }
                 UPDATE {
                     set remoteid [from arglist -remoteid]
@@ -314,6 +334,9 @@ namespace eval PlanetarySystemClient {
                     set epoch [from arglist -epoch]
                     $objects($remoteid) updateposvel $newpos $newvel $myunits
                     $objects($remoteid) updateepoch $epoch $myunits
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) UPDATE $epoch [from arglist -orbiting]
+                    }
                 }
                 SENSOR {
                     set epoch [from arglist -epoch]
@@ -339,9 +362,36 @@ namespace eval PlanetarySystemClient {
                         unset objects($remoteid)
                     }
                 }
+                SUN {
+                    set sun [from arglist -sun]
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) SUN [from arglist -epoch] $sun {*}$arglist
+                    }
+                }
+                GOLDILOCKS {
+                    set planet [from arglist -planetname {}]
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) GOLDILOCKS [from arglist -epoch] $planet
+                    }
+                }
+                PLANET_INFO {
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) PLANET_INFO \
+                              [from arglist -epoch] {*}$arglist
+                    }
+                }
+                PLANETARY_ORBIT {
+                    if {$options(-callback) ne {}} {
+                        uplevel #0 $options(-callback) PLANETARY_ORBIT \
+                              [from arglist -epoch] \
+                              [from arglist -position] \
+                              [from arglist -velocity]
+                    }
+                }
             }
         }
         method _sendmessage {command args} {
+            #puts stderr "*** $self _sendmessage $command $args"
             set seq [$type SequenceNumber]
             set cmdlist [linsert $args 0 $command $seq]
             puts $channel $cmdlist
@@ -359,7 +409,26 @@ namespace eval PlanetarySystemClient {
                   -thustvector [$object GetThustvectorXYZUnits $myunits] \
                   -mass [$object GetMassUnits $myunits]
         }
+        method getqueueid {object} {
+            if {[catch {set objids($object)} id]} {
+                return {}
+            } else {
+                return $id
+            }
+        }
         method getsun {} {
+            $self _sendmessage SUN
+        }
+        method goldilocks {} {
+            #puts stderr "*** $self goldilocks"
+            $self _sendmessage GOLDILOCKS
+        }
+        method planetinfo {planet} {
+            $self _sendmessage PLANET_INFO -name $planet
+        }
+        method planetaryorbit {planet mymass {orbitype SYNCRONIOUS}} {
+            $self _sendmessage PLANETARY_ORBIT -name $planet -mass $mymass \
+                  -type $orbitype
         }
         method updatethrustvector {object} {
             if {[catch {set objids($object)} remoteid]} {

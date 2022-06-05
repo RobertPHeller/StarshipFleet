@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <220602.2207>
+#  Last Modified : <220605.1540>
 #
 #  Description	
 #
@@ -243,13 +243,13 @@ namespace eval planetarysystem {
         }
         destructor {
             return
-            set l [info level]
-            while {$l >= 0} {
-                puts stderr "*** $self destroy: $l: [info level $l]"
-                incr l -1
-            }
-            puts stderr "*** $self destroy: body is $body"
-            puts stderr "*** $self destroy: body is a [$body info type]"
+            #set l [info level]
+            #while {$l >= 0} {
+            #    puts stderr "*** $self destroy: $l: [info level $l]"
+            #    incr l -1
+            #}
+            #puts stderr "*** $self destroy: body is $body"
+            #puts stderr "*** $self destroy: body is a [$body info type]"
             catch {$body destroy}
             set body {}
         }
@@ -1030,7 +1030,7 @@ namespace eval planetarysystem {
         }
         method GoldilocksPlanet {} {
             if {[::tcl::mathfunc::rand] < .5} {
-                for p $planetlist {
+                foreach p $planetlist {
                     if {[$p cget -ptype] eq "Terrestrial"} {
                         return $p
                     }
