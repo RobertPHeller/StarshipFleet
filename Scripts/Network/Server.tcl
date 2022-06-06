@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <220605.1624>
+#  Last Modified : <220606.1642>
 #
 #  Description	
 #
@@ -45,7 +45,6 @@ package require log
 package require snit
 package require PlanetarySystem
 package require base64
-package require tclgd
 package require orsa
 
 namespace eval PlanetarySystemServer {
@@ -354,26 +353,75 @@ namespace eval PlanetarySystemServer {
             fileevent $channel readable [mymethod _listener]
             
         }
-        proc infraredSense {direction origin spread} {
-            set resultImage [GD create #auto 512 512]
+        typevariable tempnamegensym 0
+        proc temppovname {} {
+            incr tempnamegensym
+            while {[file exists [file join /tmp TEMPPOV${tempnamegensym}.pov]]} {
+                incr tempnamegensym
+            }
+            return [file join /tmp TEMPPOV${tempnamegensym}.pov]
+        }
+        proc infraredSense {direction origin spread projPlaneCenter size} {
+            set resultImage {dummy}
             return $resultImage
         }
-        proc radioSense {direction origin spread} {
-            set resultImage [GD create #auto 512 512]
+        proc radioSense {direction origin spread projPlaneCenter size} {
+            set resultImage {dummy}
             return $resultImage
         }
-        proc visibleSense {direction origin spread} {
-            set resultImage [GD create_truecolor #auto 512 512]
-            
+        proc povrgb {tkcolor} {
+            if {[scan $tkcolor {#%02x%02x%02x} red green blue] == 3} {
+                return [format "rgb <%f, %f, %f>" \
+                        [expr {$red / 255.0}] \
+                        [expr {$green / 255.0}] \
+                        [expr {$blue / 255.0}]]
+            } else {
+                return $tkcolor
+            }
+        }
+        proc visibleSense {direction origin spread projPlaneCenter size} {
+            set povfile [temppovname]
+            set fp [open $povfile w]
+            puts $fp {#include "colors.inc"}
+            puts $fp {#include "textures.inc"}
+            puts $fp "camera \{"
+            puts $fp [format {  location <%f, %f, %f>} \
+                      [$origin GetX] [$origin GetY] [$origin GetZ]]
+            puts $fp [format {  look_at <%f, %f, %f>} \
+                      [$projPlaneCenter GetX] [$projPlaneCenter GetY] \
+                      [$projPlaneCenter GetZ]]
+            puts $fp "\}"
+            puts $fp "light_source {\n <0,0,0>\n color rgb <1,1,1>\n}"
+            set sun [$system GetSun]
+            puts $fp "sphere {\n <0,0,0>,1000000.0\n texture {\n pigment { color [povrgb [$sun SunColor]] }\n }\n}"
+            for {set ip 1} {$ip <= [$system GetPlanetCount]} {incr ip} {
+                set p [$system GetPlanet $ip]
+                set pp [$p position]
+                puts $fp [format "sphere {\n <%f, %f, %f>,%f\n texture {\n pigment { color [povrgb [$p PlanetColor]] }\n }\n}" \
+                          [$pp GetX] [$pp GetY] [$pp GetZ] [$p cget -radius]]
+            }
+            close $fp
+            set png [regsub {\.pov} $povfile {.png}]    
+            if {[catch [list exec povray Input_File_Name=$povfile Width=800 Height=600 Output_to_File=1 Output_File_Type=N Output_File_Name=$png Display=0 Verbose=0 All_Console=Off < /dev/null 2> /dev/null] message]} {
+                ::log::logError "povray failed: $message"
+                #file delete $povfile
+                #file delete $png
+            } else {
+                #file delete $povfile
+            }
+            return $png
+        }
+        proc lidarSense {direction origin spread projPlaneCenter size} {
+            set resultImage {dummy}
             return $resultImage
         }
-        proc lidarSense {direction origin spread} {
-            set resultImage [GD create #auto 512 512]
+        proc radarSense {direction origin spread projPlaneCenter size} {
+            set resultImage {dummy}
             return $resultImage
         }
-        proc radarSense {direction origin spread} {
-            set resultImage [GD create #auto 512 512]
-            return $resultImage
+        proc projectionPlaneDistance {theta a} {
+            set theta1 [expr {($::orsa::pi / 2.0) - $theta}]
+            return [expr {tan($theta1) * $a}]
         }
         method _listener {} {
             if {[gets $channel line] < 0} {
@@ -389,10 +437,10 @@ namespace eval PlanetarySystemServer {
                         incr _ID
                         set serverid $_ID
                         set clientid [from args -id 0]
-                        set position [Vector create %AUTO% {*}[from args -position [list 0 0 0]]]
-                        set velocity [Vector create %AUTO% {*}[from args -velocity [list 0 0 0]]]
+                        set position [::orsa::Vector create %AUTO% {*}[from args -position [list 0 0 0]]]
+                        set velocity [::orsa::Vector create %AUTO% {*}[from args -velocity [list 0 0 0]]]
                         set mass     [from args -mass 0]
-                        set thustvector [Vector create %AUTO% {*}[from args -thustvector [list 0 0 0]]]
+                        set thustvector [::orsa::Vector create %AUTO% {*}[from args -thustvector [list 0 0 0]]]
                         set orbiting [from args -orbiting [$system GetSun]]
                         set refbody [$orbiting GetBody]
                         $position -= [$refbody position]
@@ -533,36 +581,43 @@ namespace eval PlanetarySystemServer {
                         ### SENSOR SEQ -type {IFRARED RADIO VISIBLE LIDAR RADAR} -direction DirVect -origin OrgVect -spread angle
                         ### Returns SEQ Sensor data (depends on type)
                         set thetype   [from args -type VISIBLE]
-                        set direction [Vector create %AUTO% {*}[from args -direction [list 0 0 0]]]
-                        set origin    [Vector create %AUTO% {*}[from args -origin [list 0 0 0]]]
+                        set direction [::orsa::Vector create %AUTO% {*}[from args -direction [list 0 0 0]]]
+                        set origin    [::orsa::Vector create %AUTO% {*}[from args -origin [list 0 0 0]]]
                         set spread    [from args -spread 0.0]
-                        if {$spread <= 0.0 || $spread >= [expr {$::orsa::pi / 4.0}]} {
+                        if {$spread <= 0.0 || $spread >= ($::orsa::pi / 4.0)} {
                             $self sendResponse 420 $sequence $command \
                                   -message [format \
                                             "Spread out of range (> 0.0 and < PI/4): %g" \
                                             $spread]
                             break
                         }
+                        set projPlaneDist [projectionPlaneDistance $spread 256]
+                        set projPlaneCenter [$direction * $projPlaneDist]
                         switch $thetype {
                             IFRARED {
                                 set senseimage [infraredSense $direction \
-                                                $origin $spread]
+                                                $origin $spread \
+                                                $projPlaneCenter 512]
                             }
                             RADIO {
                                 set senseimage [radioSense $direction \
-                                                $origin $spread]
+                                                $origin $spread \
+                                                $projPlaneCenter 512]
                             }
                             VISIBLE {
                                 set senseimage [visibleSense $direction \
-                                                $origin $spread]
+                                                $origin $spread \
+                                                $projPlaneCenter 512]
                             }
                             LIDAR {
                                 set senseimage [lidarSense $direction $origin \
-                                                $spread]
+                                                $spread \
+                                                $projPlaneCenter 512]
                             }
                             RADAR {
                                 set senseimage [radarSense $direction $origin \
-                                                $spread]
+                                                $spread \
+                                                $projPlaneCenter 512]
                             }
                             default {
                                 $self sendResponse 430 $sequence $command \
@@ -580,10 +635,10 @@ namespace eval PlanetarySystemServer {
                                        [$origin GetY] \
                                        [$origin GetZ]] \
                               -spread $spread \
-                              -data [$senseimage gd_data]
-                        rename $senseimage {}
+                              -imagefile $senseimage
                         $direction destroy
                         $origin destroy
+                        $projPlaneCenter destroy 
                     }
                     SUN {
                         set sun [$system GetSun]

@@ -183,6 +183,5 @@ AC_CONFIG_FILES([Makefile \
                  intl/Makefile \
                  ])
 AC_CONFIG_COMMANDS([default],[chmod +x Docs/tcldoxyfilter.sh])
-AC_CONFIG_SUBDIRS([tcl.gd])
 AC_OUTPUT
 

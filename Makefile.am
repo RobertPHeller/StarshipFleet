@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = BuildData BuildScripts Docs tcl.gd Scripts UserManual po intl
+SUBDIRS = BuildData BuildScripts Docs Scripts UserManual po intl
 
 EXTRA_DIST = StarshipFleet.tcl bootstrap
 
@@ -27,9 +27,6 @@ NetworkScripts = Scripts/Network/pkgIndex.tcl \
 		 Scripts/Network/Server.tcl \
 		 Scripts/Network/Client.tcl
 		 
-GDLibFiles = tcl.gd/pkgIndex.tcl tcl.gd/libtclgd1.2.so
-
-
 StarGenScripts = Scripts/StarGen/accrete.tcl \
                  Scripts/StarGen/const.tcl \
                  Scripts/StarGen/enviro.tcl \
@@ -104,8 +101,6 @@ StarshipFleet${EXEEXT} : StarshipFleet.tcl $(ORSA_PortScripts) \
 	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit \
 		StarshipFleet GUISupport
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
-		StarshipFleet lib/tcl.gd $(GDLibFiles)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/BridgeConsoles $(BridgeConsolesScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarshipFleet lib/ShipyardCommand $(ShipyardCommandScripts)
@@ -141,8 +136,6 @@ StarSystemServer${EXEEXT} : StarSystemServer.tcl $(ORSA_PortScripts) \
 		StarSystemServer lib/PlanetarySystem $(PlanetarySystemScripts)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
 		StarSystemServer lib/Network $(NetworkScripts)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) \
-		StarSystemServer lib/tcl.gd $(GDLibFiles)
 	$(UNZIP) -qq -d StarSystemServer.vfs/lib \
 		$(top_srcdir)/BuildData/pdf4tcl05.zip
 	$(TCLKIT) $(top_srcdir)/BuildScripts/sdx.kit wrap \

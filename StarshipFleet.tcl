@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220605.1608>
+#  Last Modified : <220606.1547>
 #
 #  Description	
 #
@@ -52,7 +52,6 @@ package require PlanetarySystemClient
 package require PlanetarySystem
 package require BridgeConsoles
 package require ShipyardCommand
-package require tclgd
 
 namespace eval starships {
     ##
@@ -1157,7 +1156,27 @@ namespace eval starships {
             $self setmass [$self cget -mass]
             pack $bridgeconsole -fill both -expand yes
         }
-        
+        proc addAngles2Pi {a1 a2} {
+            set result [expr {$a1 + $a2}]
+            if {$result > ($::orsa::pi * 2.0)} {
+                set result [expr {$result - ($::orsa::pi * 2.0)}]
+            } elseif {$result < 0} {
+                set result [expr {$result + ($::orsa::pi * 2.0)}]
+            }
+            return $result
+        }
+        variable senseQueue [list]
+        method getSensorImage {sensetype thetaX thetaY fieldofview} {
+            if {$_id < 0} {
+                lappend senseQueue [list $sensetype $thetaX $thetaY $fieldofview]
+                return
+            }
+            set oZ [addAngles2Pi $zang $thetaY]
+            set oX [addAngles2Pi $xang $thetaX]
+            set oY $yang
+            set direction [list [expr {cos($oX)}] [expr {cos($oY)}] [expr {cos($oZ)}]]
+            $system getsensorimage $self $sensetype $direction $fieldofview
+        }
         method statusreport {} {
             ## Return a status report.
             #
@@ -1210,7 +1229,12 @@ namespace eval starships {
             #puts stderr "*** $self _clientCallback $cmd $epoch $args"
             switch $cmd {
                 SENSOR {
+                    puts "*** $self _clientCallback: llength args is [llength $args], should be 5"
                     $bridgeconsole updatesensor $epoch {*}$args
+                    if {[llength $senseQueue] > 0} {
+                        $self getSensorImage {*}[lindex $senseQueue 0]
+                        set senseQueue [lrange $senseQueue 1 end]
+                    }
                 }
                 ADD {
                     $self added $epoch {*}$args
@@ -1231,7 +1255,7 @@ namespace eval starships {
                     $self setplanetinfo {*}$args
                 }
                 PLANETARY_ORBIT {
-                    #$self setposval {*}$args
+                    $self setposval {*}$args
                 }
             }
         }
@@ -1239,13 +1263,14 @@ namespace eval starships {
         method setsun {sun args} {
             set _sun $sun
             $bridgeconsole setsun $_sun {*}$args
-            $system add $self
+            #$system add $self
+            $system goldilocks
         }
         variable _planet {}
         method setgoldilocks {planet} {
             set _planet $planet
             #$bridgeconsole setgoldilocks $_planet
-            $system planetinfo $_planet
+            $system planetaryorbit $planet [$self mass] SYNCRONIOUS
         }
         method setplanetinfo {args} {
             #puts stderr "*** $self setplanetinfo $args"
@@ -1258,6 +1283,19 @@ namespace eval starships {
             set _id $id
             set _remoteid $remoteid
             $self updateorbiting $orbiting
+            if {[llength $senseQueue] > 0} {
+                $self getSensorImage {*}[lindex $senseQueue 0]
+                set senseQueue [lrange $senseQueue 1 end]
+            }
+        }
+        method setposval {pos vel} {
+            if {$_id == -1} {
+                $self setposition $pos
+                $self setvelocity $vel
+                $system add $self
+            } else {
+                error "Already in orbit about $_orbiting!"
+            }
         }
         method updateorbiting {orbiting} {
             if {$_orbiting eq $orbiting} {return}
@@ -1620,7 +1658,7 @@ proc print {v} {
 
 ::starships::Starship destroyer \
       test \
-      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 5.0}] 0 0] \
+      [::orsa::Vector %AUTO% [expr {[$::orsa::units GetLengthScale AU] * 1.0}] 0 0] \
       [::orsa::Vector %AUTO% 0 [expr {50 * [$::orsa::units GetLengthScale KM]}] 0]
 
 

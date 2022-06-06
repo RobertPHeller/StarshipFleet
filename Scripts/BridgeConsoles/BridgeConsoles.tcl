@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220605.1609>
+#  Last Modified : <220606.1702>
 #
 #  Description	
 #
@@ -62,16 +62,24 @@ namespace eval bridgeconsole {
             }
             set options(-ship) [from args -ship]
             install visible using ::bridgeconsole::VisibleDisplay \
-                  $win.visible
+                  $win.visible -ship $options(-ship)
             pack $visible -side left -expand yes -fill both
             install lidar using ::bridgeconsole::LidarDisplay \
-                  $win.lidar
+                  $win.lidar -ship $options(-ship)
             pack $lidar -side right -expand yes -fill both
             $self configurelist $args
         }
         method update {epoch} {
         }
-        method updatesensor {epoch thetype direction origin spread sensorImage} {
+        method updatesensor {epoch thetype direction origin spread imagefile} {
+            switch $thetype {
+                VISIBLE {
+                    $visible updatesensor $imagefile
+                }
+                LIDAR {
+                    #$lidar updatesensor $imagefile
+                }
+            }
         }
         method setorbiting {orbiting} {
         }
@@ -146,7 +154,8 @@ static unsigned char home_bits[] = {
             $self configurelist $args
         }
     }
-    snit::macro ::bridgeconsole::SensorTools {} {
+    snit::enum SensorType -values {IFRARED RADIO VISIBLE LIDAR RADAR}
+    snit::macro ::bridgeconsole::SensorTools {sensetype} {
         hulltype ttk::labelframe
         component canvas
         component tools
@@ -158,6 +167,10 @@ static unsigned char home_bits[] = {
         variable zoomfactor 1.0
         variable zoomfactor_fmt [format "Zoom: %7.4f" 1.0]
         variable labelfont
+        variable _senseimage {}
+        variable _displayedimage {}
+        option -ship -readonly yes -default {} -type ::starships::Starship
+        option -sensortype -type ::bridgeconsole::SensorType -readonly yes -default $sensetype
         method _addtools {} {
             $tools add ttk::label  currentzoom -textvariable [myvar zoomfactor_fmt]
             $tools add ttk::button zoomin -text "Zoom In" -command [mymethod _zoomin]
@@ -197,7 +210,25 @@ static unsigned char home_bits[] = {
             set zoomfactor [expr {$zoomfactor * $zoom}]
             font configure $labelfont -size [expr {int($zoomfactor * -10)}]
             set zoomfactor_fmt [format "Zoom: %7.4f" $zoomfactor]
+            zoomImage [myvar _senseimage] [myvar _displayedimage] \
+                  $zoomfactor $canvas
         }
+        proc zoomImage {sourcename destname zoom canvas} {
+            upvar $sourcename source
+            upvar $destname dest
+            if {$source eq {}} {return}
+            catch {$canvas delete SenseImage}
+            catch {image delete $dest}
+            set dheight [expr {int(512 * $zoom)}]
+            set dwidth  [expr {int(512 * $zoom)}]
+            set xoff [expr {([image width  $source] - 512)/2}]
+            set yoff [expr {([image height $source] - 512)/2}]
+            set dest [image create photo -height $dheight -width $dwidth]
+            $dest copy $source -from $xoff $yoff -zoom [expr {int($zoom)}]
+            $canvas create image 0 0 -anchor c -image $dest -tag SenseImage
+            $canvas raise _scale SenseImage
+        }
+                      
         method _cameraUp {} {
             set sensoraimThetaX [expr {$sensoraimThetaX + ($::orsa::pi/18.0)}]
             if {$sensoraimThetaX >= (2*$::orsa::pi)} {
@@ -284,8 +315,13 @@ static unsigned char home_bits[] = {
                 $canvas create line -256 0 256 0 -fill white \
                       -tag [list _scale _scale_Y]
             }
+            catch {$canvas raise _scale SenseImage}
         }
         method _init {args} {
+            if {[lsearch -exact $args -ship] < 0} {
+                error [_ "The -ship option must be specified!"]
+            }
+            set options(-ship) [from args -ship]
             set options(-style) [from args -style]
             $hull configure -style $options(-style)
             set scrollw [ScrolledWindow $win.scrollw \
@@ -312,6 +348,21 @@ static unsigned char home_bits[] = {
             $self _getSensorImage
             $self _redrawScale
         }
+        method _getSensorImage {} {
+            puts stderr "*** $self _getSensorImage"
+            puts stderr "*** $self _getSensorImage: $options(-sensortype) $sensoraimThetaX $sensoraimThetaY $fieldofview"
+            $options(-ship) getSensorImage $options(-sensortype) \
+                  $sensoraimThetaX $sensoraimThetaY $fieldofview
+        }
+        method updatesensor {imagefile} {
+            puts stderr "*** $self updatesensor $imagefile"
+            catch {$canvas delete SenseImage}
+            if {$_senseimage ne {}} {image delete $_senseimage}
+            set _senseimage [image create photo -file $imagefile]
+            file delete -force $imagefile
+            zoomImage [myvar _senseimage] [myvar _displayedimage] $zoomfactor $canvas
+            $self _redrawScale
+        }
     }
     snit::widget VisibleDisplay {
         option -style -default VisibleDisplay
@@ -323,16 +374,15 @@ static unsigned char home_bits[] = {
             }
             ttk::style configure VisibleDisplay -relief flat
         }
-        ::bridgeconsole::SensorTools
+        ::bridgeconsole::SensorTools VISIBLE
         constructor {args} {
             $self _init {*}$args
             $hull configure  -text "Visible Light" -labelanchor n
         }
-        method _getSensorImage {} {
-        }
+        
     }
     snit::widget LidarDisplay {
-        ::bridgeconsole::SensorTools
+        ::bridgeconsole::SensorTools LIDAR
         typeconstructor {
             ttk::style layout LidarDisplay {
                 LidarDisplay.border -sticky nswe
@@ -346,8 +396,6 @@ static unsigned char home_bits[] = {
         constructor {args} {
             $self _init {*}$args
             $hull configure  -text "LIDAR" -labelanchor n
-        }
-        method _getSensorImage {} {
         }
     }
     snit::widget CommunicationsPanel {
@@ -755,8 +803,8 @@ static unsigned char home_bits[] = {
             $engineering update $epoch
             $communication update $epoch
         }
-        method updatesensor {epoch thetype direction origin spread sensorImage} {
-            $sensors updatesensor $epoch $thetype $direction $origin $spread $sensorImage
+        method updatesensor {epoch thetype direction origin spread imagefile} {
+            $sensors updatesensor $epoch $thetype $direction $origin $spread $imagefile
         }
         method setorbiting {orbiting} {
             $sensors setorbiting $orbiting

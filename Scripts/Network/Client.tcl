@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220605.1620>
+#  Last Modified : <220606.1545>
 #
 #  Description	
 #
@@ -44,7 +44,6 @@
 package require snit
 package require orsa
 package require base64
-package require tclgd
 
 #puts [package present orsa]
 #puts [namespace children]
@@ -272,6 +271,7 @@ namespace eval PlanetarySystemClient {
             if {[gets $channel line] < 0} {
                 $self destroy
             } else {
+                if {[llength $line] < 3} {return}
                 #puts stderr "*** $self _listener: line = '$line'"
                 set response $line
                 #puts stderr "*** $self _listener: response is $response"
@@ -341,14 +341,16 @@ namespace eval PlanetarySystemClient {
                 SENSOR {
                     set epoch [from arglist -epoch]
                     set thetype [from arglist -type]
-                    set direction [from arglist -direction]
-                    set origin [from arglist -origin]
+                    set direction [::orsa::Vector create %AUTO% {*}[from arglist -direction]]
+                    set origin [::orsa::Vector create %AUTO% {*}[from arglist -origin]]
                     set spread [from arglist -spread]
-                    set data [from arglist -data]
-                    set sensordata GD create_from_gd_data #auto $data
+                    set imagefile [from arglist -imagefile]
+                    puts stderr [list *** $self processOKresponse $epoch $thetype $direction $origin $spread $imagefile]
                     if {$options(-callback) ne {}} {
-                        uplevel #0 $options(-callback) SENSOR $epoch $thetype $direction $origin $spread $sensordata
+                        uplevel #0 $options(-callback) SENSOR $epoch $thetype "$direction" "$origin" $spread $imagefile
                     }
+                    $direction destroy
+                    $origin destroy
                 }
                 IMPACT {
                     set remoteid [from arglist -remoteid]
@@ -381,12 +383,15 @@ namespace eval PlanetarySystemClient {
                     }
                 }
                 PLANETARY_ORBIT {
+                    set pos [::orsa::Vector create %AUTO% {*}[from arglist -position]]
+                    set vel [::orsa::Vector create %AUTO% {*}[from arglist -velocity]]
                     if {$options(-callback) ne {}} {
                         uplevel #0 $options(-callback) PLANETARY_ORBIT \
-                              [from arglist -epoch] \
-                              [from arglist -position] \
-                              [from arglist -velocity]
+                              [from arglist -epoch] $pos $vel
+                        
                     }
+                    $pos destroy
+                    $vel destroy
                 }
             }
         }
@@ -446,8 +451,12 @@ namespace eval PlanetarySystemClient {
                       -mass [$object GetMassUnits $myunits]
             }
         }
-        method getsensorimage {thetype direction origin spread} {
-            $self _sendmessage SENSOR -type $thetype -direction $direction -origin $origin -spread $spread
+        method getsensorimage {object thetype direction spread} {
+            puts stderr [list *** $self getsensorimage $object $thetype $direction $spread]
+            $self _sendmessage SENSOR -type $thetype \
+                  -direction $direction \
+                  -origin [$object GetPositionXYZUnits $myunits] \
+                  -spread $spread
         }
         
     }
