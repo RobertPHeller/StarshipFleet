@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220606.1545>
+#  Last Modified : <220607.1703>
 #
 #  Description	
 #
@@ -345,7 +345,7 @@ namespace eval PlanetarySystemClient {
                     set origin [::orsa::Vector create %AUTO% {*}[from arglist -origin]]
                     set spread [from arglist -spread]
                     set imagefile [from arglist -imagefile]
-                    puts stderr [list *** $self processOKresponse $epoch $thetype $direction $origin $spread $imagefile]
+                    #puts stderr [list *** $self processOKresponse $epoch $thetype $direction $origin $spread $imagefile]
                     if {$options(-callback) ne {}} {
                         uplevel #0 $options(-callback) SENSOR $epoch $thetype "$direction" "$origin" $spread $imagefile
                     }
@@ -452,7 +452,7 @@ namespace eval PlanetarySystemClient {
             }
         }
         method getsensorimage {object thetype direction spread} {
-            puts stderr [list *** $self getsensorimage $object $thetype $direction $spread]
+            #puts stderr [list *** $self getsensorimage $object $thetype $direction $spread]
             $self _sendmessage SENSOR -type $thetype \
                   -direction $direction \
                   -origin [$object GetPositionXYZUnits $myunits] \

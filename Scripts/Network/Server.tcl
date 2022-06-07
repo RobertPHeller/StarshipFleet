@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <220606.1642>
+#  Last Modified : <220607.1724>
 #
 #  Description	
 #
@@ -381,15 +381,31 @@ namespace eval PlanetarySystemServer {
         }
         proc visibleSense {direction origin spread projPlaneCenter size} {
             set povfile [temppovname]
+            set debugfile [regsub {\.pov} $povfile {.tcl}]
+            set dfp [open $debugfile w]
+            puts $dfp {
+                pack [canvas .c -width 128 -height 128 -scrollregion {-64 -64 64 64}]
+                pack [text .t]
+                set Xscale .0010
+                set Yscale .0010
+            }
             set fp [open $povfile w]
             puts $fp {#include "colors.inc"}
             puts $fp {#include "textures.inc"}
             puts $fp "camera \{"
             puts $fp [format {  location <%f, %f, %f>} \
                       [$origin GetX] [$origin GetY] [$origin GetZ]]
+            puts $dfp [format {set XMove %f} [expr {-([$origin GetX] * .001)}]]
+            puts $dfp [format {set YMove %f} [expr {-([$origin GetY] * .001)}]]
+            puts $dfp [format {set Loc {%f %f %f}} \
+                       [$origin GetX] [$origin GetY] [$origin GetZ]]
+            set lookingAt [$origin + $projPlaneCenter]
             puts $fp [format {  look_at <%f, %f, %f>} \
-                      [$projPlaneCenter GetX] [$projPlaneCenter GetY] \
-                      [$projPlaneCenter GetZ]]
+                      [$lookingAt GetX] [$lookingAt GetY] \
+                      [$lookingAt GetZ]]
+            puts $dfp [format {set Look {%f %f %f}} \
+                       [$lookingAt GetX] [$lookingAt GetY] [$lookingAt GetZ]]
+            $lookingAt destroy
             puts $fp "\}"
             puts $fp "light_source {\n <0,0,0>\n color rgb <1,1,1>\n}"
             set sun [$system GetSun]
@@ -399,6 +415,8 @@ namespace eval PlanetarySystemServer {
                 set pp [$p position]
                 puts $fp [format "sphere {\n <%f, %f, %f>,%f\n texture {\n pigment { color [povrgb [$p PlanetColor]] }\n }\n}" \
                           [$pp GetX] [$pp GetY] [$pp GetZ] [$p cget -radius]]
+                puts $dfp [format {set Tar(%d) {%f %f %f}} \
+                           $ip [$pp GetX] [$pp GetY] [$pp GetZ]]
             }
             close $fp
             set png [regsub {\.pov} $povfile {.png}]    
@@ -409,6 +427,57 @@ namespace eval PlanetarySystemServer {
             } else {
                 #file delete $povfile
             }
+            puts $dfp {
+                proc DataPoint {point color} {
+                    global Xscale
+                    global Yscale
+                    global XMove
+                    global YMove
+                    set scaledX [expr {([lindex $point 0] * $Xscale) + $XMove}]
+                    set scaledY [expr {([lindex $point 1] * $Yscale) + $YMove}]
+                    .t insert end "*** DataPoint: $scaledX, $scaledY $color\n"
+                    set x0 [expr {$scaledX - 2}]
+                    set x1 [expr {$scaledX + 2}]
+                    set y0 [expr {$scaledY - 2}]
+                    set y1 [expr {$scaledY + 2}]
+                    .c create oval $x0 $y0 $x1 $y1 -fill $color
+                }
+                
+                proc DataLine {p1 p2 color} {
+                    global Xscale
+                    global Yscale
+                    global XMove
+                    global YMove 
+                    set x0 [expr {([lindex $p1 0] * $Xscale) + $XMove}]
+                    set y0 [expr {([lindex $p1 1] * $Yscale) + $YMove}]
+                    set x1 [expr {([lindex $p2 0] * $Xscale) + $XMove}]
+                    set y1 [expr {([lindex $p2 1] * $Yscale) + $YMove}]
+                    .c create line $x0 $y0 $x1 $y1 -fill $color -arrow last
+                }
+                
+                proc DataLabel {p1 ip} {
+                    global Xscale
+                    global Yscale
+                    global XMove
+                    global YMove
+                    set x0 [expr {([lindex $p1 0] * $Xscale) + $XMove}]
+                    set y0 [expr {([lindex $p1 1] * $Yscale) + $YMove}]
+                    .c create text $x0 $y0 -anchor nw -text $ip
+                }
+                
+                DataPoint $Loc grey
+                DataPoint $Look blue
+                DataLine $Loc $Look orange
+                DataPoint [list 0 0 0] Yellow
+                foreach ip [array names Tar] {
+                    DataPoint $Tar($ip) green
+                    DataLine [list 0 0 0] $Tar($ip) Yellow
+                    DataLabel $Tar($ip) $ip
+                }
+                bind all <KeyPress> exit
+                bind all <1> exit
+            }
+            close $dfp
             return $png
         }
         proc lidarSense {direction origin spread projPlaneCenter size} {

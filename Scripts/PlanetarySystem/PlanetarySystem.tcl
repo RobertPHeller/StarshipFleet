@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <220605.1540>
+#  Last Modified : <220607.1323>
 #
 #  Description	
 #
@@ -460,7 +460,7 @@ namespace eval planetarysystem {
             return [$self cget -parent]
         }
         method SateliteCapture {mass absposition absvelocity} {
-            set tempbody [Body create %AUTO% "" $mass 0 0]
+            set tempbody [Body create %AUTO% "" $mass]
             set temporbit [OrbitWithEpoch create %AUTO%]
             set refbody [$self cget -refbody]
             set planetPosition [$absposition - [$refbody position]]

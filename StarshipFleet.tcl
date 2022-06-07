@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220606.1547>
+#  Last Modified : <220607.1702>
 #
 #  Description	
 #
@@ -526,7 +526,7 @@ namespace eval starships {
             # Math lifted from http://www.intmath.com/vectors/7-vectors-in-3d-space.php
             set alpha $options(-xang)
             set beta  $options(-yang)
-            set gamma $options(-zang)
+            set gmma $options(-zang)
             
             set _dx [expr {cos($alpha)}]
             set _dy [expr {cos($beta)}]
@@ -1080,9 +1080,9 @@ namespace eval starships {
         # complement intended for planetary occupation.
         variable xang [expr {acos(1)}]
         ## The ship's current X orientation.
-        variable yang [expr {acos(0)}]
+        variable yang [expr {acos(1)}]
         ## The ship's current Y orientation.
-        variable zang [expr {acos(0)}]
+        variable zang [expr {acos(1)}]
         ## The ship's current Z orientation.
         
         constructor {args} {
@@ -1167,14 +1167,18 @@ namespace eval starships {
         }
         variable senseQueue [list]
         method getSensorImage {sensetype thetaX thetaY fieldofview} {
+            puts stderr "*** $self getSensorImage $sensetype $thetaX $thetaY $fieldofview"
             if {$_id < 0} {
                 lappend senseQueue [list $sensetype $thetaX $thetaY $fieldofview]
                 return
             }
+            puts stderr "*** $self getSensorImage: xang is $xang, yang is $yang, zang is $zang"
             set oZ [addAngles2Pi $zang $thetaY]
             set oX [addAngles2Pi $xang $thetaX]
             set oY $yang
+            puts stderr "*** $self getSensorImage: oX is $oX, oY is $oY, oZ is $oZ"
             set direction [list [expr {cos($oX)}] [expr {cos($oY)}] [expr {cos($oZ)}]]
+            puts stderr [list *** $self getSensorImage: direction is $direction]
             $system getsensorimage $self $sensetype $direction $fieldofview
         }
         method statusreport {} {
@@ -1229,7 +1233,7 @@ namespace eval starships {
             #puts stderr "*** $self _clientCallback $cmd $epoch $args"
             switch $cmd {
                 SENSOR {
-                    puts "*** $self _clientCallback: llength args is [llength $args], should be 5"
+                    #puts "*** $self _clientCallback: llength args is [llength $args], should be 5"
                     $bridgeconsole updatesensor $epoch {*}$args
                     if {[llength $senseQueue] > 0} {
                         $self getSensorImage {*}[lindex $senseQueue 0]
@@ -1267,10 +1271,17 @@ namespace eval starships {
             $system goldilocks
         }
         variable _planet {}
-        method setgoldilocks {planet} {
+        method setgoldilocks {{planet {}}} {
+            #puts stderr [list *** $self setgoldilocks $planet]
             set _planet $planet
             #$bridgeconsole setgoldilocks $_planet
-            $system planetaryorbit $planet [$self mass] SYNCRONIOUS
+            if {$planet eq {}} {
+                $self setposition $options(-start)
+                $self setvelocity $options(-initvel)
+                $system add $self
+            } else {
+                $system planetaryorbit $planet [$self mass] SYNCRONIOUS
+            }
         }
         method setplanetinfo {args} {
             #puts stderr "*** $self setplanetinfo $args"
@@ -1280,6 +1291,7 @@ namespace eval starships {
         variable _remoteid -1
         variable _orbiting {}
         method added {epoch id remoteid orbiting} {
+            #puts stderr "*** $self added $epoch $id $remoteid $orbiting"
             set _id $id
             set _remoteid $remoteid
             $self updateorbiting $orbiting
@@ -1289,16 +1301,16 @@ namespace eval starships {
             }
         }
         method setposval {pos vel} {
+            #puts stderr "*** $self setposval $pos $vel"
+            $self setposition $pos
+            $self setvelocity $vel
             if {$_id == -1} {
-                $self setposition $pos
-                $self setvelocity $vel
                 $system add $self
-            } else {
-                error "Already in orbit about $_orbiting!"
             }
         }
         method updateorbiting {orbiting} {
-            if {$_orbiting eq $orbiting} {return}
+            #puts stderr "*** $self updateorbiting $orbiting"
+            #puts stderr "*** $self updateorbiting: _orbiting is $_orbiting"
             set _orbiting $orbiting
             $bridgeconsole setorbiting $_orbiting
             if {[namespace tail $_orbiting] ne [namespace tail $_sun]} {

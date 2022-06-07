@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220606.1702>
+#  Last Modified : <220607.1631>
 #
 #  Description	
 #
@@ -232,7 +232,7 @@ static unsigned char home_bits[] = {
         method _cameraUp {} {
             set sensoraimThetaX [expr {$sensoraimThetaX + ($::orsa::pi/18.0)}]
             if {$sensoraimThetaX >= (2*$::orsa::pi)} {
-                set sensoraimThetaX [expr {$sensoraimThetaX - (2*$::orsa::pi)}]
+                set sensoraimThetaY [expr {$sensoraimThetaY - (2*$::orsa::pi)}]
             }
             $self _getSensorImage
             $self _redrawScale
@@ -349,13 +349,13 @@ static unsigned char home_bits[] = {
             $self _redrawScale
         }
         method _getSensorImage {} {
-            puts stderr "*** $self _getSensorImage"
-            puts stderr "*** $self _getSensorImage: $options(-sensortype) $sensoraimThetaX $sensoraimThetaY $fieldofview"
+            #puts stderr "*** $self _getSensorImage"
+            #puts stderr "*** $self _getSensorImage: $options(-sensortype) $sensoraimThetaX $sensoraimThetaY $fieldofview"
             $options(-ship) getSensorImage $options(-sensortype) \
-                  $sensoraimThetaX $sensoraimThetaY $fieldofview
+                  $sensoraimThetaY $sensoraimThetaX $fieldofview
         }
         method updatesensor {imagefile} {
-            puts stderr "*** $self updatesensor $imagefile"
+            #puts stderr "*** $self updatesensor $imagefile"
             catch {$canvas delete SenseImage}
             if {$_senseimage ne {}} {image delete $_senseimage}
             set _senseimage [image create photo -file $imagefile]
@@ -610,6 +610,7 @@ static unsigned char home_bits[] = {
             #puts stderr "*** $self setplanetinfo $args"
             set _planet [from args -planet]
             $planetname configure -text [formatName $_planet]
+            catch {array unset _planetprops}
             array set _planetprops $args
             $planetprops delete 1.0 end
             foreach {a b} [lsort [array names _planetprops]] {
