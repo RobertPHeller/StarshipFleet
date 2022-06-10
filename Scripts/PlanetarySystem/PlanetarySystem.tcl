@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <220607.1323>
+#  Last Modified : <220609.1504>
 #
 #  Description	
 #
@@ -1027,6 +1027,26 @@ namespace eval planetarysystem {
             } else {
                 return [list $MinX $MaxX $MinY $MaxY $MinZ $MaxZ]
             }
+        }
+        method SystemSphereRadius {} {
+            lassign [$self PlanetExtents] MinX MaxX MinY MaxY MinZ MaxZ
+            set radius [expr {abs($MinX)}]
+            if {abs($MaxX) > $radius} {
+                set radius [expr {abs($MaxX)}]
+            }
+            if {abs($MinY) > $radius} {
+                set radius [expr {abs($MinY)}]
+            }
+            if {abs($MaxY) > $radius} {
+                set radius [expr {abs($MaxY)}]
+            }
+            if {abs($MinZ) > $radius} {
+                set radius [expr {abs($MinZ)}]
+            }
+            if {abs($MaxZ) > $radius} {
+                set radius [expr {abs($MaxZ)}]
+            }
+            return $radius
         }
         method GoldilocksPlanet {} {
             if {[::tcl::mathfunc::rand] < .5} {

@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220607.1631>
+#  Last Modified : <220609.1648>
 #
 #  Description	
 #
@@ -88,7 +88,9 @@ namespace eval bridgeconsole {
         method setplanetinfo {args} {
         }
     }
+    snit::enum State -values {normal disabled}
     snit::widget JoyButtons {
+        hulltype ttk::frame
         typevariable _Up {
 #define up_width 8
 #define up_height 4
@@ -133,6 +135,29 @@ static unsigned char home_bits[] = {
         typeconstructor {
             ttk::style configure JoyButton -relief flat -padding 0
             ttk::style layout JoyButton [ttk::style layout Toolbutton]
+        }
+        option -state -default normal -type ::bridgeconsole::State \
+              -configuremethod _setstate
+        method _setstate {option value} {
+            set options($option) $value
+            switch $value {
+                normal {
+                    $up configure -state normal -cursor {}
+                    $down configure -state normal -cursor {}
+                    $left configure -state normal -cursor {}
+                    $right configure -state normal -cursor {}
+                    $home configure -state normal -cursor {}
+                    #$win configure -cursor {}
+                }
+                disabled {
+                    $up configure -state disabled -cursor watch
+                    $down configure -state disabled -cursor watch
+                    $left configure -state disabled -cursor watch
+                    $right configure -state disabled -cursor watch
+                    $home configure -state disabled -cursor watch
+                    #$win configure -cursor clock
+                }
+            }
         }
         constructor {args} {
             install up using ttk::button $win.up -image [image create bitmap -data $_Up] -style JoyButton
@@ -228,11 +253,10 @@ static unsigned char home_bits[] = {
             $canvas create image 0 0 -anchor c -image $dest -tag SenseImage
             $canvas raise _scale SenseImage
         }
-                      
         method _cameraUp {} {
             set sensoraimThetaX [expr {$sensoraimThetaX + ($::orsa::pi/18.0)}]
             if {$sensoraimThetaX >= (2*$::orsa::pi)} {
-                set sensoraimThetaY [expr {$sensoraimThetaY - (2*$::orsa::pi)}]
+                set sensoraimThetaX [expr {$sensoraimThetaX - (2*$::orsa::pi)}]
             }
             $self _getSensorImage
             $self _redrawScale
@@ -349,19 +373,21 @@ static unsigned char home_bits[] = {
             $self _redrawScale
         }
         method _getSensorImage {} {
+            $tools itemconfigure joybuttons -state disabled
             #puts stderr "*** $self _getSensorImage"
             #puts stderr "*** $self _getSensorImage: $options(-sensortype) $sensoraimThetaX $sensoraimThetaY $fieldofview"
             $options(-ship) getSensorImage $options(-sensortype) \
                   $sensoraimThetaY $sensoraimThetaX $fieldofview
         }
         method updatesensor {imagefile} {
-            #puts stderr "*** $self updatesensor $imagefile"
+            puts stderr "*** $self updatesensor $imagefile"
             catch {$canvas delete SenseImage}
             if {$_senseimage ne {}} {image delete $_senseimage}
             set _senseimage [image create photo -file $imagefile]
-            file delete -force $imagefile
+            #file delete -force $imagefile
             zoomImage [myvar _senseimage] [myvar _displayedimage] $zoomfactor $canvas
             $self _redrawScale
+            $tools itemconfigure joybuttons -state normal
         }
     }
     snit::widget VisibleDisplay {

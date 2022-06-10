@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <220607.1724>
+#  Last Modified : <220610.1743>
 #
 #  Description	
 #
@@ -91,6 +91,8 @@ namespace eval PlanetarySystemServer {
         }
     }
     snit::enum OrbitType -values {SYNCRONIOUS LOW MEDIUM HIGH POLAR}
+    snit::double PositiveDouble -min 1.0
+    snit::integer PositiveInteger -min 1
     snit::type Server {
         typecomponent system
         delegate typemethod * to system except {load destroy _generate _print
@@ -369,54 +371,178 @@ namespace eval PlanetarySystemServer {
             set resultImage {dummy}
             return $resultImage
         }
-        proc povrgb {tkcolor} {
+        proc povrgb {tkcolor {mul 1}} {
             if {[scan $tkcolor {#%02x%02x%02x} red green blue] == 3} {
                 return [format "rgb <%f, %f, %f>" \
-                        [expr {$red / 255.0}] \
-                        [expr {$green / 255.0}] \
-                        [expr {$blue / 255.0}]]
+                        [expr {($red / 255.0) * $mul}] \
+                        [expr {($green / 255.0) * $mul}] \
+                        [expr {($blue / 255.0) * $mul}]]
             } else {
                 return $tkcolor
             }
         }
+        proc POVplanetSphere {fp planet} {
+            set position [$planet position]
+            if {[$planet cget -gasgiant]} {
+                puts $fp [format \
+                          {sphere {<%f,%f,%f>,%f
+                          hollow on
+                          pigment { %s }
+                          interior {
+                              media {
+                                  density {
+                                      spherical
+                                      scale .80
+                                  }
+                              }
+                          }
+                      }
+                  } [$position GetX] [$position GetY] [$position GetZ] \
+                        [$planet cget -radius] [povrgb [$planet PlanetColor]]]
+            } else {
+                switch [$planet cget -ptype] {
+                    Rock {
+                        puts $fp [format \
+                                  {sphere {<%f,%f,%f>,%f
+                                  texture {pigment { %s } finish {roughness 1.0}}}
+                          } [$position GetX] [$position GetY] \
+                            [$position GetZ] [$planet cget -radius] \
+                            [povrgb [$planet PlanetColor]]]
+                    }
+                    Venusian {
+                        puts $fp [format \
+                                  {sphere {<%f,%f,%f>,%f
+                                  texture {pigment { %s } finish {roughness .8}}}
+                              sphere {<%f,%f,%f>,%f*1.1 hollow on
+                                  texture {pigment { %s } finish {roughness .005}} interior { media {density { spherical scale .7 }}}}
+                          } [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]] \
+                                [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]]]
+                    }
+                    Terrestrial {
+                        puts $fp [format \
+                                  {sphere {<%f,%f,%f>,%f
+                                  texture {pigment { %s } finish {roughness .8}}}
+                              sphere {<%f,%f,%f>,%f*1.1 hollow on
+                                  texture {pigment { %s } finish {roughness .005}} interior { media {density { spherical scale .3 }}}}
+                          } [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]] \
+                                [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]]]
+                    }
+                    Martian {
+                        puts $fp [format \
+                                  {sphere {<%f,%f,%f>,%f
+                                  texture {pigment { %s } finish {roughness .8}}}
+                              sphere {<%f,%f,%f>,%f*1.05 hollow on
+                                  texture {pigment { %s } finish {roughness .005}} interior {media {density { spherical scale .1 }}}}
+                          } [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]] \
+                                [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]]]
+                    }
+                    Water {
+                        puts $fp [format \
+                                  {sphere {<%f,%f,%f>,%f
+                                  texture {pigment { %s } finish {roughness .5 brilliance 3}}}
+                              sphere {<%f,%f,%f>,%f*1.1 hollow on
+                                  texture {pigment { %s } finish {roughness .005}} interior {media {density { spherical scale .3 }}}}
+                          } [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]] \
+                                [$position GetX] [$position GetY] \
+                                [$position GetZ] [$planet cget -radius] \
+                                [povrgb [$planet PlanetColor]]]
+                    }
+                    Ice {
+                        puts $fp [format \
+                                  {sphere {<%f,%f,%f>,%f
+                                  texture {pigment { %s } finish {roughness .8 brilliance 8}}}
+                          } [$position GetX] [$position GetY] \
+                            [$position GetZ] [$planet cget -radius] \
+                            [povrgb [$planet PlanetColor]]]
+                    }
+                }
+            }
+        }
+        proc degrees {radians} {
+            return [expr {($radians / $::orsa::pi) * 180}]
+        }
         proc visibleSense {direction origin spread projPlaneCenter size} {
             set povfile [temppovname]
             set debugfile [regsub {\.pov} $povfile {.tcl}]
-            set dfp [open $debugfile w]
-            puts $dfp {
-                pack [canvas .c -width 128 -height 128 -scrollregion {-64 -64 64 64}]
-                pack [text .t]
-                set Xscale .0010
-                set Yscale .0010
-            }
+            #set dfp [open $debugfile w]
+            #puts $dfp {
+            #    pack [canvas .c -width 128 -height 128 -scrollregion {-64 -64 64 64}]
+            #    pack [text .t]
+            #    set Xscale .0010
+            #    set Yscale .0010
+            #}
             set fp [open $povfile w]
             puts $fp {#include "colors.inc"}
             puts $fp {#include "textures.inc"}
             puts $fp "camera \{"
             puts $fp [format {  location <%f, %f, %f>} \
                       [$origin GetX] [$origin GetY] [$origin GetZ]]
-            puts $dfp [format {set XMove %f} [expr {-([$origin GetX] * .001)}]]
-            puts $dfp [format {set YMove %f} [expr {-([$origin GetY] * .001)}]]
-            puts $dfp [format {set Loc {%f %f %f}} \
-                       [$origin GetX] [$origin GetY] [$origin GetZ]]
+            #puts $dfp [format {set XMove %f} [expr {-([$origin GetX] * .001)}]]
+            #puts $dfp [format {set YMove %f} [expr {-([$origin GetY] * .001)}]]
+            #puts $dfp [format {set Loc {%f %f %f}} \
+            #           [$origin GetX] [$origin GetY] [$origin GetZ]]
             set lookingAt [$origin + $projPlaneCenter]
             puts $fp [format {  look_at <%f, %f, %f>} \
                       [$lookingAt GetX] [$lookingAt GetY] \
                       [$lookingAt GetZ]]
-            puts $dfp [format {set Look {%f %f %f}} \
-                       [$lookingAt GetX] [$lookingAt GetY] [$lookingAt GetZ]]
+            #puts $dfp [format {set Look {%f %f %f}} \
+            #           [$lookingAt GetX] [$lookingAt GetY] [$lookingAt GetZ]]
             $lookingAt destroy
+            #puts $fp [format {angle %f} [degrees $spread]]
             puts $fp "\}"
-            puts $fp "light_source {\n <0,0,0>\n color rgb <1,1,1>\n}"
             set sun [$system GetSun]
-            puts $fp "sphere {\n <0,0,0>,1000000.0\n texture {\n pigment { color [povrgb [$sun SunColor]] }\n }\n}"
+            puts $fp [format {light_source {
+                      <0,0,0>
+                      color %s 
+                      looks_like { 
+                          sphere {<0,0,0>,1000000.0
+                              pigment {
+                                  color %s
+                              }
+                          }
+                      }
+                  }
+              } [povrgb [$sun SunColor] 10] [povrgb [$sun SunColor]]]
+            puts $fp {sky_sphere{pigment {
+granite
+color_map {
+            [ 0.000  0.270 color rgb < 0, 0, 0> color rgb < 0, 0, 0> ]
+            [ 0.270  0.280 color rgb <.5,.5,.4> color rgb <.8,.8,.4> ]
+            [ 0.280  0.470 color rgb < 0, 0, 0> color rgb < 0, 0, 0> ]
+            [ 0.470  0.480 color rgb <.4,.4,.5> color rgb <.4,.4,.8> ]
+            [ 0.480  0.680 color rgb < 0, 0, 0> color rgb < 0, 0, 0> ]
+            [ 0.680  0.690 color rgb <.5,.4,.4> color rgb <.8,.4,.4> ]
+            [ 0.690  0.880 color rgb < 0, 0, 0> color rgb < 0, 0, 0> ]
+            [ 0.880  0.890 color rgb <.5,.5,.5> color rgb < 1, 1, 1> ]
+            [ 0.890  1.000 color rgb < 0, 0, 0> color rgb < 0, 0, 0> ]
+}
+turbulence 1
+sine_wave
+scale .05
+}}}
+
             for {set ip 1} {$ip <= [$system GetPlanetCount]} {incr ip} {
                 set p [$system GetPlanet $ip]
                 set pp [$p position]
-                puts $fp [format "sphere {\n <%f, %f, %f>,%f\n texture {\n pigment { color [povrgb [$p PlanetColor]] }\n }\n}" \
-                          [$pp GetX] [$pp GetY] [$pp GetZ] [$p cget -radius]]
-                puts $dfp [format {set Tar(%d) {%f %f %f}} \
-                           $ip [$pp GetX] [$pp GetY] [$pp GetZ]]
+                POVplanetSphere $fp $p
+                #puts $fp [format "sphere {\n <%f, %f, %f>,%f\n texture {\n pigment { color [povrgb [$p PlanetColor]] }\n }\n}" \
+                #          [$pp GetX] [$pp GetY] [$pp GetZ] [$p cget -radius]]
+                #puts $dfp [format {set Tar(%d) {%f %f %f}} \
+                #           $ip [$pp GetX] [$pp GetY] [$pp GetZ]]
             }
             close $fp
             set png [regsub {\.pov} $povfile {.png}]    
@@ -427,57 +553,57 @@ namespace eval PlanetarySystemServer {
             } else {
                 #file delete $povfile
             }
-            puts $dfp {
-                proc DataPoint {point color} {
-                    global Xscale
-                    global Yscale
-                    global XMove
-                    global YMove
-                    set scaledX [expr {([lindex $point 0] * $Xscale) + $XMove}]
-                    set scaledY [expr {([lindex $point 1] * $Yscale) + $YMove}]
-                    .t insert end "*** DataPoint: $scaledX, $scaledY $color\n"
-                    set x0 [expr {$scaledX - 2}]
-                    set x1 [expr {$scaledX + 2}]
-                    set y0 [expr {$scaledY - 2}]
-                    set y1 [expr {$scaledY + 2}]
-                    .c create oval $x0 $y0 $x1 $y1 -fill $color
-                }
-                
-                proc DataLine {p1 p2 color} {
-                    global Xscale
-                    global Yscale
-                    global XMove
-                    global YMove 
-                    set x0 [expr {([lindex $p1 0] * $Xscale) + $XMove}]
-                    set y0 [expr {([lindex $p1 1] * $Yscale) + $YMove}]
-                    set x1 [expr {([lindex $p2 0] * $Xscale) + $XMove}]
-                    set y1 [expr {([lindex $p2 1] * $Yscale) + $YMove}]
-                    .c create line $x0 $y0 $x1 $y1 -fill $color -arrow last
-                }
-                
-                proc DataLabel {p1 ip} {
-                    global Xscale
-                    global Yscale
-                    global XMove
-                    global YMove
-                    set x0 [expr {([lindex $p1 0] * $Xscale) + $XMove}]
-                    set y0 [expr {([lindex $p1 1] * $Yscale) + $YMove}]
-                    .c create text $x0 $y0 -anchor nw -text $ip
-                }
-                
-                DataPoint $Loc grey
-                DataPoint $Look blue
-                DataLine $Loc $Look orange
-                DataPoint [list 0 0 0] Yellow
-                foreach ip [array names Tar] {
-                    DataPoint $Tar($ip) green
-                    DataLine [list 0 0 0] $Tar($ip) Yellow
-                    DataLabel $Tar($ip) $ip
-                }
-                bind all <KeyPress> exit
-                bind all <1> exit
-            }
-            close $dfp
+            #puts $dfp {
+            #    proc DataPoint {point color} {
+            #        global Xscale
+            #        global Yscale
+            #        global XMove
+            #        global YMove
+            #        set scaledX [expr {([lindex $point 0] * $Xscale) + $XMove}]
+            #        set scaledY [expr {([lindex $point 1] * $Yscale) + $YMove}]
+            #        .t insert end "*** DataPoint: $scaledX, $scaledY $color\n"
+            #        set x0 [expr {$scaledX - 2}]
+            #        set x1 [expr {$scaledX + 2}]
+            #        set y0 [expr {$scaledY - 2}]
+            #        set y1 [expr {$scaledY + 2}]
+            #        .c create oval $x0 $y0 $x1 $y1 -fill $color
+            #    }
+            #    
+            #    proc DataLine {p1 p2 color} {
+            #        global Xscale
+            #        global Yscale
+            #        global XMove
+            #        global YMove 
+            #        set x0 [expr {([lindex $p1 0] * $Xscale) + $XMove}]
+            #        set y0 [expr {([lindex $p1 1] * $Yscale) + $YMove}]
+            #        set x1 [expr {([lindex $p2 0] * $Xscale) + $XMove}]
+            #        set y1 [expr {([lindex $p2 1] * $Yscale) + $YMove}]
+            #        .c create line $x0 $y0 $x1 $y1 -fill $color -arrow last
+            #    }
+            #    
+            #    proc DataLabel {p1 ip} {
+            #        global Xscale
+            #        global Yscale
+            #        global XMove
+            #        global YMove
+            #        set x0 [expr {([lindex $p1 0] * $Xscale) + $XMove}]
+            #        set y0 [expr {([lindex $p1 1] * $Yscale) + $YMove}]
+            #        .c create text $x0 $y0 -anchor nw -text $ip
+            #    }
+            #    
+            #    DataPoint $Loc grey
+            #    DataPoint $Look blue
+            #    DataLine $Loc $Look orange
+            #    DataPoint [list 0 0 0] Yellow
+            #    foreach ip [array names Tar] {
+            #        DataPoint $Tar($ip) green
+            #        DataLine [list 0 0 0] $Tar($ip) Yellow
+            #        DataLabel $Tar($ip) $ip
+            #    }
+            #    bind all <KeyPress> exit
+            #    bind all <1> exit
+            #}
+            #close $dfp
             return $png
         }
         proc lidarSense {direction origin spread projPlaneCenter size} {
