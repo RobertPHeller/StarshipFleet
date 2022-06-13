@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220609.1648>
+#  Last Modified : <220613.1715>
 #
 #  Description	
 #
@@ -533,6 +533,7 @@ static unsigned char home_bits[] = {
         component time
         component position
         component velocity
+        component orientation
         component sunname
         component sunprops
         component planetname
@@ -554,6 +555,12 @@ static unsigned char home_bits[] = {
             return [format {%10.3g %10.3g %10.3g %s/%s} \
                     {*}[$options(-ship) GetVelocityXYZUnits $units] \
                     [$units LengthLabel] SECOND]
+        }
+        method formatRelativeOrientation {} {
+            return [format {Roll: %5.3f Pitch: %5.3f Yaw: %5.3f} \
+                    [$options(-ship) Roll] \
+                    [$options(-ship) Pitch] \
+                    [$options(-ship) Yaw]]
         }
         proc formatName {what} {
             return [format {%-30s} [namespace tail $what]]
@@ -591,6 +598,11 @@ static unsigned char home_bits[] = {
             install velocity using ttk::label $status.velframe.velocity \
                   -style CaptiansChairLabel -text {} -anchor w
             pack $velocity -expand yes -fill x
+            pack [ttk::labelframe $status.oriframe \
+                  -style CaptiansChairLabelFrame -text "Relative Orientation"] -fill x
+            install orientation using ttk::label $status.oriframe.orientation \
+                  -style CaptiansChairLabel -text {} -anchor w
+            pack $orientation -expand yes -fill x
             pack [ttk::labelframe $status.orbitframe \
                   -style CaptiansChairLabelFrame -text Orbiting] -fill x
             install orbiting using ttk::label $status.orbitframe.orbiting \
@@ -610,7 +622,7 @@ static unsigned char home_bits[] = {
                   -style CaptiansChairLabel -text {} -anchor w
             pack $planetname -expand yes -fill x
             install planetprops using ROText $status.planetframe.planetprops \
-                  -style CaptiansChairROText -width 80 
+                  -width 80 -style CaptiansChairROText 
             pack $planetprops -expand yes -fill both
             pack [ttk::frame $status.filler] -side bottom -expand yes -fill both
             set controls [ttk::frame $win.controls]
@@ -621,6 +633,7 @@ static unsigned char home_bits[] = {
             $time configure -text [$self formatEpoch $epoch]
             $position configure -text [$self formatPosition]
             $velocity configure -text [$self formatVelocity]
+            $orientation configure -text [$self formatRelativeOrientation]
         }
         method setorbiting {orbiting_} {
             set _orbiting $orbiting_
@@ -652,22 +665,280 @@ static unsigned char home_bits[] = {
         }
     }
     snit::widget NavigationHelm {
+        widgetclass NavigationHelm
+        hulltype ttk::frame
         option -ship -readonly yes -default {} -type ::starships::Starship
+        option -style -default NavigationHelm
+        typeconstructor {
+            ttk::style layout NavigationHelmLabelFrame [ttk::style layout TLabelframe]
+            ttk::style layout NavigationHelmLabelFrame.Label [ttk::style layout TLabelframe.Label]
+            ttk::style configure NavigationHelmLabelFrame \
+                  {*}[ttk::style configure TLabelframe]
+            ttk::style configure NavigationHelmLabelFrame  -background black
+            ttk::style configure NavigationHelmLabelFrame.Label \
+                  {*}[ttk::style configure TLabelframe.Label]
+            ttk::style configure NavigationHelmLabelFrame.Label \
+                  -font [list Courier -18 bold] -foreground white \
+                  -background black
+            ttk::style layout NavigationHelmLabel [ttk::style layout TLabel]
+            ttk::style configure NavigationHelmLabel \
+                  {*}[ttk::style configure TLabel]
+            ttk::style configure NavigationHelmLabel \
+                  -font [list Courier -18 bold] -foreground white \
+                  -background black
+            ttk::style layout NavigationHelmThrustorLabel [ttk::style layout TLabel]
+            ttk::style configure NavigationHelmThrustorLabel \
+                  {*}[ttk::style configure TLabel]
+            ttk::style configure NavigationHelmThrustorLabel \
+                  -font [list Courier -18 bold] -foreground white \
+                  -background DarkOliveGreen
+            ttk::style layout NavigationHelmThrustor \
+                  {Vertical.Scale.trough -sticky nswe \
+                  -children {Vertical.Scale.slider -side top -sticky {we}}}
+            ttk::style configure NavigationHelmThrustor \
+                  {*}[ttk::style configure TScale]
+            ttk::style configure NavigationHelmThrustor \
+                  -background green -focuscolor orange \
+                  -troughcolor DarkOliveGreen
+            ttk::style configure NavigationHelmThrustor.trough \
+                  -background DarkOliveGreen
+            ttk::style configure NavigationHelmThrustor.slider \
+                  -background white
+            ttk::style layout NavigationHelmMainEngineLabel [ttk::style layout TLabel]
+                  
+            ttk::style configure NavigationHelmThrustorLabel \
+                  {*}[ttk::style configure TLabel]
+            ttk::style configure NavigationHelmMainEngineLabel \
+                  -font [list Courier -18 bold] -foreground white \
+                  -background DarkRed
+            ttk::style layout NavigationHelmMainEngine \
+                  {Vertical.Scale.trough -sticky nswe \
+                  -children {Vertical.Scale.slider -side top -sticky {we}}}
+            ttk::style configure NavigationHelmMainEngine \
+                  {Vertical.Scale.trough -sticky nswe \
+                  -children {Vertical.Scale.slider -side top -sticky {we}}}
+            ttk::style configure NavigationHelmMainEngine \
+                  -background DarkRed -foreground white \
+                  -troughcolor DarkRed 
+            
+            ttk::style configure NavigationHelmROText \
+                  {*}[ttk::style configure ROText]
+            ttk::style configure NavigationHelmROText \
+                  -background black -foreground white \
+                  -font [list {DejaVu Sans Mono} -10 bold] \
+                  -relief flat -borderwidth 0 \
+                  -selectbackground white -selectforeground black
+            ttk::style configure NavigationHelmLeftPanel \
+                  -background DarkOliveGreen -foreground white
+            ttk::style layout NavigationHelmLeftPanel [ttk::style layout TFrame]
+            ttk::style configure NavigationHelmStick \
+                  -background DarkOrange -foreground white
+            ttk::style layout NavigationHelmStick [ttk::style layout TFrame]
+            ttk::style configure NavigationHelmRightPanel \
+                  -background DarkRed -foreground white
+            ttk::style layout NavigationHelmRightPanel [ttk::style layout TFrame]
+        }
+        component time
+        component position
+        component velocity
+        component orientation
+        component sunname
+        component orbiting
+        
+        component thrustor1
+        component thrustor1thrust
+        component thrustor2
+        component thrustor2thrust
+        component main1
+        component main1thrust
+        component main2
+        component main2thrust
+        component units
+        method formatEpoch {epoch} {
+            return [format {%10.3g %s} \
+                    [$units FromUnits_time_unit $epoch SECOND] \
+                    [$units TimeLabel]]
+        }
+        method formatPosition {} {
+            return [format {%10.3g %10.3g %10.3g %s} \
+                    {*}[$options(-ship) GetPositionXYZUnits $units] \
+                    [$units LengthLabel]]
+        }
+        method formatVelocity {} {
+            return [format {%10.3g %10.3g %10.3g %s/%s} \
+                    {*}[$options(-ship) GetVelocityXYZUnits $units] \
+                    [$units LengthLabel] SECOND]
+        }
+        method formatRelativeOrientation {} {
+            return [format {Roll: %5.3f Pitch: %5.3f Yaw: %5.3f} \
+                    [$options(-ship) Roll] \
+                    [$options(-ship) Pitch] \
+                    [$options(-ship) Yaw]]
+        }
+        proc formatName {what} {
+            return [format {%-30s} [namespace tail $what]]
+        }
+        
         constructor {args} {
             if {[lsearch -exact $args -ship] < 0} {
                 error [_ "The -ship option must be specified!"]
             }
             set options(-ship) [from args -ship]
-            $self configurelist $args
+            set options(-style) [from args -style]
+            install units using ::orsa::Units %AUTO% DAY KM MEARTH
+            set status [ttk::frame $win.status]
+            pack $status -fill x
+            grid columnconfigure $status 0 -weight 1 -uniform status
+            grid columnconfigure $status 1 -weight 1 -uniform status
+            grid [ttk::labelframe $status.timeframe \
+                   -style NavigationHelmLabelFrame -text Time] \
+                  -row 0 -column 0 -sticky news
+            install time using ttk::label $status.timeframe.time \
+                  -style NavigationHelmLabel -text {} -anchor w
+            pack $time -expand yes -fill x
+            grid [ttk::labelframe $status.posframe \
+                   -style NavigationHelmLabelFrame -text Position] \
+                  -row 0 -column 1 -sticky news
+            install position using ttk::label $status.posframe.position \
+                  -style NavigationHelmLabel -text {} -anchor w
+            pack $position -expand yes -fill x
+            grid [ttk::labelframe $status.oriframe \
+                  -style NavigationHelmLabelFrame -text "Relative Orientation"] \
+                  -row 1 -column 0 -sticky news
+            install orientation using ttk::label $status.oriframe.orientation \
+                  -style NavigationHelmLabel -text {} -anchor w
+            pack $orientation -expand yes -fill x
+            grid [ttk::labelframe $status.velframe \
+                   -style NavigationHelmLabelFrame -text Velocity] \
+                  -row 1 -column 1 -sticky news 
+            install velocity using ttk::label $status.velframe.velocity \
+                  -style NavigationHelmLabel -text {} -anchor w
+            pack $velocity -expand yes -fill x
+            grid [ttk::labelframe $status.sunframe \
+                  -style NavigationHelmLabelFrame -text Sun] \
+                  -row 2 -column 0 -sticky news
+            install sunname using ttk::label $status.sunframe.sunname \
+                  -style NavigationHelmLabel -text {} -anchor w
+            pack $sunname -expand yes -fill x
+            grid [ttk::labelframe $status.orbitframe \
+                  -style NavigationHelmLabelFrame -text Orbiting] \
+                  -row 2 -column 1 -sticky news
+            install orbiting using ttk::label $status.orbitframe.orbiting \
+                  -style NavigationHelmLabel -text {} -anchor w
+            pack $orbiting -expand yes -fill x
+            set controls [ttk::frame $win.controls]
+            pack $controls -expand yes -fill both
+            grid columnconfigure $controls 0 -weight 1 -uniform engine
+            grid columnconfigure $controls 1 -weight 5
+            grid columnconfigure $controls 2 -weight 1 -uniform engine
+            grid rowconfigure $controls 0 -weight 20
+            set leftpanel  [ttk::frame $controls.leftpanel \
+                            -style NavigationHelmLeftPanel]
+            grid $leftpanel  -row 0 -column 0 -sticky news
+            grid columnconfigure $leftpanel 0 -weight 1
+            grid columnconfigure $leftpanel 1 -weight 1
+            grid rowconfigure $leftpanel 0 -weight 1 -uniform lab
+            grid rowconfigure $leftpanel 1 -weight 20
+            grid rowconfigure $leftpanel 2 -weight 1 -uniform lab
+            grid [ttk::label $leftpanel.thrustor1Lab \
+                  -style NavigationHelmThrustorLabel -text "Thrustor 1"] \
+                  -row 0 -column 0 -sticky news
+            install thrustor1 using ttk::scale $leftpanel.thrustor1 \
+                  -style NavigationHelmThrustor -orient vertical \
+                  -command [mymethod _thrustor 1] -from 100 -to 0 -value 0
+            grid $thrustor1 -row 1 -column 0 -sticky news
+            install thrustor1thrust using ttk::label $leftpanel.thrustor1hrust \
+                  -style NavigationHelmThrustorLabel -text 0.0 -anchor w
+            grid $thrustor1thrust -row 2 -column 0 -sticky news
+            
+            grid [ttk::label $leftpanel.thrustor2Lab \
+                  -style NavigationHelmThrustorLabel -text "Thrustor 2"] \
+                  -row 0 -column 1 -sticky news
+            install thrustor2 using ttk::scale $leftpanel.thrustor2 \
+                  -style NavigationHelmThrustor -orient vertical \
+                  -command [mymethod _thrustor 2] -from 100 -to 0 -value 0
+            grid $thrustor2 -row 1 -column 1 -sticky news
+            install thrustor2thrust using ttk::label $leftpanel.thrustor2hrust \
+                  -style NavigationHelmThrustorLabel -text 0.0 -anchor w
+            grid $thrustor2thrust -row 2 -column 1 -sticky news
+            
+            set stick      [ttk::frame $controls.stick \
+                            -style NavigationHelmStick]
+            grid $stick      -row 0 -column 1 -sticky news
+            set rightpanel [ttk::frame $controls.rightpanel \
+                            -style NavigationHelmRightPanel]
+            grid $rightpanel -row 0 -column 2 -sticky news
+            
+            grid columnconfigure $rightpanel 0 -weight 1
+            grid columnconfigure $rightpanel 1 -weight 1
+            grid rowconfigure $rightpanel 0 -weight 1 -uniform lab
+            grid rowconfigure $rightpanel 1 -weight 20
+            grid rowconfigure $rightpanel 2 -weight 1 -uniform lab
+            grid [ttk::label $rightpanel.main1Lab \
+                  -style NavigationHelmMainEngineLabel -text "Main 1"] \
+                  -row 0 -column 0 -sticky news
+            install main1 using ttk::scale $rightpanel.main1 \
+                  -style NavigationHelmMainEngine -orient vertical \
+                  -command [mymethod _main 1] -from 100 -to 0 -value 0
+            grid $main1 -row 1 -column 0 -sticky news
+            install main1thrust using ttk::label $rightpanel.main1hrust \
+                  -style NavigationHelmMainEngineLabel -text 0.0 -anchor w
+            grid $main1thrust -row 2 -column 0 -sticky news
+            
+            grid [ttk::label $rightpanel.main2Lab \
+                  -style NavigationHelmMainEngineLabel -text "Main 2"] \
+                  -row 0 -column 1 -sticky news
+            install main2 using ttk::scale $rightpanel.main2 \
+                  -style NavigationHelmMainEngine -orient vertical \
+                  -command [mymethod _main 2] -from 100 -to 0 -value 0
+            grid $main2 -row 1 -column 1 -sticky news
+            install main2thrust using ttk::label $rightpanel.main2hrust \
+                  -style NavigationHelmMainEngineLabel -text 0.0 -anchor w
+            grid $main2thrust -row 2 -column 1 -sticky news
+            
         }
         method update {epoch} {
+            $time configure -text [$self formatEpoch $epoch]
+            $position configure -text [$self formatPosition]
+            $velocity configure -text [$self formatVelocity]
+            $orientation configure -text [$self formatRelativeOrientation]
         }
-        method setorbiting {orbiting} {
+        method setorbiting {orbiting_} {
+            set _orbiting $orbiting_
+            $orbiting configure -text [formatName $_orbiting]
         }
         method setsun {sun args} {
+            set _sun $sun
+            #array set _sunOpts $args
+            $sunname configure -text [formatName $_sun]
+            #$sunprops configure -text [$self formatSunOpts]
         }
         method setplanetinfo {args} {
+            #puts stderr "*** $self setplanetinfo $args"
+            #set _planet [from args -planet]
+            #$planetname configure -text [formatName $_planet]
+            #catch {array unset _planetprops}
+            #array set _planetprops $args
+            #$planetprops delete 1.0 end
+            #foreach {a b} [lsort [array names _planetprops]] {
+            #    $planetprops insert end [format {%18s: %19s|} \
+            #                             [string range $a 1 end] \
+            #                             $_planetprops($a)]
+            #    $planetprops insert end [format {%18s: %19s} \
+            #                             [string range $b 1 end] \
+            #                             $_planetprops($b)]
+            #    
+            #    $planetprops insert end "\n"
+            #}
         }
+        method _thrustor {index value} {
+            [set thrustor${index}thrust] configure -text [format "%7.3f" $value]
+        }
+        method _main {index value} {
+            [set main${index}thrust] configure -text [format "%7.3f" $value]
+        }
+        
+            
     }
     snit::widget EngineeringDisplay {
         option -ship -readonly yes -default {} -type ::starships::Starship

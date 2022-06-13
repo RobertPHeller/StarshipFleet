@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220607.1702>
+#  Last Modified : <220613.1139>
 #
 #  Description	
 #
@@ -1078,12 +1078,25 @@ namespace eval starships {
         # The marine is usually a small group meant to be used as boarding
         # parties and SAR.  A troop carrier would have a much larger 
         # complement intended for planetary occupation.
-        variable xang [expr {acos(1)}]
-        ## The ship's current X orientation.
-        variable yang [expr {acos(1)}]
-        ## The ship's current Y orientation.
-        variable zang [expr {acos(1)}]
-        ## The ship's current Z orientation.
+        variable roll [expr {acos(1)}]
+        ## The ship's current X orientation, relative to direction of flight.
+        method Roll {} {return $roll}
+        variable yaw [expr {acos(1)}]
+        ## The ship's current Y orientation, relative to direction of flight.
+        method Yaw {} {return $yaw}
+        variable pitch [expr {acos(1)}]
+        ## The ship's current Z orientation, relative to direction of flight.
+        method Pitch {} {return $pitch}
+        method DirectionOfFlight {} {
+            set velvector [$self velocity]
+            set vellen    [$velvector Length]
+            set unitvel   [$velvector / $vellen]
+            set xang      [expr {acos([$unitvel GetX])}]
+            set yang      [expr {acos([$unitvel GetY])}]
+            set zang      [expr {acos([$unitvel GetZ])}]
+            $unitvel destroy
+            return [list $xang $yang $zang]
+        }
         
         constructor {args} {
             ## @publicsection The constructor constructs a Starship object.
@@ -1172,10 +1185,12 @@ namespace eval starships {
                 lappend senseQueue [list $sensetype $thetaX $thetaY $fieldofview]
                 return
             }
-            puts stderr "*** $self getSensorImage: xang is $xang, yang is $yang, zang is $zang"
-            set oZ [addAngles2Pi $zang $thetaY]
-            set oX [addAngles2Pi $xang $thetaX]
-            set oY $yang
+            puts stderr "*** $self getSensorImage: roll is $roll, yaw is $yaw, pitch is $pitch"
+            lassign [$self DirectionOfFlight] xdir ydir zdir
+            puts stderr "*** $self getSensorImage: xdir = $xdir, ydir = $ydir, zdir = $zdir"
+            set oZ [addAngles2Pi [addAngles2Pi $pitch $zdir] $thetaY]
+            set oX [addAngles2Pi [addAngles2Pi $roll $xdir ] $thetaX]
+            set oY [addAngles2Pi $yaw $ydir]
             puts stderr "*** $self getSensorImage: oX is $oX, oY is $oY, oZ is $oZ"
             set direction [list [expr {cos($oX)}] [expr {cos($oY)}] [expr {cos($oZ)}]]
             puts stderr [list *** $self getSensorImage: direction is $direction]

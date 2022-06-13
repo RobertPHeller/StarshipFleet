@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <220611.1315>
+#  Last Modified : <220613.0950>
 #
 #  Description	
 #
@@ -520,7 +520,18 @@ turbulence 1
 sine_wave
 scale .05
 }}}
-
+            puts $fp {plane { z, 0
+  texture {
+    checker
+    texture {
+      pigment {color rgb < 1, 1, 1>}
+    }
+    texture {
+      pigment {color rgb < 0, 0, 0>}
+    }
+    scale 1000
+  }
+}}
             for {set ip 1} {$ip <= [$system GetPlanetCount]} {incr ip} {
                 set p [$system GetPlanet $ip]
                 set pp [$p position]

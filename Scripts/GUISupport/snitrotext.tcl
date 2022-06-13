@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 15:07:12 2013
-#  Last Modified : <130714.0906>
+#  Last Modified : <220613.1152>
 #
 #  Description	
 #
@@ -315,8 +315,8 @@ snit::widgetadaptor ROText {
             -insertbackground -selectbackground -insertborderwidth 
             -selectborderwidth -selectforeground -padx -pady} {
             if {![catch {ttk::style lookup $options(-style) $o} ov]} {
-                #if {"$ov" eq ""} {continue}
-                #puts stderr "*** $self _themeUpdated: $o $ov"
+                if {"$ov" eq ""} {continue}
+                puts stderr "*** $self _themeUpdated: $o $ov"
                 catch {$hull configure $o $ov}
             }
         }

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Tue Apr 5 09:53:26 2016
-#  Last Modified : <220609.1504>
+#  Last Modified : <220613.0913>
 #
 #  Description	
 #
@@ -467,7 +467,7 @@ namespace eval planetarysystem {
             set planetVelocity [$absvelocity - [$refbody velocity]]
             foreach moon $moons {
                 set moonBody [$moon cget -refbody]
-                $tempbody SetPositon [$planetPosition - [$moonBody position]]
+                $tempbody SetPosition [$planetPosition - [$moonBody position]]
                 $tempbody SetVelocity [$planetVelocity - [$moonBody velocity]]
                 if {[$temporbit Compute Body $tempbody $moonBody $epoch] eq "escape"} {continue}
                 $tempbody destroy
