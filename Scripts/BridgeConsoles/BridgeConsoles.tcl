@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220613.1715>
+#  Last Modified : <220614.1400>
 #
 #  Description	
 #
@@ -664,10 +664,126 @@ static unsigned char home_bits[] = {
             }
         }
     }
+    snit::widget HelmSlider {
+        widgetclass HelmSlider
+        hulltype ttk::frame
+        option -style -default HelmSlider -configuremethod _setstyle
+        method _setstyle {o v} {
+            set options($o) $v
+            $label configure -style ${v}.Label
+            $value configure -style ${v}.Label
+            $slider configure -style ${v}
+        }
+        component label
+        delegate option -label to label as -text
+        component slider
+        delegate option * to slider except {-class  -cursor -takefocus 
+            -orient -value -command}
+        component value
+        option -valuefmt -default {%7.3f}
+        option -value -type snit::double -default 0.0 \
+              -configuremethod _setvalue -cgetmethod _getvalue
+        method _setvalue {o v} {
+            $slider configure $o $v
+            $value configure -text [format $options(-valuefmt) $v]
+        }
+        method _getvalue {o} {
+            $slider cget $o
+        }
+        option -command -default {}
+        typeconstructor {
+            ttk::style layout HelmSlider.Label [ttk::style layout TLabel]
+            ttk::style configure HelmSlider.Label {*}[ttk::style configure TLabel]
+            ttk::style configure HelmSlider.Label \
+                  -font [list Courier -18 bold] -foreground white \
+                  -background black
+            ttk::style layout HelmSlider \
+                  {Vertical.Scale.trough -sticky nswe \
+                  -children {Vertical.Scale.slider -side top -sticky {we}}}
+            ttk::style configure HelmSlider \
+                  -background DarkGrey -troughcolor black
+            ttk::style map HelmSlider -background {active Grey}
+        }
+        constructor {args} {
+            set options(-style) [from args -style]
+            install label using ttk::label $win.label \
+                  -style $options(-style).Label
+            pack $label -fill x
+            install slider using ttk::scale $win.slider \
+                  -style $options(-style) -orient vertical \
+                  -command [mymethod _command]
+            pack $slider -expand yes -fill both
+            install value using ttk::label $win.value \
+                  -style $options(-style).Label 
+            pack $value -fill x
+            $self configurelist $args
+        }
+        method _command {v} {
+            $value configure -text [format $options(-valuefmt) $v]
+            set ucommand $options(-command)
+            if {$ucommand ne {}} {
+                uplevel #0 $ucommand $v
+            }
+        }
+    }
+    snit::widget HelmVerticalGuage {
+        widgetclass HelmVerticalGuage
+        hulltype ttk::frame
+        option -style -default HelmVerticalGuage -configuremethod _setstyle
+        method _setstyle {o v} {
+            set options($o) $v
+            $label configure -style ${v}.Label
+            $value configure -style ${v}.Label
+            $progress configure -style ${v}
+        }
+        component label
+        delegate option -label to label as -text
+        component progress
+        delegate option * to progress except {-class  -cursor -takefocus \
+                  -orient -mode -phase -value}
+        component value
+        option -valuefmt -default {%7.3f}
+        option -value -type snit::double -default 0.0 \
+              -configuremethod _setvalue -cgetmethod _getvalue
+        method _setvalue {o v} {
+            $progress configure $o $v
+            $value configure -text [format $options(-valuefmt) $v]
+        }
+        method _getvalue {o} {
+            $progress cget $o
+        }
+        typeconstructor {
+            ttk::style layout HelmVerticalGuage.Label [ttk::style layout TLabel]
+            ttk::style configure HelmVerticalGuage.Label {*}[ttk::style configure TLabel]
+            ttk::style configure HelmVerticalGuage.Label \
+                  -font [list Courier -18 bold] -foreground white \
+                  -background black
+            ttk::style layout HelmVerticalGuage \
+                  {Vertical.Progressbar.trough -sticky nswe \
+                  -children {Vertical.Progressbar.pbar -side bottom -sticky we}}
+            ttk::style configure HelmVerticalGuage \
+                  -background DarkGrey -troughcolor black
+        }
+        constructor {args} {
+            set options(-style) [from args -style]
+            install label using ttk::label $win.label \
+                  -style $options(-style).Label
+            pack $label -fill x
+            install progress using ttk::progressbar $win.progress \
+                  -style $options(-style) -orient vertical \
+                  -mode determinate
+            pack $progress -expand yes -fill both
+            install value using ttk::label $win.value \
+                  -style $options(-style).Label
+            pack $value -fill x
+            $self configurelist $args
+        }
+    }
     snit::widget NavigationHelm {
         widgetclass NavigationHelm
         hulltype ttk::frame
         option -ship -readonly yes -default {} -type ::starships::Starship
+        option -engine -readonly yes -default {} -type ::starships::StarshipEngine
         option -style -default NavigationHelm
         typeconstructor {
             ttk::style layout NavigationHelmLabelFrame [ttk::style layout TLabelframe]
@@ -686,40 +802,57 @@ static unsigned char home_bits[] = {
             ttk::style configure NavigationHelmLabel \
                   -font [list Courier -18 bold] -foreground white \
                   -background black
-            ttk::style layout NavigationHelmThrustorLabel [ttk::style layout TLabel]
-            ttk::style configure NavigationHelmThrustorLabel \
-                  {*}[ttk::style configure TLabel]
-            ttk::style configure NavigationHelmThrustorLabel \
-                  -font [list Courier -18 bold] -foreground white \
+            
+            ttk::style layout NavigationHelmThrustor.Label \
+                  [ttk::style layout HelmSlider.Label]
+            ttk::style configure NavigationHelmThrustor.Label \
+                  {*}[ttk::style configure HelmSlider.Label]
+            ttk::style configure NavigationHelmThrustor.Label \
                   -background DarkOliveGreen
             ttk::style layout NavigationHelmThrustor \
-                  {Vertical.Scale.trough -sticky nswe \
-                  -children {Vertical.Scale.slider -side top -sticky {we}}}
+                  [ttk::style layout HelmSlider]
             ttk::style configure NavigationHelmThrustor \
-                  {*}[ttk::style configure TScale]
+                  {*}[ttk::style configure HelmSlider]
             ttk::style configure NavigationHelmThrustor \
-                  -background green -focuscolor orange \
-                  -troughcolor DarkOliveGreen
-            ttk::style configure NavigationHelmThrustor.trough \
+                  -background green -troughcolor DarkOliveGreen
+            ttk::style map NavigationHelmThrustor \
+                  -background {active LightGreen}
+            ttk::style layout NavigationHelmThrustorFuel.Label \
+                  [ttk::style layout HelmVerticalGuage.Label]
+            ttk::style configure NavigationHelmThrustorFuel.Label \
+                  {*}[ttk::style configure HelmVerticalGuage.Label]
+            ttk::style configure NavigationHelmThrustorFuel.Label \
                   -background DarkOliveGreen
-            ttk::style configure NavigationHelmThrustor.slider \
-                  -background white
-            ttk::style layout NavigationHelmMainEngineLabel [ttk::style layout TLabel]
-                  
-            ttk::style configure NavigationHelmThrustorLabel \
-                  {*}[ttk::style configure TLabel]
-            ttk::style configure NavigationHelmMainEngineLabel \
-                  -font [list Courier -18 bold] -foreground white \
+            ttk::style layout NavigationHelmThrustorFuel \
+                  [ttk::style layout HelmVerticalGuage]
+            ttk::style configure NavigationHelmThrustorFuel \
+                  {*}[ttk::style configure HelmVerticalGuage]
+            ttk::style configure NavigationHelmThrustorFuel \
+                  -background green -troughcolor DarkOliveGreen
+            
+            ttk::style layout NavigationHelmMainEngine.Label \
+                  [ttk::style layout HelmSlider.Label]
+            ttk::style configure NavigationHelmMainEngine.Label \
+                  {*}[ttk::style configure HelmSlider.Label]
+            ttk::style configure NavigationHelmMainEngine.Label \
                   -background DarkRed
-            ttk::style layout NavigationHelmMainEngine \
-                  {Vertical.Scale.trough -sticky nswe \
-                  -children {Vertical.Scale.slider -side top -sticky {we}}}
+            ttk::style layout NavigationHelmMainEngine [ttk::style layout HelmSlider]
             ttk::style configure NavigationHelmMainEngine \
-                  {Vertical.Scale.trough -sticky nswe \
-                  -children {Vertical.Scale.slider -side top -sticky {we}}}
-            ttk::style configure NavigationHelmMainEngine \
-                  -background DarkRed -foreground white \
-                  -troughcolor DarkRed 
+                  -background red -troughcolor DarkRed 
+            ttk::style map NavigationHelmMainEngine \
+                  -background {active red2}
+            ttk::style layout NavigationHelmMainEngineFuel.Label \
+                  [ttk::style layout HelmVerticalGuage.Label]
+            ttk::style configure NavigationHelmMainEngineFuel.Label \
+                  {*}[ttk::style configure HelmVerticalGuage.Label]
+            ttk::style configure NavigationHelmMainEngineFuel.Label \
+                  -background DarkRed
+            ttk::style layout NavigationHelmMainEngineFuel \
+                  [ttk::style layout HelmVerticalGuage]
+            ttk::style configure NavigationHelmMainEngineFuel \
+                  {*}[ttk::style configure HelmVerticalGuage]
+            ttk::style configure NavigationHelmMainEngineFuel \
+                  -background red -troughcolor DarkRed
             
             ttk::style configure NavigationHelmROText \
                   {*}[ttk::style configure ROText]
@@ -745,14 +878,10 @@ static unsigned char home_bits[] = {
         component sunname
         component orbiting
         
-        component thrustor1
-        component thrustor1thrust
-        component thrustor2
-        component thrustor2thrust
-        component main1
-        component main1thrust
-        component main2
-        component main2thrust
+        component thrustor
+        component thrustorfuel
+        component main
+        component mainfuel
         component units
         method formatEpoch {epoch} {
             return [format {%10.3g %s} \
@@ -784,6 +913,10 @@ static unsigned char home_bits[] = {
                 error [_ "The -ship option must be specified!"]
             }
             set options(-ship) [from args -ship]
+            if {[lsearch -exact $args -engine] < 0} {
+                error [_ "The -engine option must be specified!"]
+            }
+            set options(-engine) [from args -engine]
             set options(-style) [from args -style]
             install units using ::orsa::Units %AUTO% DAY KM MEARTH
             set status [ttk::frame $win.status]
@@ -835,32 +968,15 @@ static unsigned char home_bits[] = {
             set leftpanel  [ttk::frame $controls.leftpanel \
                             -style NavigationHelmLeftPanel]
             grid $leftpanel  -row 0 -column 0 -sticky news
-            grid columnconfigure $leftpanel 0 -weight 1
-            grid columnconfigure $leftpanel 1 -weight 1
-            grid rowconfigure $leftpanel 0 -weight 1 -uniform lab
-            grid rowconfigure $leftpanel 1 -weight 20
-            grid rowconfigure $leftpanel 2 -weight 1 -uniform lab
-            grid [ttk::label $leftpanel.thrustor1Lab \
-                  -style NavigationHelmThrustorLabel -text "Thrustor 1"] \
-                  -row 0 -column 0 -sticky news
-            install thrustor1 using ttk::scale $leftpanel.thrustor1 \
-                  -style NavigationHelmThrustor -orient vertical \
-                  -command [mymethod _thrustor 1] -from 100 -to 0 -value 0
-            grid $thrustor1 -row 1 -column 0 -sticky news
-            install thrustor1thrust using ttk::label $leftpanel.thrustor1hrust \
-                  -style NavigationHelmThrustorLabel -text 0.0 -anchor w
-            grid $thrustor1thrust -row 2 -column 0 -sticky news
-            
-            grid [ttk::label $leftpanel.thrustor2Lab \
-                  -style NavigationHelmThrustorLabel -text "Thrustor 2"] \
-                  -row 0 -column 1 -sticky news
-            install thrustor2 using ttk::scale $leftpanel.thrustor2 \
-                  -style NavigationHelmThrustor -orient vertical \
-                  -command [mymethod _thrustor 2] -from 100 -to 0 -value 0
-            grid $thrustor2 -row 1 -column 1 -sticky news
-            install thrustor2thrust using ttk::label $leftpanel.thrustor2hrust \
-                  -style NavigationHelmThrustorLabel -text 0.0 -anchor w
-            grid $thrustor2thrust -row 2 -column 1 -sticky news
+            install thrustorfuel using HelmVerticalGuage \
+                  $leftpanel.thrustorfuel \
+                  -style NavigationHelmThrustorFuel -maximum 100 -value 100 \
+                  -label "Thruster Fuel"
+            pack $thrustorfuel -expand yes -fill both -side left
+            install thrustor using HelmSlider $leftpanel.thrustor \
+                  -style NavigationHelmThrustor -from 100 -to 0 -value 0 \
+                  -label "Thrustor" -command [mymethod _thrustor]
+            pack $thrustor -expand yes -fill both -side right
             
             set stick      [ttk::frame $controls.stick \
                             -style NavigationHelmStick]
@@ -869,39 +985,25 @@ static unsigned char home_bits[] = {
                             -style NavigationHelmRightPanel]
             grid $rightpanel -row 0 -column 2 -sticky news
             
-            grid columnconfigure $rightpanel 0 -weight 1
-            grid columnconfigure $rightpanel 1 -weight 1
-            grid rowconfigure $rightpanel 0 -weight 1 -uniform lab
-            grid rowconfigure $rightpanel 1 -weight 20
-            grid rowconfigure $rightpanel 2 -weight 1 -uniform lab
-            grid [ttk::label $rightpanel.main1Lab \
-                  -style NavigationHelmMainEngineLabel -text "Main 1"] \
-                  -row 0 -column 0 -sticky news
-            install main1 using ttk::scale $rightpanel.main1 \
-                  -style NavigationHelmMainEngine -orient vertical \
-                  -command [mymethod _main 1] -from 100 -to 0 -value 0
-            grid $main1 -row 1 -column 0 -sticky news
-            install main1thrust using ttk::label $rightpanel.main1hrust \
-                  -style NavigationHelmMainEngineLabel -text 0.0 -anchor w
-            grid $main1thrust -row 2 -column 0 -sticky news
-            
-            grid [ttk::label $rightpanel.main2Lab \
-                  -style NavigationHelmMainEngineLabel -text "Main 2"] \
-                  -row 0 -column 1 -sticky news
-            install main2 using ttk::scale $rightpanel.main2 \
-                  -style NavigationHelmMainEngine -orient vertical \
-                  -command [mymethod _main 2] -from 100 -to 0 -value 0
-            grid $main2 -row 1 -column 1 -sticky news
-            install main2thrust using ttk::label $rightpanel.main2hrust \
-                  -style NavigationHelmMainEngineLabel -text 0.0 -anchor w
-            grid $main2thrust -row 2 -column 1 -sticky news
-            
+            install mainfuel using HelmVerticalGuage \
+                  $rightpanel.mainfuel \
+                  -style NavigationHelmMainEngineFuel -maximum 100 -value 100 \
+                  -label "Main Fuel"
+            pack $mainfuel -expand yes -fill both -side left
+            install main using HelmSlider $rightpanel.main \
+                  -style NavigationHelmMainEngine -from 100 -to 0 -value 0 \
+                  -label "Main Engine" -command [mymethod _main]
+            pack $main -expand yes -fill both -side right
         }
         method update {epoch} {
             $time configure -text [$self formatEpoch $epoch]
             $position configure -text [$self formatPosition]
             $velocity configure -text [$self formatVelocity]
             $orientation configure -text [$self formatRelativeOrientation]
+            $thrustorfuel configure -value [$options(-engine) ThrustorFuel]
+            $thrustor configure -value [$options(-engine) ThrustorThrustPercent]
+            $mainfuel configure -value [$options(-engine) MainEngineFuel]
+            $main configure -value [$options(-engine) MainEngineThrustPercent]
         }
         method setorbiting {orbiting_} {
             set _orbiting $orbiting_
@@ -931,14 +1033,12 @@ static unsigned char home_bits[] = {
             #    $planetprops insert end "\n"
             #}
         }
-        method _thrustor {index value} {
-            [set thrustor${index}thrust] configure -text [format "%7.3f" $value]
+        method _thrustor {value} {
+            $options(-ship) FireThrusters $value
         }
-        method _main {index value} {
-            [set main${index}thrust] configure -text [format "%7.3f" $value]
+        method _main {value} {
+            $options(-ship) FireMainEngines $value
         }
-        
-            
     }
     snit::widget EngineeringDisplay {
         option -ship -readonly yes -default {} -type ::starships::Starship
@@ -1068,7 +1168,8 @@ static unsigned char home_bits[] = {
                   $tabs.captianschair -ship $options(-ship)
             $tabs add $captianschair -sticky news -text {Captian's Chair}
             install navigationhelm using ::bridgeconsole::NavigationHelm \
-                  $tabs.navigationhelm -ship $options(-ship)
+                  $tabs.navigationhelm -ship $options(-ship) \
+                  -engine $options(-engine)
             $tabs add $navigationhelm -sticky news -text {Navigation and Helm}
             install sensors using ::bridgeconsole::SensorsDisplay \
                   $tabs.sensors -ship $options(-ship)

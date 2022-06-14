@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Mar 24 12:57:13 2016
-#  Last Modified : <220613.1139>
+#  Last Modified : <220614.1400>
 #
 #  Description	
 #
@@ -361,6 +361,26 @@ namespace eval starships {
                 set options(-acceleration) $value
             }
         }
+        variable _thrustorFuel 0
+        method RefuelThrustors {amount} {
+            set _thrustorFuel [expr {$_thrustorFuel + $amount}]
+        }
+        method ThrustorFuel {} {return $_thrustorFuel}
+        variable _thrustorThrust 0
+        method ThrustorThrust {} {return $_thrustorThrust}
+        method ThrustorThrustPercent {} {
+            return [expr {($_thrustorThrust/double([$self cget -maxaccel]))*100000}]
+        }
+        variable _mainEngineFuel 0
+        method MainEngineFuel {} {return $_mainEngineFuel}
+        method RefuelMainEngine {amount} {
+            set _mainEngineFuel [expr {$_mainEngineFuel + $amount}]
+        }
+        variable _mainEngineThrust 0
+        method MainEngineThrust {} {return $_mainEngineThrust}
+        method MainEngineThrustPercent {} {
+            return [expr {($_mainEngineThrust/double([$self cget -maxaccel]))*100}]
+        }
         constructor {args} {
             ## @publicsection Construct a Starship engine, which can provide
             # thrust along the direction of travel.  
@@ -390,6 +410,43 @@ namespace eval starships {
             $self configurelist $args
             if {[lsearch -exact $args -maxaccel] < 0} {
                 $self configure -maxaccel [$self cget -maxdesignaccel]
+            }
+        }
+        method FireThrusters {amount} {
+            set thrust [expr {($amount/100000.0)*[$self cget -maxaccel]}]
+            set fuelneeded [expr {$thrust * .01}]
+            if {$fuelneeded > $_thrustorFuel} {
+                set thrust [expr {$_thrustorFuel / .01}]
+                set fuelneeded [expr {$thrust * .01}]
+            }
+            set _thrustorThrust $thrust
+            return [$self CurrentThrust]
+        }
+        method FireMainEngines {amount} {
+            set thrust [expr {($amount/100.0)*[$self cget -maxaccel]}]
+            set fuelneeded [expr {$thrust * .01}]
+            if {$fuelneeded > $_mainEngineFuel} {
+                set thrust [expr {$_mainEngineFuel / .01}]
+                set fuelneeded [expr {$thrust * .01}]
+            }
+            set _mainEngineThrust $thrust
+            return [$self CurrentThrust]
+        }
+        method CurrentThrust {} {
+            return [expr {$_thrustorThrust + $_mainEngineThrust}]
+        }
+        method update {epoch} {
+            set fuelneeded [expr {$_thrustorThrust * .01}]
+            set _thrustorFuel [expr {$_thrustorFuel - $fuelneeded}]
+            if {$_thrustorFuel <= 0} {
+                set _thrustorFuel 0.0
+                set _thrustorThrust 0.0
+            }
+            set fuelneeded [expr {$_mainEngineThrust * .01}]
+            set _mainEngineFuel [expr {$_mainEngineFuel - $fuelneeded}]
+            if {$_mainEngineFuel <= 0} {
+                set _mainEngineFuel 0.0
+                set _mainEngineThrust 0.0
             }
         }
     }
@@ -1097,6 +1154,12 @@ namespace eval starships {
             $unitvel destroy
             return [list $xang $yang $zang]
         }
+        method FireThrusters {amount} {
+            set thrust [$engine FireThrusters $amount]
+        }
+        method FireMainEngines {amount} {
+            set thrust [$engine FireMainEngines $amount]
+        }
         
         constructor {args} {
             ## @publicsection The constructor constructs a Starship object.
@@ -1167,6 +1230,8 @@ namespace eval starships {
             $self setposition [$self cget -start]
             $self setvelocity [$self cget -initvel]
             $self setmass [$self cget -mass]
+            $engine RefuelThrustors 100
+            $engine RefuelMainEngine 100
             pack $bridgeconsole -fill both -expand yes
         }
         proc addAngles2Pi {a1 a2} {
@@ -1237,6 +1302,17 @@ namespace eval starships {
         method _updateCallback {} {
             #puts stderr "*** $self _updateCallback"
             $bridgeconsole update [$self epoch]
+            $engine update [$self epoch]
+            set thrust [$engine CurrentThrust]
+            lassign [$self DirectionOfFlight] xang yang zang
+            set xthrust [addAngles2Pi $xang $roll]
+            set ythrust [addAngles2Pi $yang $yaw]
+            set zthrust [addAngles2Pi $zang $pitch]
+            $self setthrustvectorXYZ \
+                  [expr {cos($xthrust)*$thrust}] \
+                  [expr {cos($ythrust)*$thrust}] \
+                  [expr {cos($zthrust)*$thrust}]
+            $system updatethrustvector $self
         }
         method _impactCallback {} {
             #puts stderr "*** $self _impactCallback"

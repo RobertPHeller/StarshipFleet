@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:23:23 2016
-#  Last Modified : <220607.1703>
+#  Last Modified : <220614.1142>
 #
 #  Description	
 #
@@ -112,7 +112,17 @@ namespace eval PlanetarySystemClient {
         }
         method setclient {client} {set _myclient $client}
         method setthrustvector {newthrust} {
+            ::orsa::Vector validate $newthrust
             $thrustvector Set $newthrust
+        }
+        method setthrustvectorXYZ {X Y Z} {
+            $thrustvector SetX $X
+            $thrustvector SetY $Y
+            $thrustvector SetZ $Z
+        }
+        method addthrustvector {addedthrust} {
+            ::orsa::Vector validate $addedthrust
+            $thrustvector += $addedthrust
         }
         method GetThustvectorXYZUnits {units} {
             orsa::Units validate $units
