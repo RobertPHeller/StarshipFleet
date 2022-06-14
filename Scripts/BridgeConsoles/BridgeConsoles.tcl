@@ -7,7 +7,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu Oct 4 16:50:05 2018
-#  Last Modified : <220614.1400>
+#  Last Modified : <220614.1552>
 #
 #  Description	
 #
@@ -1003,7 +1003,7 @@ static unsigned char home_bits[] = {
             $thrustorfuel configure -value [$options(-engine) ThrustorFuel]
             $thrustor configure -value [$options(-engine) ThrustorThrustPercent]
             $mainfuel configure -value [$options(-engine) MainEngineFuel]
-            $main configure -value [$options(-engine) MainEngineThrustPercent]
+            $main configure -value [$options(-engine) MainEngineThrustPercen]t
         }
         method setorbiting {orbiting_} {
             set _orbiting $orbiting_
