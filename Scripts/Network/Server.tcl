@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 5 12:22:56 2016
-#  Last Modified : <220613.0950>
+#  Last Modified : <220706.1102>
 #
 #  Description	
 #
@@ -383,10 +383,10 @@ namespace eval PlanetarySystemServer {
         }
         proc POVplanetSphere {fp planet} {
             set position [$planet position]
-            set posx [expr {[$position GetX] / 1000.0}]
-            set posy [expr {[$position GetY] / 1000.0}]
-            set posz [expr {[$position GetZ] / 1000.0}]
-            set rad  [expr {[$planet cget -radius] / 1000.0}]
+            set posx [expr {[$position GetX] / 1000000.0}]
+            set posy [expr {[$position GetY] / 1000000.0}]
+            set posz [expr {[$position GetZ] / 1000000.0}]
+            set rad  [expr {[$planet cget -radius] / 1000000.0}]
             if {[$planet cget -gasgiant]} {
                 puts $fp [format \
                           {sphere {<%f,%f,%f>,%f
@@ -474,16 +474,16 @@ namespace eval PlanetarySystemServer {
             set fp [open $povfile w]
             puts $fp {#include "colors.inc"}
             puts $fp {#include "textures.inc"}
-            set cposx [expr {[$origin GetX] / 1000.0}]
-            set cposy [expr {[$origin GetY] / 1000.0}]
-            set cposz [expr {[$origin GetZ] / 1000.0}]
+            set cposx [expr {[$origin GetX] / 1000000.0}]
+            set cposy [expr {[$origin GetY] / 1000000.0}]
+            set cposz [expr {[$origin GetZ] / 1000000.0}]
             puts $fp "camera \{"
             puts $fp [format {  location <%f, %f, %f>} \
                       $cposx $cposy $cposz]
             set lookingAt [$origin + $projPlaneCenter]
-            set lookingAtX [expr {[$lookingAt GetX] / 1000.0}]
-            set lookingAtY [expr {[$lookingAt GetY] / 1000.0}]
-            set lookingAtZ [expr {[$lookingAt GetZ] / 1000.0}]
+            set lookingAtX [expr {[$lookingAt GetX] / 1000000.0}]
+            set lookingAtY [expr {[$lookingAt GetY] / 1000000.0}]
+            set lookingAtZ [expr {[$lookingAt GetZ] / 1000000.0}]
             $lookingAt destroy
             puts $fp [format {  look_at <%f, %f, %f>} \
                       $lookingAtX $lookingAtY \
@@ -529,7 +529,7 @@ scale .05
     texture {
       pigment {color rgb < 0, 0, 0>}
     }
-    scale 1000
+    scale 1
   }
 }}
             for {set ip 1} {$ip <= [$system GetPlanetCount]} {incr ip} {
@@ -700,7 +700,9 @@ scale .05
                             $self sendResponse 410 $sequence $command \
                                   -message [format "No such object (%d)" $serverid]
                         } else {
-                            $object configure -thustvector $thustvector
+                            set newthrust [::orsa::Vector create %AUTO% {*}$thustvector]
+                            $object configure -thustvector $newthrust
+                            $newthrust destroy
                         }
                     }
                     UPDATE_MASS {
